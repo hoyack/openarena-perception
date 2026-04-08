@@ -90,7 +90,7 @@ Plans:
 - [x] 04-02-PLAN.md — Combat extraction (weapons, aim, movement, engage, threat)
 - [x] 04-03-PLAN.md — Navigation extraction (AAS, navigator, learned map, behaviors)
 - [x] 04-04-PLAN.md — Rewire strategic_brain.py orchestrator to use subsystems
-- [ ] 04-05-PLAN.md — Subsystem unit tests for all 17 requirements
+- [x] 04-05-PLAN.md — Subsystem unit tests for all 17 requirements
 
 ### Phase 5: Tactics and Strategy Extraction
 **Goal**: The FSM state machine and LLM strategic reasoning are extracted from strategic_brain.py, completing its full decomposition into the brain-inspired module structure
