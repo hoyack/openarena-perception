@@ -58,7 +58,7 @@ Plans:
 - [x] 01-02-PLAN.md — Brain-inspired folder structure, pydantic-settings, structlog
 - [x] 01-03-PLAN.md — SituationalAwareness extraction to models.py (frozen+slotted)
 - [x] 01-04-PLAN.md — FSM characterization tests for strategic_brain.py
-- [ ] 01-05-PLAN.md — Duplicate root script resolution and .gitignore
+- [x] 01-05-PLAN.md — Duplicate root script resolution and .gitignore
 
 ### Phase 3: Memory and Persistence
 **Goal**: All bot state persists in SQLite with clean abstractions for working memory, episodic memory, and semantic knowledge -- no more JSON files or pickles on disk
@@ -75,7 +75,7 @@ Plans:
 - [x] 01-01-PLAN.md — uv init, pyproject.toml, ruff/pytest config, test scaffold
 - [x] 01-02-PLAN.md — Brain-inspired folder structure, pydantic-settings, structlog
 - [x] 01-03-PLAN.md — SituationalAwareness extraction to models.py (frozen+slotted)
-- [ ] 01-04-PLAN.md — FSM characterization tests for strategic_brain.py
+- [x] 01-04-PLAN.md — FSM characterization tests for strategic_brain.py
 - [ ] 01-05-PLAN.md — Duplicate root script resolution and .gitignore
 
 ### Phase 4: Reflexes, Combat, and Navigation Extraction
@@ -92,7 +92,7 @@ Plans:
 Plans:
 - [x] 01-01-PLAN.md — uv init, pyproject.toml, ruff/pytest config, test scaffold
 - [x] 01-02-PLAN.md — Brain-inspired folder structure, pydantic-settings, structlog
-- [ ] 01-03-PLAN.md — SituationalAwareness extraction to models.py (frozen+slotted)
+- [x] 01-03-PLAN.md — SituationalAwareness extraction to models.py (frozen+slotted)
 - [ ] 01-04-PLAN.md — FSM characterization tests for strategic_brain.py
 - [ ] 01-05-PLAN.md — Duplicate root script resolution and .gitignore
 
@@ -108,7 +108,7 @@ Plans:
 **Plans**: 5 plans
 Plans:
 - [x] 01-01-PLAN.md — uv init, pyproject.toml, ruff/pytest config, test scaffold
-- [ ] 01-02-PLAN.md — Brain-inspired folder structure, pydantic-settings, structlog
+- [x] 01-02-PLAN.md — Brain-inspired folder structure, pydantic-settings, structlog
 - [ ] 01-03-PLAN.md — SituationalAwareness extraction to models.py (frozen+slotted)
 - [ ] 01-04-PLAN.md — FSM characterization tests for strategic_brain.py
 - [ ] 01-05-PLAN.md — Duplicate root script resolution and .gitignore
@@ -125,7 +125,7 @@ Plans:
   5. Prometheus metrics endpoint exposes FPS gauge, kill counter, LLM latency, and stuck frequency
 **Plans**: 5 plans
 Plans:
-- [ ] 01-01-PLAN.md — uv init, pyproject.toml, ruff/pytest config, test scaffold
+- [x] 01-01-PLAN.md — uv init, pyproject.toml, ruff/pytest config, test scaffold
 - [ ] 01-02-PLAN.md — Brain-inspired folder structure, pydantic-settings, structlog
 - [ ] 01-03-PLAN.md — SituationalAwareness extraction to models.py (frozen+slotted)
 - [ ] 01-04-PLAN.md — FSM characterization tests for strategic_brain.py
