@@ -1,0 +1,20 @@
+# OpenArena Perception -- default configuration
+# Override with .env or OA_* environment variables
+
+[bot]
+screen_w = 800
+screen_h = 600
+pipe_path = "/tmp/openarena_pipe"
+rcon_port = 27960
+enemy_color_mode = "red"
+ocr_upscale = 3
+enemy_min_area = 200
+ollama_model = "gemma3:4b"
+ollama_base_url = "http://localhost:11434"
+llm_enabled = true
+map_name = "dm4ish"
+aas_dir = "maps"
+tick_budget_ms = 50
+target_fps = 15
+log_json = true
+log_level = "INFO"
