@@ -440,22 +440,16 @@ __all__ = [
 | A3 | Tesseract releases GIL during C computation | Tick Budget Analysis (optimization note) | Medium -- if it doesn't, threading won't help. Not blocking since rate-limited approach works. |
 | A4 | SituationalAwareness dataclass construction takes <1ms | Tick Budget Analysis | Very low -- frozen dataclass with simple fields |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Should `GameState` be deprecated or kept?**
-   - What we know: `GameState` is a mutable dataclass in `game_state.py` used by `loop.py`. `SituationalAwareness` in `models.py` is the frozen replacement.
-   - What's unclear: Whether any external code (scripts, tools) depends on `GameState`.
-   - Recommendation: Keep `GameState` as internal to `loop.py` for now. The new `PerceptionPipeline` produces `SituationalAwareness`. Deprecate `GameState` in a later phase.
+1. **RESOLVED: Should `GameState` be deprecated or kept?**
+   - Decision: Keep `GameState` as internal to `loop.py` for now. The new `PerceptionPipeline` produces `SituationalAwareness`. Deprecate `GameState` in a later phase.
 
-2. **Should `player_detector.py` be included in the pipeline?**
-   - What we know: It overlaps with `world_parser.py` (HSV enemy detection) and `motion_detector.py` (motion-based detection). It uses a pickle-loaded color histogram model.
-   - What's unclear: Whether the three-stage pipeline adds value over HSV + tracking.
-   - Recommendation: Include it in the `perception/` directory but make it optional in the pipeline (disabled by default). The HSV + tracker combination already covers enemy detection.
+2. **RESOLVED: Should `player_detector.py` be included in the pipeline?**
+   - Decision: Include it in the `perception/` directory but make it optional in the pipeline (disabled by default). The HSV + tracker combination already covers enemy detection.
 
-3. **Where does `motion_anomaly.py`'s LLM identification run?**
-   - What we know: `identify_anomaly()` is a blocking 750ms-4s HTTP call to Ollama. It cannot run in the perception tick.
-   - What's unclear: Who triggers identification -- perception layer or strategy layer?
-   - Recommendation: Move the file into `perception/` but the `identify_anomaly()` method should be called from the strategy layer (Phase 5), not from the perception pipeline. The pipeline only updates tracking state.
+3. **RESOLVED: Where does `motion_anomaly.py`'s LLM identification run?**
+   - Decision: Move the file into `perception/` but the `identify_anomaly()` method should be called from the strategy layer (Phase 5), not from the perception pipeline. The pipeline only updates tracking state.
 
 ## Security Domain
 
