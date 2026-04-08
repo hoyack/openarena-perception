@@ -9,10 +9,10 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Foundation
 
-- [ ] **FOUND-01**: Project uses brain-inspired folder structure (perception/, combat/, navigation/, memory/, tactics/, strategy/, reflexes/, brainstem/, skills/, api/)
+- [x] **FOUND-01**: Project uses brain-inspired folder structure (perception/, combat/, navigation/, memory/, tactics/, strategy/, reflexes/, brainstem/, skills/, api/)
 - [ ] **FOUND-02**: All duplicate root-level scripts resolved — single source of truth in package
-- [ ] **FOUND-03**: Configuration managed via pydantic-settings with env var / .env / TOML support
-- [ ] **FOUND-04**: Structured logging via structlog with JSON output and context binding
+- [x] **FOUND-03**: Configuration managed via pydantic-settings with env var / .env / TOML support
+- [x] **FOUND-04**: Structured logging via structlog with JSON output and context binding
 - [x] **FOUND-05**: Package management via uv with lockfile
 - [x] **FOUND-06**: Code quality enforced via ruff linter/formatter
 - [ ] **FOUND-07**: Characterization tests for strategic_brain.py capturing all state transitions before decomposition
@@ -162,10 +162,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| FOUND-01 | Phase 1 | Pending |
+| FOUND-01 | Phase 1 | Complete |
 | FOUND-02 | Phase 1 | Pending |
-| FOUND-03 | Phase 1 | Pending |
-| FOUND-04 | Phase 1 | Pending |
+| FOUND-03 | Phase 1 | Complete |
+| FOUND-04 | Phase 1 | Complete |
 | FOUND-05 | Phase 1 | Complete |
 | FOUND-06 | Phase 1 | Complete |
 | FOUND-07 | Phase 1 | Pending |
