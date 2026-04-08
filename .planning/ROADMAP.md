@@ -39,7 +39,7 @@ Plans:
 - [x] 01-01-PLAN.md — uv init, pyproject.toml, ruff/pytest config, test scaffold
 - [x] 01-02-PLAN.md — Brain-inspired folder structure, pydantic-settings, structlog
 - [x] 01-03-PLAN.md — SituationalAwareness extraction to models.py (frozen+slotted)
-- [ ] 01-04-PLAN.md — FSM characterization tests for strategic_brain.py
+- [x] 01-04-PLAN.md — FSM characterization tests for strategic_brain.py
 - [ ] 01-05-PLAN.md — Duplicate root script resolution and .gitignore
 
 ### Phase 2: Perception Extraction
@@ -56,7 +56,7 @@ Plans:
 Plans:
 - [x] 01-01-PLAN.md — uv init, pyproject.toml, ruff/pytest config, test scaffold
 - [x] 01-02-PLAN.md — Brain-inspired folder structure, pydantic-settings, structlog
-- [ ] 01-03-PLAN.md — SituationalAwareness extraction to models.py (frozen+slotted)
+- [x] 01-03-PLAN.md — SituationalAwareness extraction to models.py (frozen+slotted)
 - [ ] 01-04-PLAN.md — FSM characterization tests for strategic_brain.py
 - [ ] 01-05-PLAN.md — Duplicate root script resolution and .gitignore
 
@@ -73,7 +73,7 @@ Plans:
 **Plans**: 5 plans
 Plans:
 - [x] 01-01-PLAN.md — uv init, pyproject.toml, ruff/pytest config, test scaffold
-- [ ] 01-02-PLAN.md — Brain-inspired folder structure, pydantic-settings, structlog
+- [x] 01-02-PLAN.md — Brain-inspired folder structure, pydantic-settings, structlog
 - [ ] 01-03-PLAN.md — SituationalAwareness extraction to models.py (frozen+slotted)
 - [ ] 01-04-PLAN.md — FSM characterization tests for strategic_brain.py
 - [ ] 01-05-PLAN.md — Duplicate root script resolution and .gitignore
@@ -90,7 +90,7 @@ Plans:
   5. No circular imports exist between reflexes/, combat/, and navigation/ -- import direction is strictly downward (toward perception and memory)
 **Plans**: 5 plans
 Plans:
-- [ ] 01-01-PLAN.md — uv init, pyproject.toml, ruff/pytest config, test scaffold
+- [x] 01-01-PLAN.md — uv init, pyproject.toml, ruff/pytest config, test scaffold
 - [ ] 01-02-PLAN.md — Brain-inspired folder structure, pydantic-settings, structlog
 - [ ] 01-03-PLAN.md — SituationalAwareness extraction to models.py (frozen+slotted)
 - [ ] 01-04-PLAN.md — FSM characterization tests for strategic_brain.py
