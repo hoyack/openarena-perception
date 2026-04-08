@@ -1,0 +1,198 @@
+"""TacticalFSM -- State machine orchestrator for the bot cognitive architecture.
+
+Extracted from strategic_brain.py in Phase 5. Manages all FSM state transitions,
+enter/exit hooks, and tick dispatch to subsystem handlers.
+
+The FSM evaluates transitions via SubsumptionArbiter (reflexes layer),
+then dispatches behavior execution to the appropriate subsystem module.
+"""
+
+from __future__ import annotations
+
+import logging
+import time
+from typing import TYPE_CHECKING, Any
+
+from openarena_perception.models import BrainState
+
+if TYPE_CHECKING:
+    from openarena_perception.combat import CombatEngager
+    from openarena_perception.models import SituationalAwareness
+    from openarena_perception.motion_anomaly import MotionAnomalyTracker
+    from openarena_perception.navigation import NavBehavior, SurveyBehavior
+    from openarena_perception.object_tracker import ObjectTracker
+    from openarena_perception.reflexes import DeathHandler, StuckEscape, SubsumptionArbiter
+    from openarena_perception.virtual_controller import VirtualController
+
+log = logging.getLogger(__name__)
+
+
+class TacticalFSM:
+    """State machine orchestrator. Evaluates transitions and dispatches behavior.
+
+    Owns the FSM state (_state, _state_enter_time, _prev_state) and delegates
+    transition evaluation to SubsumptionArbiter. Enter/exit hooks trigger
+    side-effects on subsystem modules. Dispatch routes each tick to the
+    appropriate handler.
+    """
+
+    def __init__(
+        self,
+        arbiter: SubsumptionArbiter,
+        death_handler: DeathHandler,
+        stuck_escape: StuckEscape,
+        engager: CombatEngager,
+        nav_behavior: NavBehavior,
+        survey_behavior: SurveyBehavior | None = None,
+        ctrl: VirtualController | None = None,
+        anomaly_tracker: MotionAnomalyTracker | None = None,
+        obj_tracker: ObjectTracker | None = None,
+    ) -> None:
+        self._arbiter = arbiter
+        self._death_handler = death_handler
+        self._stuck_escape = stuck_escape
+        self._engager = engager
+        self._nav_behavior = nav_behavior
+        self._survey_behavior = survey_behavior
+        self._ctrl = ctrl
+        self._anomaly_tracker = anomaly_tracker
+        self._obj_tracker = obj_tracker
+
+        # FSM state
+        self._state: BrainState = BrainState.EXPLORING
+        self._state_enter_time: float = time.time()
+        self._prev_state: BrainState = BrainState.EXPLORING
+
+    # -- Properties ----------------------------------------------------------
+
+    @property
+    def state(self) -> BrainState:
+        """Current FSM state."""
+        return self._state
+
+    @property
+    def state_enter_time(self) -> float:
+        """Timestamp when the current state was entered."""
+        return self._state_enter_time
+
+    # -- FSM Methods ---------------------------------------------------------
+
+    def evaluate_transitions(
+        self, sa: SituationalAwareness, **context: Any
+    ) -> BrainState:
+        """Priority-ordered transition evaluation via SubsumptionArbiter."""
+        state_time = time.time() - self._state_enter_time
+        return self._arbiter.evaluate(
+            sa, self._state, state_time, **context
+        )
+
+    def on_enter_state(
+        self, state: BrainState, sa: SituationalAwareness
+    ) -> None:
+        """Delegate state entry side-effects to subsystem modules."""
+        if state == BrainState.DEAD:
+            self._death_handler.on_enter(sa, self._anomaly_tracker, self._obj_tracker)
+
+        elif state == BrainState.COMBAT:
+            self._engager.on_enter(sa)
+
+        elif state == BrainState.STUCK:
+            nav_target = self._nav_behavior.nav_target
+            new_target = self._stuck_escape.on_enter(sa, nav_target)
+            if new_target is None and nav_target is not None:
+                self._nav_behavior.nav_target = None  # target was blacklisted
+
+        elif state == BrainState.EXPLORING:
+            self._nav_behavior.on_enter_exploring()
+            self._stuck_escape.reset_stuck_count()
+
+        elif state == BrainState.NAVIGATING:
+            self._nav_behavior.on_enter_navigating()
+            self._stuck_escape.reset_stuck_count()
+
+    def on_exit_state(
+        self, state: BrainState, sa: SituationalAwareness
+    ) -> None:
+        """Delegate state exit side-effects to subsystem modules."""
+        # Always release look actions to prevent stuck lookdown
+        self._death_handler.on_exit(sa)
+
+        if state == BrainState.COMBAT:
+            self._engager.on_exit(sa)
+
+        elif state == BrainState.SURVEYING:
+            if self._ctrl is not None:
+                self._ctrl.center_view()
+
+    async def dispatch(
+        self,
+        state: BrainState,
+        sa: SituationalAwareness,
+        gs: Any,
+        tick_count: int = 0,
+    ) -> float | None:
+        """Dispatch tick to the appropriate subsystem handler.
+
+        Args:
+            state: Current FSM state.
+            sa: Situational awareness snapshot.
+            gs: Game state object.
+            tick_count: Current tick counter (for nav behavior).
+
+        Returns:
+            Survey cooldown value if in SURVEYING state, else None.
+        """
+        if state == BrainState.DEAD:
+            await self._death_handler.tick(sa, gs)
+        elif state == BrainState.COMBAT:
+            await self._engager.tick(sa, gs)
+        elif state == BrainState.STUCK:
+            await self._stuck_escape.tick(sa, gs)
+        elif state == BrainState.SURVEYING:
+            if self._survey_behavior:
+                state_time = time.time() - self._state_enter_time
+                cooldown = await self._survey_behavior.tick(sa, gs, state_time)
+                if cooldown is not None:
+                    return cooldown
+        elif state == BrainState.NAVIGATING:
+            await self._nav_behavior.tick_navigating(sa, gs, tick_count)
+        elif state == BrainState.EXPLORING:
+            await self._nav_behavior.tick_exploring(sa, gs, tick_count)
+        elif state == BrainState.TRAVERSING_DOOR:
+            await self._nav_behavior.tick_door(sa, gs)
+        elif state == BrainState.PICKING_UP_ITEM:
+            await self._nav_behavior.tick_pickup(sa, gs, self._anomaly_tracker)
+        return None
+
+    async def tick(
+        self,
+        sa: SituationalAwareness,
+        gs: Any,
+        tick_count: int = 0,
+        **context: Any,
+    ) -> float | None:
+        """High-level FSM tick: evaluate transitions, handle state change, dispatch.
+
+        Args:
+            sa: Situational awareness snapshot.
+            gs: Game state object.
+            tick_count: Current tick counter (for nav behavior).
+            **context: Additional context for transition evaluation.
+
+        Returns:
+            Survey cooldown value if applicable, else None.
+        """
+        new_state = self.evaluate_transitions(sa, **context)
+        if new_state != self._state:
+            self.on_exit_state(self._state, sa)
+            old = self._state
+            self._prev_state = old
+            self._state = new_state
+            self._state_enter_time = time.time()
+            self.on_enter_state(new_state, sa)
+            log.info(
+                "BRAIN: %s -> %s [%s hp=%s area=%d]",
+                old.value, new_state.value, sa.disposition,
+                sa.health, sa.current_area,
+            )
+        return await self.dispatch(self._state, sa, gs, tick_count=tick_count)
