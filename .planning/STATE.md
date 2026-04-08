@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 02-03-PLAN.md
-last_updated: "2026-04-08T13:11:48.037Z"
-last_activity: 2026-04-08 -- Phase 3 planning complete
+stopped_at: Completed 03-01-PLAN.md
+last_updated: "2026-04-08T13:29:03.851Z"
+last_activity: 2026-04-08
 progress:
   total_phases: 9
   completed_phases: 2
   total_plans: 11
-  completed_plans: 8
-  percent: 73
+  completed_plans: 9
+  percent: 82
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-08)
 
 **Core value:** The bot must be a competitive deathmatch player -- able to perceive enemies, navigate maps, select weapons, aim accurately, and make strategic decisions in real-time on constrained Pi hardware.
-**Current focus:** Phase 02 — Perception Extraction
+**Current focus:** Phase 03 — Memory and Persistence
 
 ## Current Position
 
-Phase: 3
-Plan: Not started
+Phase: 03 (Memory and Persistence) — EXECUTING
+Plan: 2 of 3
 Status: Ready to execute
-Last activity: 2026-04-08 -- Phase 3 planning complete
+Last activity: 2026-04-08
 
 Progress: [..........] 0%
 
@@ -61,6 +61,7 @@ Progress: [..........] 0%
 | Phase 02 P01 | 3min | 2 tasks | 19 files |
 | Phase 02 P02 | 3min | 2 tasks | 3 files |
 | Phase 02 P03 | 2min | 2 tasks | 2 files |
+| Phase 03-01 P01 | 3min | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -83,6 +84,8 @@ Recent decisions affecting current work:
 - [Phase 02]: Exception isolation via _safe_call() around every detector prevents cascade failure
 - [Phase 02]: Death detection uses alive-state transition to avoid repeated resets
 - [Phase 02]: Used patch-based constructor mocking to isolate pipeline tests from real detectors
+- [Phase 03]: Used SQLAlchemy Core (not ORM) for lightweight table definitions on Pi hardware
+- [Phase 03]: WAL mode with busy_timeout=5000 and cache_size=-8000 for SQLite performance
 
 ### Pending Todos
 
@@ -95,6 +98,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-08T12:53:42.262Z
-Stopped at: Completed 02-03-PLAN.md
+Last session: 2026-04-08T13:29:03.833Z
+Stopped at: Completed 03-01-PLAN.md
 Resume file: None

@@ -31,11 +31,11 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Memory
 
-- [ ] **MEM-01**: SQLite database replaces all JSON/pickle file persistence
+- [x] **MEM-01**: SQLite database replaces all JSON/pickle file persistence
 - [ ] **MEM-02**: Working memory — current match state, recent events, short-term buffer
 - [ ] **MEM-03**: Episodic memory — match history, death locations, engagement outcomes
 - [ ] **MEM-04**: Semantic memory — map knowledge, room surveys, item locations persisted in DB
-- [ ] **MEM-05**: Alembic migrations for schema evolution
+- [x] **MEM-05**: Alembic migrations for schema evolution
 
 ### Navigation
 
@@ -178,11 +178,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PERC-06 | Phase 2 | Complete |
 | PERC-07 | Phase 2 | Complete |
 | PERC-08 | Phase 7 | Pending |
-| MEM-01 | Phase 3 | Pending |
+| MEM-01 | Phase 3 | Complete |
 | MEM-02 | Phase 3 | Pending |
 | MEM-03 | Phase 3 | Pending |
 | MEM-04 | Phase 3 | Pending |
-| MEM-05 | Phase 3 | Pending |
+| MEM-05 | Phase 3 | Complete |
 | NAV-01 | Phase 4 | Pending |
 | NAV-02 | Phase 4 | Pending |
 | NAV-03 | Phase 4 | Pending |

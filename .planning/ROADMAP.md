@@ -70,7 +70,7 @@ Plans:
   5. Alembic migrations can evolve the schema without data loss
 **Plans**: 3 plans
 Plans:
-- [ ] 03-01-PLAN.md — SQLite schema, storage engine, Alembic setup, deps install
+- [x] 03-01-PLAN.md — SQLite schema, storage engine, Alembic setup, deps install
 - [ ] 03-02-PLAN.md — WorkingMemory, EpisodicMemory, SemanticMemory, migration script
 - [ ] 03-03-PLAN.md — Comprehensive tests for all memory modules
 
