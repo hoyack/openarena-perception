@@ -86,11 +86,11 @@ Plans:
   5. No circular imports exist between reflexes/, combat/, and navigation/ -- import direction is strictly downward (toward perception and memory)
 **Plans**: 5 plans
 Plans:
-- [x] 01-01-PLAN.md — uv init, pyproject.toml, ruff/pytest config, test scaffold
-- [x] 01-02-PLAN.md — Brain-inspired folder structure, pydantic-settings, structlog
-- [x] 01-03-PLAN.md — SituationalAwareness extraction to models.py (frozen+slotted)
-- [ ] 01-04-PLAN.md — FSM characterization tests for strategic_brain.py
-- [ ] 01-05-PLAN.md — Duplicate root script resolution and .gitignore
+- [ ] 04-01-PLAN.md — Reflexes extraction (arbiter, death handler, stuck escape)
+- [ ] 04-02-PLAN.md — Combat extraction (weapons, aim, movement, engage, threat)
+- [ ] 04-03-PLAN.md — Navigation extraction (AAS, navigator, learned map, behaviors)
+- [ ] 04-04-PLAN.md — Rewire strategic_brain.py orchestrator to use subsystems
+- [ ] 04-05-PLAN.md — Subsystem unit tests for all 17 requirements
 
 ### Phase 5: Tactics and Strategy Extraction
 **Goal**: The FSM state machine and LLM strategic reasoning are extracted from strategic_brain.py, completing its full decomposition into the brain-inspired module structure
@@ -191,7 +191,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 | 1. Foundation and Characterization | 0/5 | Planning complete | - |
 | 2. Perception Extraction | 0/3 | Planning complete | - |
 | 3. Memory and Persistence | 0/3 | Planning complete | - |
-| 4. Reflexes, Combat, and Navigation Extraction | 0/TBD | Not started | - |
+| 4. Reflexes, Combat, and Navigation Extraction | 0/5 | Planning complete | - |
 | 5. Tactics and Strategy Extraction | 0/TBD | Not started | - |
 | 6. Skill System and API Layer | 0/TBD | Not started | - |
 | 7. Competitive Features | 0/TBD | Not started | - |
