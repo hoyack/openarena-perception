@@ -93,6 +93,10 @@ def strategic_brain(mock_bridge, mock_navigator, mock_commander,
         perception=mock_perception,
         damage_tracker=mock_damage_tracker,
         ctrl=mock_ctrl,
+        obj_tracker=MagicMock(),
+        anomaly_tracker=MagicMock(),
+        surveyor=MagicMock(),
+        spatial=MagicMock(),
         map_name="test",
     )
     return brain
