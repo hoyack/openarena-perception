@@ -103,7 +103,7 @@ Plans:
   4. strategic_brain.py is fully decomposed -- the original file is either deleted or reduced to a thin re-export wrapper
 **Plans**: 4 plans
 Plans:
-- [ ] 05-01-PLAN.md — FSM extraction to tactics/fsm.py with TacticalFSM
+- [x] 05-01-PLAN.md — FSM extraction to tactics/fsm.py with TacticalFSM
 - [ ] 05-02-PLAN.md — Commander relocation to tactics/ + FightOrFlight wrapper
 - [ ] 05-03-PLAN.md — LLM brain to strategy/ with Pydantic-validated constrained output
 - [ ] 05-04-PLAN.md — Comprehensive tests for all 6 requirements

@@ -65,7 +65,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Tactics
 
-- [ ] **TACT-01**: FSM extracted from strategic_brain.py with clean state transitions
+- [x] **TACT-01**: FSM extracted from strategic_brain.py with clean state transitions
 - [ ] **TACT-02**: Commander — priority-based goal selection with utility scoring
 - [ ] **TACT-03**: Fight-or-flight evaluator based on threat assessment
 
@@ -200,7 +200,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | RFLX-02 | Phase 4 | Complete |
 | RFLX-03 | Phase 4 | Complete |
 | RFLX-04 | Phase 4 | Complete |
-| TACT-01 | Phase 5 | Pending |
+| TACT-01 | Phase 5 | Complete |
 | TACT-02 | Phase 5 | Pending |
 | TACT-03 | Phase 5 | Pending |
 | STRT-01 | Phase 5 | Pending |

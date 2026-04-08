@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 04-05-PLAN.md
-last_updated: "2026-04-08T21:11:54.170Z"
-last_activity: 2026-04-08 -- Phase 5 planning complete
+stopped_at: Completed 05-01-PLAN.md
+last_updated: "2026-04-08T21:59:05.188Z"
+last_activity: 2026-04-08
 progress:
   total_phases: 9
   completed_phases: 4
   total_plans: 20
-  completed_plans: 16
-  percent: 80
+  completed_plans: 17
+  percent: 85
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-08)
 
 **Core value:** The bot must be a competitive deathmatch player -- able to perceive enemies, navigate maps, select weapons, aim accurately, and make strategic decisions in real-time on constrained Pi hardware.
-**Current focus:** Phase 04 — Reflexes, Combat, and Navigation Extraction
+**Current focus:** Phase 05 — Tactics and Strategy Extraction
 
 ## Current Position
 
-Phase: 5
-Plan: Not started
+Phase: 05 (Tactics and Strategy Extraction) — EXECUTING
+Plan: 2 of 4
 Status: Ready to execute
-Last activity: 2026-04-08 -- Phase 5 planning complete
+Last activity: 2026-04-08
 
 Progress: [..........] 0%
 
@@ -71,6 +71,7 @@ Progress: [..........] 0%
 | Phase 04 P03 | 9min | 2 tasks | 15 files |
 | Phase 04 P04 | 3min | 2 tasks | 1 files |
 | Phase 04 P05 | 4min | 3 tasks | 3 files |
+| Phase 05 P01 | 3min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -110,6 +111,8 @@ Recent decisions affecting current work:
 - [Phase 04]: Property bridges on StrategicBrain for backward compat with characterization tests
 - [Phase 04]: was_alive set in orchestrator tick() before dispatch, not in each subsystem tick
 - [Phase 04]: Used asyncio.run() instead of pytest-asyncio for async test execution
+- [Phase 05]: TacticalFSM accepts anomaly_tracker and obj_tracker as constructor args for DEAD state enter hook
+- [Phase 05]: Property bridges for _state and _state_enter_time on StrategicBrain delegate to TacticalFSM
 
 ### Pending Todos
 
@@ -122,6 +125,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-08T14:48:26.357Z
-Stopped at: Completed 04-05-PLAN.md
+Last session: 2026-04-08T21:59:05.181Z
+Stopped at: Completed 05-01-PLAN.md
 Resume file: None
