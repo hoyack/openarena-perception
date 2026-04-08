@@ -27,10 +27,18 @@ The bot must be a competitive deathmatch player — able to perceive enemies, na
 - ✓ Stuck recovery via scan-and-probe exit finding — existing
 - ✓ Virtual controller with pipe-only turns (no desktop mouse) — existing
 - ✓ Multi-object tracking with color histograms + templates — existing
+- ✓ Brain-inspired folder structure (10 subsystem directories) — Phase 1
+- ✓ pydantic-settings configuration (env/dotenv/TOML) — Phase 1
+- ✓ Structured logging via structlog with JSON output — Phase 1
+- ✓ uv package management with lockfile — Phase 1
+- ✓ ruff linting/formatting — Phase 1
+- ✓ Characterization tests for strategic_brain.py FSM (52 tests) — Phase 1
+- ✓ Immutable SituationalAwareness dataclass (frozen+slotted) — Phase 1
+- ✓ No duplicate root-level scripts — Phase 1
 
 ### Active
 
-- [ ] Brain-inspired code architecture with organized subsystems
+- [x] Brain-inspired code architecture with organized subsystems
 - [ ] FastAPI backend for LLM agent control
 - [ ] Three-layer skill system (actions → behaviors → missions)
 - [ ] Comprehensive test suite (perception, navigation, combat, integration)
@@ -104,4 +112,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-08 after initialization*
+*Last updated: 2026-04-08 after Phase 1 completion*
