@@ -4,9 +4,16 @@ from __future__ import annotations
 import time
 from unittest.mock import MagicMock
 
+import numpy as np
 import pytest
 
 from openarena_perception.models import SituationalAwareness
+
+
+@pytest.fixture
+def synthetic_frame():
+    """A simple 480x640 BGR numpy array for perception tests."""
+    return np.zeros((480, 640, 3), dtype=np.uint8)
 
 
 @pytest.fixture
