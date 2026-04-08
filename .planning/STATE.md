@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 02-01-PLAN.md
-last_updated: "2026-04-08T12:45:31.596Z"
+stopped_at: Completed 02-02-PLAN.md
+last_updated: "2026-04-08T12:49:38.910Z"
 last_activity: 2026-04-08
 progress:
   total_phases: 9
   completed_phases: 1
   total_plans: 8
-  completed_plans: 6
-  percent: 75
+  completed_plans: 7
+  percent: 88
 ---
 
 # Project State
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-04-08)
 ## Current Position
 
 Phase: 02 (Perception Extraction) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 Status: Ready to execute
 Last activity: 2026-04-08
 
@@ -58,6 +58,7 @@ Progress: [..........] 0%
 | Phase 01 P04 | 4min | 2 tasks | 2 files |
 | Phase 01 P05 | 2min | 2 tasks | 2 files |
 | Phase 02 P01 | 3min | 2 tasks | 19 files |
+| Phase 02 P02 | 3min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -76,6 +77,9 @@ Recent decisions affecting current work:
 - [Phase 01]: Package versions canonical for all 6 duplicated files; root copies deleted
 - [Phase 02]: Renamed perception.py to wall_detector.py to resolve naming collision with perception/ directory
 - [Phase 02]: Replaced importlib hack in perception/__init__.py with clean imports and __all__
+- [Phase 02]: MotionAnomalyTracker constructed with defaults -- pipeline decoupled from BotSettings
+- [Phase 02]: Exception isolation via _safe_call() around every detector prevents cascade failure
+- [Phase 02]: Death detection uses alive-state transition to avoid repeated resets
 
 ### Pending Todos
 
@@ -88,6 +92,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-08T12:45:31.585Z
-Stopped at: Completed 02-01-PLAN.md
+Last session: 2026-04-08T12:49:38.899Z
+Stopped at: Completed 02-02-PLAN.md
 Resume file: None

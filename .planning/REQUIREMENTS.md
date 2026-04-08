@@ -20,7 +20,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Perception
 
-- [ ] **PERC-01**: Perception module produces immutable SituationalAwareness snapshots at 15+ FPS on Pi 5
+- [x] **PERC-01**: Perception module produces immutable SituationalAwareness snapshots at 15+ FPS on Pi 5
 - [x] **PERC-02**: Enemy detection with bounding boxes via HSV thresholding (existing, extracted)
 - [x] **PERC-03**: HUD state parsing — health, armor, ammo, weapon, frags, deaths via OCR (existing, extracted)
 - [x] **PERC-04**: Damage direction detection from screen flash analysis
@@ -170,7 +170,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | FOUND-06 | Phase 1 | Complete |
 | FOUND-07 | Phase 1 | Complete |
 | FOUND-08 | Phase 1 | Complete |
-| PERC-01 | Phase 2 | Pending |
+| PERC-01 | Phase 2 | Complete |
 | PERC-02 | Phase 2 | Complete |
 | PERC-03 | Phase 2 | Complete |
 | PERC-04 | Phase 2 | Complete |
