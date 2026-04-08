@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 05-01-PLAN.md
-last_updated: "2026-04-08T21:59:05.188Z"
+stopped_at: Completed 05-02-PLAN.md
+last_updated: "2026-04-08T22:02:06.923Z"
 last_activity: 2026-04-08
 progress:
   total_phases: 9
   completed_phases: 4
   total_plans: 20
-  completed_plans: 17
-  percent: 85
+  completed_plans: 18
+  percent: 90
 ---
 
 # Project State
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-04-08)
 ## Current Position
 
 Phase: 05 (Tactics and Strategy Extraction) — EXECUTING
-Plan: 2 of 4
+Plan: 3 of 4
 Status: Ready to execute
 Last activity: 2026-04-08
 
@@ -72,6 +72,7 @@ Progress: [..........] 0%
 | Phase 04 P04 | 3min | 2 tasks | 1 files |
 | Phase 04 P05 | 4min | 3 tasks | 3 files |
 | Phase 05 P01 | 3min | 2 tasks | 3 files |
+| Phase 05 P02 | 2min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -113,6 +114,8 @@ Recent decisions affecting current work:
 - [Phase 04]: Used asyncio.run() instead of pytest-asyncio for async test execution
 - [Phase 05]: TacticalFSM accepts anomaly_tracker and obj_tracker as constructor args for DEAD state enter hook
 - [Phase 05]: Property bridges for _state and _state_enter_time on StrategicBrain delegate to TacticalFSM
+- [Phase 05]: Commander relocated to tactics/ (goal selection, not navigation) with re-export stubs preserving all existing import paths
+- [Phase 05]: FightOrFlight wraps ThreatAssessor via delegation, no logic duplication
 
 ### Pending Todos
 
@@ -125,6 +128,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-08T21:59:05.181Z
-Stopped at: Completed 05-01-PLAN.md
+Last session: 2026-04-08T22:02:06.913Z
+Stopped at: Completed 05-02-PLAN.md
 Resume file: None
