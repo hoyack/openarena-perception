@@ -68,13 +68,11 @@ Plans:
   3. Episodic memory records match history, death locations, and engagement outcomes retrievable by query
   4. Semantic memory persists map knowledge and item locations across bot restarts
   5. Alembic migrations can evolve the schema without data loss
-**Plans**: 5 plans
+**Plans**: 3 plans
 Plans:
-- [x] 01-01-PLAN.md — uv init, pyproject.toml, ruff/pytest config, test scaffold
-- [x] 01-02-PLAN.md — Brain-inspired folder structure, pydantic-settings, structlog
-- [x] 01-03-PLAN.md — SituationalAwareness extraction to models.py (frozen+slotted)
-- [x] 01-04-PLAN.md — FSM characterization tests for strategic_brain.py
-- [ ] 01-05-PLAN.md — Duplicate root script resolution and .gitignore
+- [ ] 03-01-PLAN.md — SQLite schema, storage engine, Alembic setup, deps install
+- [ ] 03-02-PLAN.md — WorkingMemory, EpisodicMemory, SemanticMemory, migration script
+- [ ] 03-03-PLAN.md — Comprehensive tests for all memory modules
 
 ### Phase 4: Reflexes, Combat, and Navigation Extraction
 **Goal**: The three behavioral subsystems (reflexes, combat, navigation) are extracted from strategic_brain.py into independent modules with no cross-imports, all consuming perception snapshots and memory interfaces
@@ -192,7 +190,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 |-------|----------------|--------|-----------|
 | 1. Foundation and Characterization | 0/5 | Planning complete | - |
 | 2. Perception Extraction | 0/3 | Planning complete | - |
-| 3. Memory and Persistence | 0/TBD | Not started | - |
+| 3. Memory and Persistence | 0/3 | Planning complete | - |
 | 4. Reflexes, Combat, and Navigation Extraction | 0/TBD | Not started | - |
 | 5. Tactics and Strategy Extraction | 0/TBD | Not started | - |
 | 6. Skill System and API Layer | 0/TBD | Not started | - |
