@@ -101,13 +101,12 @@ Plans:
   2. Commander selects goals via priority-based utility scoring informed by game state
   3. LLM brain receives structured game state snapshots via Ollama and outputs constrained action vocabulary (HUNT/DEFEND/RETREAT/EXPLORE)
   4. strategic_brain.py is fully decomposed -- the original file is either deleted or reduced to a thin re-export wrapper
-**Plans**: 5 plans
+**Plans**: 4 plans
 Plans:
-- [x] 01-01-PLAN.md — uv init, pyproject.toml, ruff/pytest config, test scaffold
-- [x] 01-02-PLAN.md — Brain-inspired folder structure, pydantic-settings, structlog
-- [ ] 01-03-PLAN.md — SituationalAwareness extraction to models.py (frozen+slotted)
-- [ ] 01-04-PLAN.md — FSM characterization tests for strategic_brain.py
-- [ ] 01-05-PLAN.md — Duplicate root script resolution and .gitignore
+- [ ] 05-01-PLAN.md — FSM extraction to tactics/fsm.py with TacticalFSM
+- [ ] 05-02-PLAN.md — Commander relocation to tactics/ + FightOrFlight wrapper
+- [ ] 05-03-PLAN.md — LLM brain to strategy/ with Pydantic-validated constrained output
+- [ ] 05-04-PLAN.md — Comprehensive tests for all 6 requirements
 
 ### Phase 6: Skill System and API Layer
 **Goal**: LLM agents can control the bot programmatically through FastAPI endpoints that expose a three-layer skill system (actions, behaviors, missions)
@@ -121,11 +120,11 @@ Plans:
   5. Prometheus metrics endpoint exposes FPS gauge, kill counter, LLM latency, and stuck frequency
 **Plans**: 5 plans
 Plans:
-- [x] 01-01-PLAN.md — uv init, pyproject.toml, ruff/pytest config, test scaffold
-- [ ] 01-02-PLAN.md — Brain-inspired folder structure, pydantic-settings, structlog
-- [ ] 01-03-PLAN.md — SituationalAwareness extraction to models.py (frozen+slotted)
-- [ ] 01-04-PLAN.md — FSM characterization tests for strategic_brain.py
-- [ ] 01-05-PLAN.md — Duplicate root script resolution and .gitignore
+- [ ] 06-01-PLAN.md — TBD
+- [ ] 06-02-PLAN.md — TBD
+- [ ] 06-03-PLAN.md — TBD
+- [ ] 06-04-PLAN.md — TBD
+- [ ] 06-05-PLAN.md — TBD
 **UI hint**: yes
 
 ### Phase 7: Competitive Features
@@ -138,11 +137,11 @@ Plans:
   3. Multi-timescale architecture is formalized -- reflexes run at 10-22 Hz, tactics at 2-5 Hz, strategy at ~0.25 Hz with clean boundaries
 **Plans**: 5 plans
 Plans:
-- [ ] 01-01-PLAN.md — uv init, pyproject.toml, ruff/pytest config, test scaffold
-- [ ] 01-02-PLAN.md — Brain-inspired folder structure, pydantic-settings, structlog
-- [ ] 01-03-PLAN.md — SituationalAwareness extraction to models.py (frozen+slotted)
-- [ ] 01-04-PLAN.md — FSM characterization tests for strategic_brain.py
-- [ ] 01-05-PLAN.md — Duplicate root script resolution and .gitignore
+- [ ] 07-01-PLAN.md — TBD
+- [ ] 07-02-PLAN.md — TBD
+- [ ] 07-03-PLAN.md — TBD
+- [ ] 07-04-PLAN.md — TBD
+- [ ] 07-05-PLAN.md — TBD
 
 ### Phase 8: Human-Likeness
 **Goal**: The bot behaves believably human -- imperfect aim, variable reaction times, movement quirks, and configurable personality profiles
@@ -156,11 +155,11 @@ Plans:
   5. Skill difficulty parameter (1-5) scales aim noise, reaction delay, and decision quality in a unified way
 **Plans**: 5 plans
 Plans:
-- [ ] 01-01-PLAN.md — uv init, pyproject.toml, ruff/pytest config, test scaffold
-- [ ] 01-02-PLAN.md — Brain-inspired folder structure, pydantic-settings, structlog
-- [ ] 01-03-PLAN.md — SituationalAwareness extraction to models.py (frozen+slotted)
-- [ ] 01-04-PLAN.md — FSM characterization tests for strategic_brain.py
-- [ ] 01-05-PLAN.md — Duplicate root script resolution and .gitignore
+- [ ] 08-01-PLAN.md — TBD
+- [ ] 08-02-PLAN.md — TBD
+- [ ] 08-03-PLAN.md — TBD
+- [ ] 08-04-PLAN.md — TBD
+- [ ] 08-05-PLAN.md — TBD
 
 ### Phase 9: Testing and Documentation
 **Goal**: Comprehensive test coverage validates all subsystems and a documentation site provides architecture diagrams, API reference, skill catalog, and getting-started guide
@@ -174,11 +173,11 @@ Plans:
   5. Configuration guide documents all tunable parameters with descriptions
 **Plans**: 5 plans
 Plans:
-- [ ] 01-01-PLAN.md — uv init, pyproject.toml, ruff/pytest config, test scaffold
-- [ ] 01-02-PLAN.md — Brain-inspired folder structure, pydantic-settings, structlog
-- [ ] 01-03-PLAN.md — SituationalAwareness extraction to models.py (frozen+slotted)
-- [ ] 01-04-PLAN.md — FSM characterization tests for strategic_brain.py
-- [ ] 01-05-PLAN.md — Duplicate root script resolution and .gitignore
+- [ ] 09-01-PLAN.md — TBD
+- [ ] 09-02-PLAN.md — TBD
+- [ ] 09-03-PLAN.md — TBD
+- [ ] 09-04-PLAN.md — TBD
+- [ ] 09-05-PLAN.md — TBD
 **UI hint**: yes
 
 ## Progress
@@ -188,11 +187,11 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation and Characterization | 0/5 | Planning complete | - |
-| 2. Perception Extraction | 0/3 | Planning complete | - |
-| 3. Memory and Persistence | 0/3 | Planning complete | - |
-| 4. Reflexes, Combat, and Navigation Extraction | 0/5 | Planning complete | - |
-| 5. Tactics and Strategy Extraction | 0/TBD | Not started | - |
+| 1. Foundation and Characterization | 5/5 | Complete | - |
+| 2. Perception Extraction | 3/3 | Complete | - |
+| 3. Memory and Persistence | 3/3 | Complete | - |
+| 4. Reflexes, Combat, and Navigation Extraction | 5/5 | Complete | - |
+| 5. Tactics and Strategy Extraction | 0/4 | Planning complete | - |
 | 6. Skill System and API Layer | 0/TBD | Not started | - |
 | 7. Competitive Features | 0/TBD | Not started | - |
 | 8. Human-Likeness | 0/TBD | Not started | - |
