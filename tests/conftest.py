@@ -79,3 +79,20 @@ def make_awareness():
         defaults.update(overrides)
         return SituationalAwareness(**defaults)
     return _make
+
+
+@pytest.fixture
+def strategic_brain(mock_bridge, mock_navigator, mock_commander,
+                    mock_perception, mock_damage_tracker, mock_ctrl):
+    """A StrategicBrain with all dependencies mocked."""
+    from openarena_perception.strategic_brain import StrategicBrain
+    brain = StrategicBrain(
+        bridge=mock_bridge,
+        nav=mock_navigator,
+        commander=mock_commander,
+        perception=mock_perception,
+        damage_tracker=mock_damage_tracker,
+        ctrl=mock_ctrl,
+        map_name="test",
+    )
+    return brain
