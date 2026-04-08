@@ -1,4 +1,9 @@
 """OpenArena Perception -- strategy subsystem.
 
-Stub created in Phase 1. Code will be extracted here in Phase 5.
+LLM-powered strategic reasoning extracted from llm_brain.py in Phase 5.
 """
+
+from .llm_brain import LLMStrategyBrain
+from .models import StrategyAction, StrategyDecision
+
+__all__ = ["LLMStrategyBrain", "StrategyAction", "StrategyDecision"]
