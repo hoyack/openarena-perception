@@ -55,6 +55,8 @@ The bot must be a competitive deathmatch player — able to perceive enemies, na
 
 **Platform:** Raspberry Pi 4/5, X11, OpenArena (ioquake3 fork). Screen capture at 800x600 for performance. Hailo-8L NPU available for YOLOv6n inference at 95 FPS.
 
+**Reference spec:** `docs/Ultimate_Competitive_FPS_Bot_Spec.md` — comprehensive game-agnostic FPS bot architecture covering 5-layer design (perception, subconscious, conscious, team, meta-learning), utility AI, behavior trees, GOAP, attention mechanisms, human-like aiming (Perlin noise, overshoot, focus drift), cover system, and performance budgets. This is the north-star for architecture decisions across all phases.
+
 **Key systems already built:**
 - Perception: HSV enemy detection, OCR HUD parsing, motion detection, optical flow tracking
 - Navigation: AAS pathfinding, learned maps, stuck recovery, room surveys
