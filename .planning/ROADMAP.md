@@ -56,7 +56,7 @@ Plans:
 Plans:
 - [x] 02-01-PLAN.md — Move 9 perception modules into perception/ with re-export stubs
 - [x] 02-02-PLAN.md — PerceptionPipeline orchestrator with tick budget and attention priority
-- [ ] 02-03-PLAN.md — Comprehensive tests for PERC-01 through PERC-07
+- [x] 02-03-PLAN.md — Comprehensive tests for PERC-01 through PERC-07
 
 ### Phase 3: Memory and Persistence
 **Goal**: All bot state persists in SQLite with clean abstractions for working memory, episodic memory, and semantic knowledge -- no more JSON files or pickles on disk
