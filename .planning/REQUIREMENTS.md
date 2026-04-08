@@ -13,8 +13,8 @@ Requirements for initial release. Each maps to roadmap phases.
 - [ ] **FOUND-02**: All duplicate root-level scripts resolved — single source of truth in package
 - [ ] **FOUND-03**: Configuration managed via pydantic-settings with env var / .env / TOML support
 - [ ] **FOUND-04**: Structured logging via structlog with JSON output and context binding
-- [ ] **FOUND-05**: Package management via uv with lockfile
-- [ ] **FOUND-06**: Code quality enforced via ruff linter/formatter
+- [x] **FOUND-05**: Package management via uv with lockfile
+- [x] **FOUND-06**: Code quality enforced via ruff linter/formatter
 - [ ] **FOUND-07**: Characterization tests for strategic_brain.py capturing all state transitions before decomposition
 - [ ] **FOUND-08**: Immutable SituationalAwareness dataclass as central data contract between subsystems
 
@@ -166,8 +166,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | FOUND-02 | Phase 1 | Pending |
 | FOUND-03 | Phase 1 | Pending |
 | FOUND-04 | Phase 1 | Pending |
-| FOUND-05 | Phase 1 | Pending |
-| FOUND-06 | Phase 1 | Pending |
+| FOUND-05 | Phase 1 | Complete |
+| FOUND-06 | Phase 1 | Complete |
 | FOUND-07 | Phase 1 | Pending |
 | FOUND-08 | Phase 1 | Pending |
 | PERC-01 | Phase 2 | Pending |

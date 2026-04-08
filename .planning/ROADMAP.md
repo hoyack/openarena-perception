@@ -36,7 +36,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   5. No duplicate scripts exist between root level and package -- single source of truth verified
 **Plans**: 5 plans
 Plans:
-- [ ] 01-01-PLAN.md — uv init, pyproject.toml, ruff/pytest config, test scaffold
+- [x] 01-01-PLAN.md — uv init, pyproject.toml, ruff/pytest config, test scaffold
 - [ ] 01-02-PLAN.md — Brain-inspired folder structure, pydantic-settings, structlog
 - [ ] 01-03-PLAN.md — SituationalAwareness extraction to models.py (frozen+slotted)
 - [ ] 01-04-PLAN.md — FSM characterization tests for strategic_brain.py
