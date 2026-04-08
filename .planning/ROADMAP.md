@@ -86,7 +86,7 @@ Plans:
   5. No circular imports exist between reflexes/, combat/, and navigation/ -- import direction is strictly downward (toward perception and memory)
 **Plans**: 5 plans
 Plans:
-- [ ] 04-01-PLAN.md — Reflexes extraction (arbiter, death handler, stuck escape)
+- [x] 04-01-PLAN.md — Reflexes extraction (arbiter, death handler, stuck escape)
 - [ ] 04-02-PLAN.md — Combat extraction (weapons, aim, movement, engage, threat)
 - [ ] 04-03-PLAN.md — Navigation extraction (AAS, navigator, learned map, behaviors)
 - [ ] 04-04-PLAN.md — Rewire strategic_brain.py orchestrator to use subsystems

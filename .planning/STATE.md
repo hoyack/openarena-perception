@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 03-03-PLAN.md
-last_updated: "2026-04-08T14:07:51.218Z"
-last_activity: 2026-04-08 -- Phase 4 planning complete
+stopped_at: Completed 04-01-PLAN.md
+last_updated: "2026-04-08T14:19:26.964Z"
+last_activity: 2026-04-08
 progress:
   total_phases: 9
   completed_phases: 3
   total_plans: 16
-  completed_plans: 11
-  percent: 69
+  completed_plans: 12
+  percent: 75
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-08)
 
 **Core value:** The bot must be a competitive deathmatch player -- able to perceive enemies, navigate maps, select weapons, aim accurately, and make strategic decisions in real-time on constrained Pi hardware.
-**Current focus:** Phase 03 — Memory and Persistence
+**Current focus:** Phase 04 — Reflexes, Combat, and Navigation Extraction
 
 ## Current Position
 
-Phase: 4
-Plan: Not started
+Phase: 04 (Reflexes, Combat, and Navigation Extraction) — EXECUTING
+Plan: 2 of 5
 Status: Ready to execute
-Last activity: 2026-04-08 -- Phase 4 planning complete
+Last activity: 2026-04-08
 
 Progress: [..........] 0%
 
@@ -65,6 +65,7 @@ Progress: [..........] 0%
 | Phase 03-01 P01 | 3min | 2 tasks | 7 files |
 | Phase 03 P02 | 2min | 2 tasks | 5 files |
 | Phase 03 P03 | 3min | 3 tasks | 4 files |
+| Phase 04 P01 | 2min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -93,6 +94,9 @@ Recent decisions affecting current work:
 - [Phase 03]: Migration validates JSON structure before insertion, skipping malformed files with warnings (T-03-04 mitigation)
 - [Phase 03]: Used unittest.mock.patch for time.time to test danger zone decay without real sleeps
 - [Phase 03]: Used real room_surveys/ directory (64 files) for migration integration tests
+- [Phase 04]: SubsumptionArbiter uses **context kwargs for optional deps (stateless, testable)
+- [Phase 04]: StuckEscape.on_enter returns updated nav_target instead of mutating external state
+- [Phase 04]: Reflex modules use TYPE_CHECKING imports for brainstem deps to avoid import-time coupling
 
 ### Pending Todos
 
@@ -105,6 +109,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-08T13:38:46.092Z
-Stopped at: Completed 03-03-PLAN.md
+Last session: 2026-04-08T14:19:26.957Z
+Stopped at: Completed 04-01-PLAN.md
 Resume file: None

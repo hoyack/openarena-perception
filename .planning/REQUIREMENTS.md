@@ -58,10 +58,10 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Reflexes
 
-- [ ] **RFLX-01**: Damage response — instant reactive behavior when taking damage (<1ms)
-- [ ] **RFLX-02**: Death handling — clean state reset and respawn recovery
-- [ ] **RFLX-03**: Stuck escape — subsumption override when movement fails
-- [ ] **RFLX-04**: Reactive interrupt layer — higher-priority behaviors suppress lower-priority (subsumption)
+- [x] **RFLX-01**: Damage response — instant reactive behavior when taking damage (<1ms)
+- [x] **RFLX-02**: Death handling — clean state reset and respawn recovery
+- [x] **RFLX-03**: Stuck escape — subsumption override when movement fails
+- [x] **RFLX-04**: Reactive interrupt layer — higher-priority behaviors suppress lower-priority (subsumption)
 
 ### Tactics
 
@@ -196,10 +196,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CMBT-05 | Phase 4 | Pending |
 | CMBT-06 | Phase 4 | Pending |
 | CMBT-07 | Phase 4 | Pending |
-| RFLX-01 | Phase 4 | Pending |
-| RFLX-02 | Phase 4 | Pending |
-| RFLX-03 | Phase 4 | Pending |
-| RFLX-04 | Phase 4 | Pending |
+| RFLX-01 | Phase 4 | Complete |
+| RFLX-02 | Phase 4 | Complete |
+| RFLX-03 | Phase 4 | Complete |
+| RFLX-04 | Phase 4 | Complete |
 | TACT-01 | Phase 5 | Pending |
 | TACT-02 | Phase 5 | Pending |
 | TACT-03 | Phase 5 | Pending |
