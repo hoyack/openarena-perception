@@ -51,6 +51,9 @@ class BotSettings(BaseSettings):
     log_json: bool = True
     log_level: str = "INFO"
 
+    # Database
+    db_path: str = Field(default="~/.openarena/bot.db", description="Path to SQLite database file")
+
     @classmethod
     def settings_customise_sources(cls, settings_cls, init_settings,
                                     env_settings, dotenv_settings,
