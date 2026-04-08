@@ -52,13 +52,11 @@ Plans:
   3. HUD parser extracts health, armor, ammo, weapon, frags, and deaths from screen capture
   4. Multi-target tracking maintains persistent IDs across consecutive frames
   5. Motion detection identifies movement regions via frame differencing and optical flow
-**Plans**: 5 plans
+**Plans**: 3 plans
 Plans:
-- [x] 01-01-PLAN.md — uv init, pyproject.toml, ruff/pytest config, test scaffold
-- [x] 01-02-PLAN.md — Brain-inspired folder structure, pydantic-settings, structlog
-- [x] 01-03-PLAN.md — SituationalAwareness extraction to models.py (frozen+slotted)
-- [x] 01-04-PLAN.md — FSM characterization tests for strategic_brain.py
-- [x] 01-05-PLAN.md — Duplicate root script resolution and .gitignore
+- [ ] 02-01-PLAN.md — Move 9 perception modules into perception/ with re-export stubs
+- [ ] 02-02-PLAN.md — PerceptionPipeline orchestrator with tick budget and attention priority
+- [ ] 02-03-PLAN.md — Comprehensive tests for PERC-01 through PERC-07
 
 ### Phase 3: Memory and Persistence
 **Goal**: All bot state persists in SQLite with clean abstractions for working memory, episodic memory, and semantic knowledge -- no more JSON files or pickles on disk
@@ -193,7 +191,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation and Characterization | 0/5 | Planning complete | - |
-| 2. Perception Extraction | 0/TBD | Not started | - |
+| 2. Perception Extraction | 0/3 | Planning complete | - |
 | 3. Memory and Persistence | 0/TBD | Not started | - |
 | 4. Reflexes, Combat, and Navigation Extraction | 0/TBD | Not started | - |
 | 5. Tactics and Strategy Extraction | 0/TBD | Not started | - |
