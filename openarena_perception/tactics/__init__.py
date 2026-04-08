@@ -1,9 +1,10 @@
 """OpenArena Perception -- tactics subsystem.
 
-Provides the TacticalFSM state machine orchestrator extracted from
-strategic_brain.py in Phase 5.
+FSM state management, goal selection, and fight-or-flight decisions.
+Extracted from strategic_brain.py in Phase 5.
 """
-
+from .commander import Commander, ItemMemory
+from .fight_or_flight import FightOrFlight
 from .fsm import TacticalFSM
 
-__all__ = ["TacticalFSM"]
+__all__ = ["Commander", "ItemMemory", "FightOrFlight", "TacticalFSM"]
