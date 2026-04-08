@@ -162,27 +162,88 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| FOUND-01 through FOUND-08 | Phase 1 | Pending |
-| PERC-01 through PERC-07 | Phase 2 | Pending |
-| MEM-01 through MEM-05 | Phase 3 | Pending |
-| RFLX-01 through RFLX-04 | Phase 4 | Pending |
-| CMBT-01 through CMBT-07 | Phase 4 | Pending |
-| NAV-01 through NAV-06 | Phase 4 | Pending |
-| TACT-01 through TACT-03 | Phase 5 | Pending |
-| STRT-01 through STRT-03 | Phase 5 | Pending |
-| SKIL-01 through SKIL-05 | Phase 6 | Pending |
-| API-01 through API-05 | Phase 6 | Pending |
-| COMP-01 through COMP-03 | Phase 7 | Pending |
+| FOUND-01 | Phase 1 | Pending |
+| FOUND-02 | Phase 1 | Pending |
+| FOUND-03 | Phase 1 | Pending |
+| FOUND-04 | Phase 1 | Pending |
+| FOUND-05 | Phase 1 | Pending |
+| FOUND-06 | Phase 1 | Pending |
+| FOUND-07 | Phase 1 | Pending |
+| FOUND-08 | Phase 1 | Pending |
+| PERC-01 | Phase 2 | Pending |
+| PERC-02 | Phase 2 | Pending |
+| PERC-03 | Phase 2 | Pending |
+| PERC-04 | Phase 2 | Pending |
+| PERC-05 | Phase 2 | Pending |
+| PERC-06 | Phase 2 | Pending |
+| PERC-07 | Phase 2 | Pending |
 | PERC-08 | Phase 7 | Pending |
-| HUMN-01 through HUMN-07 | Phase 8 | Pending |
-| TEST-01 through TEST-06 | Phase 9 | Pending |
-| DOCS-01 through DOCS-06 | Phase 9 | Pending |
+| MEM-01 | Phase 3 | Pending |
+| MEM-02 | Phase 3 | Pending |
+| MEM-03 | Phase 3 | Pending |
+| MEM-04 | Phase 3 | Pending |
+| MEM-05 | Phase 3 | Pending |
+| NAV-01 | Phase 4 | Pending |
+| NAV-02 | Phase 4 | Pending |
+| NAV-03 | Phase 4 | Pending |
+| NAV-04 | Phase 4 | Pending |
+| NAV-05 | Phase 4 | Pending |
+| NAV-06 | Phase 4 | Pending |
+| CMBT-01 | Phase 4 | Pending |
+| CMBT-02 | Phase 4 | Pending |
+| CMBT-03 | Phase 4 | Pending |
+| CMBT-04 | Phase 4 | Pending |
+| CMBT-05 | Phase 4 | Pending |
+| CMBT-06 | Phase 4 | Pending |
+| CMBT-07 | Phase 4 | Pending |
+| RFLX-01 | Phase 4 | Pending |
+| RFLX-02 | Phase 4 | Pending |
+| RFLX-03 | Phase 4 | Pending |
+| RFLX-04 | Phase 4 | Pending |
+| TACT-01 | Phase 5 | Pending |
+| TACT-02 | Phase 5 | Pending |
+| TACT-03 | Phase 5 | Pending |
+| STRT-01 | Phase 5 | Pending |
+| STRT-02 | Phase 5 | Pending |
+| STRT-03 | Phase 5 | Pending |
+| SKIL-01 | Phase 6 | Pending |
+| SKIL-02 | Phase 6 | Pending |
+| SKIL-03 | Phase 6 | Pending |
+| SKIL-04 | Phase 6 | Pending |
+| SKIL-05 | Phase 6 | Pending |
+| API-01 | Phase 6 | Pending |
+| API-02 | Phase 6 | Pending |
+| API-03 | Phase 6 | Pending |
+| API-04 | Phase 6 | Pending |
+| API-05 | Phase 6 | Pending |
+| COMP-01 | Phase 7 | Pending |
+| COMP-02 | Phase 7 | Pending |
+| COMP-03 | Phase 7 | Pending |
+| HUMN-01 | Phase 8 | Pending |
+| HUMN-02 | Phase 8 | Pending |
+| HUMN-03 | Phase 8 | Pending |
+| HUMN-04 | Phase 8 | Pending |
+| HUMN-05 | Phase 8 | Pending |
+| HUMN-06 | Phase 8 | Pending |
+| HUMN-07 | Phase 8 | Pending |
+| TEST-01 | Phase 9 | Pending |
+| TEST-02 | Phase 9 | Pending |
+| TEST-03 | Phase 9 | Pending |
+| TEST-04 | Phase 9 | Pending |
+| TEST-05 | Phase 9 | Pending |
+| TEST-06 | Phase 9 | Pending |
+| DOCS-01 | Phase 9 | Pending |
+| DOCS-02 | Phase 9 | Pending |
+| DOCS-03 | Phase 9 | Pending |
+| DOCS-04 | Phase 9 | Pending |
+| DOCS-05 | Phase 9 | Pending |
+| DOCS-06 | Phase 9 | Pending |
 
 **Coverage:**
-- v1 requirements: 72 total
-- Mapped to phases: 72
-- Unmapped: 0 ✓
+- v1 requirements: 76 total
+- Mapped to phases: 76
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-04-08*
-*Last updated: 2026-04-08 after initial definition*
+*Last updated: 2026-04-08 after roadmap creation*
