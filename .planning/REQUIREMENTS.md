@@ -48,13 +48,13 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Combat
 
-- [ ] **CMBT-01**: Target acquisition — snap to nearest threat from perception data
-- [ ] **CMBT-02**: PID-based aim control with lead prediction for projectile weapons (existing, extracted)
-- [ ] **CMBT-03**: Fuzzy weapon selection based on range, ammo, and weapon stats (existing, extracted)
-- [ ] **CMBT-04**: Combat movement — circle strafing, dodge patterns, skill-scaled (existing, extracted)
-- [ ] **CMBT-05**: Engagement/disengage decisions based on health, weapon matchup, threat assessment
-- [ ] **CMBT-06**: Weapon switch timing — preemptive switch before empty
-- [ ] **CMBT-07**: Threat assessment model — evaluate fight-or-flight based on own vs estimated enemy state
+- [x] **CMBT-01**: Target acquisition — snap to nearest threat from perception data
+- [x] **CMBT-02**: PID-based aim control with lead prediction for projectile weapons (existing, extracted)
+- [x] **CMBT-03**: Fuzzy weapon selection based on range, ammo, and weapon stats (existing, extracted)
+- [x] **CMBT-04**: Combat movement — circle strafing, dodge patterns, skill-scaled (existing, extracted)
+- [x] **CMBT-05**: Engagement/disengage decisions based on health, weapon matchup, threat assessment
+- [x] **CMBT-06**: Weapon switch timing — preemptive switch before empty
+- [x] **CMBT-07**: Threat assessment model — evaluate fight-or-flight based on own vs estimated enemy state
 
 ### Reflexes
 
@@ -189,13 +189,13 @@ Which phases cover which requirements. Updated during roadmap creation.
 | NAV-04 | Phase 4 | Pending |
 | NAV-05 | Phase 4 | Pending |
 | NAV-06 | Phase 4 | Pending |
-| CMBT-01 | Phase 4 | Pending |
-| CMBT-02 | Phase 4 | Pending |
-| CMBT-03 | Phase 4 | Pending |
-| CMBT-04 | Phase 4 | Pending |
-| CMBT-05 | Phase 4 | Pending |
-| CMBT-06 | Phase 4 | Pending |
-| CMBT-07 | Phase 4 | Pending |
+| CMBT-01 | Phase 4 | Complete |
+| CMBT-02 | Phase 4 | Complete |
+| CMBT-03 | Phase 4 | Complete |
+| CMBT-04 | Phase 4 | Complete |
+| CMBT-05 | Phase 4 | Complete |
+| CMBT-06 | Phase 4 | Complete |
+| CMBT-07 | Phase 4 | Complete |
 | RFLX-01 | Phase 4 | Complete |
 | RFLX-02 | Phase 4 | Complete |
 | RFLX-03 | Phase 4 | Complete |
