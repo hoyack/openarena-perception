@@ -106,7 +106,7 @@ Plans:
 - [x] 05-01-PLAN.md — FSM extraction to tactics/fsm.py with TacticalFSM
 - [x] 05-02-PLAN.md — Commander relocation to tactics/ + FightOrFlight wrapper
 - [x] 05-03-PLAN.md — LLM brain to strategy/ with Pydantic-validated constrained output
-- [ ] 05-04-PLAN.md — Comprehensive tests for all 6 requirements
+- [x] 05-04-PLAN.md — Comprehensive tests for all 6 requirements
 
 ### Phase 6: Skill System and API Layer
 **Goal**: LLM agents can control the bot programmatically through FastAPI endpoints that expose a three-layer skill system (actions, behaviors, missions)
