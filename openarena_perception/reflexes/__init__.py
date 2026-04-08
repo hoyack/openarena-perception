@@ -1,4 +1,10 @@
 """OpenArena Perception -- reflexes subsystem.
 
-Stub created in Phase 1. Code will be extracted here in Phase 4.
+Reactive interrupt layer: death handling, stuck escape, subsumption arbitration.
+Extracted from strategic_brain.py in Phase 4.
 """
+from .arbiter import SubsumptionArbiter
+from .death_handler import DeathHandler
+from .stuck_escape import StuckEscape
+
+__all__ = ["SubsumptionArbiter", "DeathHandler", "StuckEscape"]
