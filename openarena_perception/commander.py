@@ -1,4 +1,4 @@
-"""DEPRECATED: Use openarena_perception.navigation.commander instead."""
-from openarena_perception.navigation.commander import Commander, ItemMemory
+"""DEPRECATED: Use openarena_perception.tactics.commander instead."""
+from openarena_perception.tactics.commander import Commander, ItemMemory
 
 __all__ = ["Commander", "ItemMemory"]

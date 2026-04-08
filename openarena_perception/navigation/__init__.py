@@ -8,7 +8,7 @@ from .navigator import Navigator
 from .learned_map import LearnedMap
 from .exit_finder import find_exit, score_frame_openness
 from .room_surveyor import RoomSurveyor
-from .commander import Commander
+from openarena_perception.tactics.commander import Commander
 from .nav_behavior import NavBehavior
 from .survey_behavior import SurveyBehavior
 
