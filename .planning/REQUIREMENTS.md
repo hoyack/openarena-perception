@@ -1,0 +1,188 @@
+# Requirements: OpenArena Perception Bot Framework
+
+**Defined:** 2026-04-08
+**Core Value:** The bot must be a competitive deathmatch player — able to perceive enemies, navigate maps, select weapons, aim accurately, and make strategic decisions in real-time on constrained Pi hardware.
+
+## v1 Requirements
+
+Requirements for initial release. Each maps to roadmap phases.
+
+### Foundation
+
+- [ ] **FOUND-01**: Project uses brain-inspired folder structure (perception/, combat/, navigation/, memory/, tactics/, strategy/, reflexes/, brainstem/, skills/, api/)
+- [ ] **FOUND-02**: All duplicate root-level scripts resolved — single source of truth in package
+- [ ] **FOUND-03**: Configuration managed via pydantic-settings with env var / .env / TOML support
+- [ ] **FOUND-04**: Structured logging via structlog with JSON output and context binding
+- [ ] **FOUND-05**: Package management via uv with lockfile
+- [ ] **FOUND-06**: Code quality enforced via ruff linter/formatter
+- [ ] **FOUND-07**: Characterization tests for strategic_brain.py capturing all state transitions before decomposition
+- [ ] **FOUND-08**: Immutable SituationalAwareness dataclass as central data contract between subsystems
+
+### Perception
+
+- [ ] **PERC-01**: Perception module produces immutable SituationalAwareness snapshots at 15+ FPS on Pi 5
+- [ ] **PERC-02**: Enemy detection with bounding boxes via HSV thresholding (existing, extracted)
+- [ ] **PERC-03**: HUD state parsing — health, armor, ammo, weapon, frags, deaths via OCR (existing, extracted)
+- [ ] **PERC-04**: Damage direction detection from screen flash analysis
+- [ ] **PERC-05**: Enemy distance estimation from bounding box size
+- [ ] **PERC-06**: Multi-target tracking with persistent IDs across frames
+- [ ] **PERC-07**: Motion detection via frame differencing and optical flow (existing, extracted)
+- [ ] **PERC-08**: Sound awareness — parse Q3 console output for footsteps, weapon fire, item pickup events
+
+### Memory
+
+- [ ] **MEM-01**: SQLite database replaces all JSON/pickle file persistence
+- [ ] **MEM-02**: Working memory — current match state, recent events, short-term buffer
+- [ ] **MEM-03**: Episodic memory — match history, death locations, engagement outcomes
+- [ ] **MEM-04**: Semantic memory — map knowledge, room surveys, item locations persisted in DB
+- [ ] **MEM-05**: Alembic migrations for schema evolution
+
+### Navigation
+
+- [ ] **NAV-01**: AAS pathfinding with A* on navigation mesh (existing, extracted)
+- [ ] **NAV-02**: Stuck detection and recovery via scan-and-probe (existing, extracted)
+- [ ] **NAV-03**: Learned map with occupancy grid and edge cost tracking (existing, extracted)
+- [ ] **NAV-04**: Room surveyor producing 360-degree spatial documentation (existing, extracted)
+- [ ] **NAV-05**: Obstacle avoidance during combat — real-time path adjustment
+- [ ] **NAV-06**: Respawn handling — immediate orientation and navigation after death
+
+### Combat
+
+- [ ] **CMBT-01**: Target acquisition — snap to nearest threat from perception data
+- [ ] **CMBT-02**: PID-based aim control with lead prediction for projectile weapons (existing, extracted)
+- [ ] **CMBT-03**: Fuzzy weapon selection based on range, ammo, and weapon stats (existing, extracted)
+- [ ] **CMBT-04**: Combat movement — circle strafing, dodge patterns, skill-scaled (existing, extracted)
+- [ ] **CMBT-05**: Engagement/disengage decisions based on health, weapon matchup, threat assessment
+- [ ] **CMBT-06**: Weapon switch timing — preemptive switch before empty
+- [ ] **CMBT-07**: Threat assessment model — evaluate fight-or-flight based on own vs estimated enemy state
+
+### Reflexes
+
+- [ ] **RFLX-01**: Damage response — instant reactive behavior when taking damage (<1ms)
+- [ ] **RFLX-02**: Death handling — clean state reset and respawn recovery
+- [ ] **RFLX-03**: Stuck escape — subsumption override when movement fails
+- [ ] **RFLX-04**: Reactive interrupt layer — higher-priority behaviors suppress lower-priority (subsumption)
+
+### Tactics
+
+- [ ] **TACT-01**: FSM extracted from strategic_brain.py with clean state transitions
+- [ ] **TACT-02**: Commander — priority-based goal selection with utility scoring
+- [ ] **TACT-03**: Fight-or-flight evaluator based on threat assessment
+
+### Strategy
+
+- [ ] **STRT-01**: LLM brain via Ollama for high-level strategic reasoning (~0.25 Hz)
+- [ ] **STRT-02**: LLM receives structured game state snapshots + optional screenshots
+- [ ] **STRT-03**: Strategy outputs constrained to defined action vocabulary (HUNT/DEFEND/RETREAT/EXPLORE)
+
+### Skills System
+
+- [ ] **SKIL-01**: Atomic action layer — individual game commands (move, turn, fire, weapon_select)
+- [ ] **SKIL-02**: Behavior layer — composed sequences (room_survey, item_tour, combat_engage, patrol)
+- [ ] **SKIL-03**: Mission layer — high-level goals (explore_map, deathmatch, defend_area)
+- [ ] **SKIL-04**: Skills are composable — behaviors built from actions, missions built from behaviors
+- [ ] **SKIL-05**: SKILL.md migrated to skills/ folder as a specific skill definition
+
+### API Layer
+
+- [ ] **API-01**: FastAPI backend exposing bot control endpoints for LLM agents
+- [ ] **API-02**: REST endpoints for perception state, navigation commands, combat control, skill execution
+- [ ] **API-03**: WebSocket endpoint for real-time state streaming at 2-5 Hz
+- [ ] **API-04**: Pydantic models for all request/response schemas with auto-generated docs
+- [ ] **API-05**: Prometheus metrics endpoint (/metrics) — FPS gauge, kill counter, LLM latency, stuck frequency
+
+### Competitive Features
+
+- [ ] **COMP-01**: Item timing — track pickup timestamps and predict next spawn for Mega Health (35s), Red Armor (25s), Quad Damage (120s)
+- [ ] **COMP-02**: Spawn prediction — navigate preemptively to high-value item spawns
+- [ ] **COMP-03**: Multi-timescale decision architecture formalized — fast reflexes (10-22 Hz) + slow strategy (~0.25 Hz)
+
+### Human-Likeness
+
+- [ ] **HUMN-01**: Aim humanization — Gaussian noise scaled by target velocity, distance, turn rate. Cap accuracy below 70%
+- [ ] **HUMN-02**: Reaction time modeling — variable 150-250ms+ delay between perception and action
+- [ ] **HUMN-03**: Movement variability — overshoot corners, hesitate, occasional suboptimal paths
+- [ ] **HUMN-04**: Bot personality profiles — configurable aggression, caution, weapon preference, grudge tendency
+- [ ] **HUMN-05**: Adaptive learning — modify behavior based on death locations and engagement outcomes mid-match
+- [ ] **HUMN-06**: Hesitation pauses — 100-300ms decision delay on state transitions
+- [ ] **HUMN-07**: Skill difficulty scaling — unified parameter (1-5) affecting aim noise, reaction delay, decision quality
+
+### Testing
+
+- [ ] **TEST-01**: Unit tests for perception pipeline (HUD parsing, enemy detection, motion detection)
+- [ ] **TEST-02**: Unit tests for navigation (pathfinding, stuck detection, learned map)
+- [ ] **TEST-03**: Unit tests for combat (aim control PID, weapon selection, threat assessment)
+- [ ] **TEST-04**: Integration tests for full perception → decision → action loop
+- [ ] **TEST-05**: Tour testing with metrics — stuck count, completion time, visual verification
+- [ ] **TEST-06**: Property-based tests via hypothesis for PID math, navigation coordinates, pathfinding
+
+### Documentation
+
+- [ ] **DOCS-01**: Full documentation site with system architecture diagrams
+- [ ] **DOCS-02**: API reference auto-generated from FastAPI OpenAPI spec
+- [ ] **DOCS-03**: Subsystem documentation — perception, combat, navigation, memory, tactics, strategy
+- [ ] **DOCS-04**: Skill catalog — all available actions, behaviors, and missions
+- [ ] **DOCS-05**: Configuration guide — all tunable parameters with descriptions
+- [ ] **DOCS-06**: Getting started guide — setup on Pi, calibration, first run
+
+## v2 Requirements
+
+Deferred to future release. Tracked but not in current roadmap.
+
+### Advanced
+
+- **ADV-01**: Multi-agent coordination for team game modes
+- **ADV-02**: Self-play training and reinforcement learning
+- **ADV-03**: End-to-end neural control as alternative to modular pipeline
+- **ADV-04**: Chat/communication system
+- **ADV-05**: Plugin system for other games beyond OpenArena
+- **ADV-06**: Complex emotion/mood modeling
+- **ADV-07**: Hailo NPU YOLO detection augmenting HSV (hardware-dependent)
+- **ADV-08**: Replay and recording system for post-match analysis
+- **ADV-09**: Map control strategy — area value scoring and territorial behavior
+- **ADV-10**: Predictive enemy tracking — last-known-position + velocity extrapolation
+
+## Out of Scope
+
+Explicitly excluded. Documented to prevent scope creep.
+
+| Feature | Reason |
+|---------|--------|
+| Desktop GPU optimization | Pi-first constraint; desktop works as bonus |
+| Multi-game support | OpenArena only for v1; game-specific interfaces |
+| Perfect aim / aimbot accuracy | Actively harmful — detected by anti-cheat, breaks human-likeness |
+| Global omniscient awareness | Only use perception-derived information; no cheating |
+| Docker deployment on Pi | IPC overhead and memory pressure unacceptable on Pi |
+| Celery/Redis task queues | Overkill for single-bot; asyncio is sufficient |
+| gRPC for game communication | Named pipe + RCON are the only available channels |
+
+## Traceability
+
+Which phases cover which requirements. Updated during roadmap creation.
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| FOUND-01 through FOUND-08 | Phase 1 | Pending |
+| PERC-01 through PERC-07 | Phase 2 | Pending |
+| MEM-01 through MEM-05 | Phase 3 | Pending |
+| RFLX-01 through RFLX-04 | Phase 4 | Pending |
+| CMBT-01 through CMBT-07 | Phase 4 | Pending |
+| NAV-01 through NAV-06 | Phase 4 | Pending |
+| TACT-01 through TACT-03 | Phase 5 | Pending |
+| STRT-01 through STRT-03 | Phase 5 | Pending |
+| SKIL-01 through SKIL-05 | Phase 6 | Pending |
+| API-01 through API-05 | Phase 6 | Pending |
+| COMP-01 through COMP-03 | Phase 7 | Pending |
+| PERC-08 | Phase 7 | Pending |
+| HUMN-01 through HUMN-07 | Phase 8 | Pending |
+| TEST-01 through TEST-06 | Phase 9 | Pending |
+| DOCS-01 through DOCS-06 | Phase 9 | Pending |
+
+**Coverage:**
+- v1 requirements: 72 total
+- Mapped to phases: 72
+- Unmapped: 0 ✓
+
+---
+*Requirements defined: 2026-04-08*
+*Last updated: 2026-04-08 after initial definition*
