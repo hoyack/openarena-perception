@@ -1,21 +1,25 @@
-"""OpenArena Perception -- perception subsystem.
+"""Perception subsystem -- produces SituationalAwareness snapshots.
 
-Stub created in Phase 1. Code will be extracted here in Phase 2.
-
-Re-exports from legacy perception.py to maintain backward compatibility.
+All perception modules live here. Re-export stubs at the old package-root
+locations maintain backward compatibility for consumers like strategic_brain.py.
 """
-import importlib.util as _ilu
-import sys as _sys
-from pathlib import Path as _Path
+from openarena_perception.perception.capture import ScreenCapture, make_capture
+from openarena_perception.perception.hud_parser import HUDParser
+from openarena_perception.perception.world_parser import WorldParser
+from openarena_perception.perception.wall_detector import Perception
+from openarena_perception.perception.motion_detector import MotionDetector
+from openarena_perception.perception.player_detector import PlayerDetector
+from openarena_perception.perception.object_tracker import ObjectTracker, TrackedObject
+from openarena_perception.perception.damage_tracker import DamageTracker
+from openarena_perception.perception.motion_anomaly import (
+    MotionAnomalyTracker, TrackedAnomaly, AnomalyReport,
+)
 
-# Load the sibling perception.py that this package directory shadows.
-_legacy = _Path(__file__).parent.parent / "perception.py"
-_mod_name = "openarena_perception._perception_legacy"
-_spec = _ilu.spec_from_file_location(_mod_name, str(_legacy))
-_mod = _ilu.module_from_spec(_spec)
-_sys.modules[_mod_name] = _mod
-_spec.loader.exec_module(_mod)
-
-# Re-export the Perception class so existing imports keep working:
-#   from openarena_perception.perception import Perception
-Perception = _mod.Perception
+__all__ = [
+    "ScreenCapture", "make_capture",
+    "HUDParser", "WorldParser", "Perception",
+    "MotionDetector", "PlayerDetector",
+    "ObjectTracker", "TrackedObject",
+    "DamageTracker",
+    "MotionAnomalyTracker", "TrackedAnomaly", "AnomalyReport",
+]
