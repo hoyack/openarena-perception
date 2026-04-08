@@ -16,7 +16,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **FOUND-05**: Package management via uv with lockfile
 - [x] **FOUND-06**: Code quality enforced via ruff linter/formatter
 - [ ] **FOUND-07**: Characterization tests for strategic_brain.py capturing all state transitions before decomposition
-- [ ] **FOUND-08**: Immutable SituationalAwareness dataclass as central data contract between subsystems
+- [x] **FOUND-08**: Immutable SituationalAwareness dataclass as central data contract between subsystems
 
 ### Perception
 
@@ -169,7 +169,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | FOUND-05 | Phase 1 | Complete |
 | FOUND-06 | Phase 1 | Complete |
 | FOUND-07 | Phase 1 | Pending |
-| FOUND-08 | Phase 1 | Pending |
+| FOUND-08 | Phase 1 | Complete |
 | PERC-01 | Phase 2 | Pending |
 | PERC-02 | Phase 2 | Pending |
 | PERC-03 | Phase 2 | Pending |
