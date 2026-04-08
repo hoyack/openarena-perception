@@ -1,0 +1,516 @@
+"""
+navigator.py — AAS-based pathfinding with viewpos tracking.
+
+Uses the same nav mesh as the built-in Q3 bots:
+  - AAS areas define walkable regions
+  - Reachability edges define how to travel between areas
+  - Travel types: walk, jump, swim, ladder, jumppad, etc.
+  - viewpos gives real-time player position + yaw
+
+Navigation loop:
+  1. viewpos -> find current AAS area
+  2. A* to target area on AAS graph
+  3. Follow path: turn toward next area center, move forward
+  4. Handle travel types (jump when needed, etc.)
+"""
+
+from __future__ import annotations
+
+import heapq
+import logging
+import math
+import random
+import re
+import time
+from typing import Dict, List, Optional, Tuple
+
+from .aas_parser import AASGraph, parse_aas, TRAVEL_JUMP, TRAVEL_JUMPPAD, \
+    TRAVEL_LADDER, TRAVEL_WALKOFFLEDGE, TRAVEL_BARRIERJUMP
+from openarena_perception.game_bridge import GameBridge
+
+log = logging.getLogger(__name__)
+
+
+class Navigator:
+    """AAS-powered navigator with viewpos tracking."""
+
+    STUCK_THRESHOLD = 5.0
+    STUCK_COUNT = 3  # ~0.6 seconds of no movement (faster detection)
+    AREA_REACH_DIST = 200.0  # 2D distance to consider "at" an area
+    POS_INTERVAL = 0.2
+    YAW_SPEED = 180
+
+    def __init__(self, bridge: GameBridge, aas_path: str = "", bsp_path: str = ""):
+        self.bridge = bridge
+        self.graph: Optional[AASGraph] = None
+        self.pos: Optional[Tuple[float, float, float]] = None
+        self.yaw: float = 0.0
+        self._prev_pos: Optional[Tuple[float, float, float]] = None
+        self._stuck_count = 0
+        self._last_query = 0.0
+        self._current_area = 0
+        self._path: List[int] = []
+
+        # Learned map hooks (set by StrategicBrain)
+        self._edge_cost_fn = None      # callable(from_area, to_area) -> float
+        self._on_area_transition = None # callable(from_area, to_area, success)
+        self._prev_area_for_learning = 0
+
+        if aas_path:
+            self.graph = parse_aas(aas_path)
+
+    def update_position(self):
+        """Query viewpos via RCON."""
+        now = time.time()
+        if now - self._last_query < self.POS_INTERVAL:
+            return
+        self._last_query = now
+        self._prev_pos = self.pos
+
+        raw = self.bridge.rcon("viewpos")
+        m = re.search(r"\((-?\d+)\s+(-?\d+)\s+(-?\d+)\)\s*:\s*(-?\d+)", raw)
+        if m:
+            self.pos = (float(m.group(1)), float(m.group(2)), float(m.group(3)))
+            self.yaw = float(m.group(4))
+            self._check_stuck()
+            if self.graph:
+                new_area = self.graph.nearest_area(*self.pos)
+                if new_area != self._current_area:
+                    # Moved to a new area -- reset stuck counter
+                    if hasattr(self, '_consecutive_stuck'):
+                        self._consecutive_stuck = 0
+                    # Report successful edge traversal
+                    if (self._on_area_transition and
+                            self._prev_area_for_learning > 0):
+                        self._on_area_transition(
+                            self._prev_area_for_learning, new_area, True)
+                    self._prev_area_for_learning = new_area
+                self._current_area = new_area
+
+    @property
+    def is_stuck(self) -> bool:
+        return self._stuck_count >= self.STUCK_COUNT
+
+    @property
+    def has_path(self) -> bool:
+        return len(self._path) > 0
+
+    @property
+    def current_area(self) -> int:
+        return self._current_area
+
+    # -- Pathfinding --------------------------------------------------------
+
+    def path_to_area(self, target: int) -> bool:
+        """A* from current area to target area."""
+        if not self.graph or self._current_area == 0:
+            return False
+        path = self._astar(self._current_area, target)
+        if path and len(path) > 1:
+            self._path = path[1:]  # skip current area
+            log.info("Path: %d steps from area %d to %d",
+                     len(self._path), self._current_area, target)
+            return True
+        return False
+
+    def path_to_random(self) -> bool:
+        """Path to a random connected area for exploration."""
+        if not self.graph:
+            return False
+        # Pick a random area that has connections
+        candidates = [a.idx for a in self.graph.areas
+                      if a.neighbors and a.idx != self._current_area]
+        if not candidates:
+            return False
+        target = random.choice(candidates)
+        return self.path_to_area(target)
+
+    def follow_path(self) -> Optional[int]:
+        """
+        Two-phase path following (same algorithm as Q3 built-in bots):
+          Phase 1: Steer toward reachability START point
+          Phase 2: When close to start, steer toward reachability END point
+          Advance: When close to end, pop path and move to next edge
+
+        Uses the exact start/end vectors from the AAS reachability data,
+        which define walkable paths that don't go through walls.
+
+        Returns the travel type, or None if no path / arrived.
+        """
+        if not self._path or not self.pos or not self.graph:
+            return None
+
+        target_area = self._path[0]
+        current = self._current_area
+
+        # Find reachability edge from current area to target
+        reach = None
+        area = self.graph.areas[current]
+        for r in area.reaches:
+            if r.dest_area == target_area:
+                reach = r
+                break
+
+        if reach:
+            # Never follow swim edges
+            if reach.travel_type in self.SWIM_TRAVEL:
+                self._path.pop(0)
+                log.info("Skipping swim edge to area %d", target_area)
+                return None
+
+            # Never walk off a ledge into a liquid area (lava/water)
+            if (reach.travel_type == TRAVEL_WALKOFFLEDGE and
+                    target_area < len(self.graph.areas) and
+                    self.graph.areas[target_area].is_liquid):
+                self._path.pop(0)
+                log.warning("Skipping walkoffledge into liquid area %d!", target_area)
+                return None
+
+            sx, sy, sz = reach.start
+            ex, ey, ez = reach.end
+            dist_start = math.hypot(sx - self.pos[0], sy - self.pos[1])
+            dist_end = math.hypot(ex - self.pos[0], ey - self.pos[1])
+
+            # Detect height changes (stairs, ramps, ledges)
+            height_delta = ez - sz  # positive = going up
+            is_ascending = height_delta > 16  # Q3 step height is 18 units
+            is_descending = height_delta < -16
+
+            # Tighter arrival distance for vertical transitions
+            start_threshold = 40 if abs(height_delta) > 16 else 50
+            end_threshold = 40 if abs(height_delta) > 16 else 50
+
+            if dist_start > start_threshold:
+                # Phase 1: steer toward start point
+                self._steer_toward(sx, sy)
+                # If ascending and near the start, start jumping to climb stairs
+                if is_ascending and dist_start < 120:
+                    self.bridge.cmd("+moveup")
+                    self.bridge.cmd("-moveup")
+            elif dist_end > end_threshold:
+                # Phase 2: steer toward end point
+                self._steer_toward(ex, ey)
+                # Jump continuously while ascending (stairs/ramps)
+                if is_ascending:
+                    self.bridge.cmd("+moveup")
+                    self.bridge.cmd("-moveup")
+            else:
+                # Arrived at end -- advance path
+                self._path.pop(0)
+                if not self._path:
+                    log.info("Reached destination (area %d)", target_area)
+                    return None
+
+            return reach.travel_type
+        else:
+            # No direct reachability -- use area center as fallback
+            tx, ty, tz = self.graph.area_center(target_area)
+            dist = math.hypot(tx - self.pos[0], ty - self.pos[1])
+            if dist < self.AREA_REACH_DIST:
+                self._path.pop(0)
+                if not self._path:
+                    log.info("Reached destination (area %d)", target_area)
+                    return None
+            else:
+                self._steer_toward(tx, ty)
+                # Jump if target is above us (stairs without reachability data)
+                if tz > self.pos[2] + 16:
+                    self.bridge.cmd("+moveup")
+                    self.bridge.cmd("-moveup")
+            return 1  # walk
+
+    def _steer_toward(self, tx: float, ty: float):
+        """
+        Closed-loop steering toward a world position.
+        Turns, reads viewpos, corrects until within tolerance.
+        Much more accurate than blind timed turns.
+        """
+        if not self.pos:
+            return
+
+        # Up to 3 correction iterations
+        for iteration in range(3):
+            # Re-read position for accurate yaw
+            raw = self.bridge.rcon("viewpos")
+            m = re.search(r"\((-?\d+)\s+(-?\d+)\s+(-?\d+)\)\s*:\s*(-?\d+)", raw)
+            if m:
+                self.yaw = float(m.group(4))
+
+            desired = math.degrees(math.atan2(ty - self.pos[1], tx - self.pos[0]))
+            delta = self._yaw_diff(self.yaw, desired)
+
+            if abs(delta) < 5:
+                self.bridge.action_stop("left")
+                self.bridge.action_stop("right")
+                return
+
+            # Proportional speed: small error = slow fine turn, big = fast
+            speed = min(300, max(60, abs(delta) * 4))
+            duration = max(0.015, abs(delta) / speed)
+
+            self.bridge.cmd(f"cl_yawspeed {int(speed)}")
+            direction = "left" if delta > 0 else "right"
+            opposite = "right" if delta > 0 else "left"
+            self.bridge.action_stop(opposite)
+            self.bridge.action_start(direction)
+            time.sleep(duration)
+            self.bridge.action_stop(direction)
+            time.sleep(0.03)  # settle for viewpos update
+
+    # -- Stuck recovery -----------------------------------------------------
+
+    def handle_stuck(self, capture_fn=None):
+        """
+        Smart stuck recovery:
+          1st attempt: quick wall dodge (0.5s)
+          2nd attempt: scan-and-probe exit finder (~4s)
+          3rd+: skip waypoint
+        """
+        if not hasattr(self, '_consecutive_stuck'):
+            self._consecutive_stuck = 0
+        self._consecutive_stuck += 1
+
+        log.info("STUCK #%d at area %d", self._consecutive_stuck, self._current_area)
+
+        # Report edge failure to learned map
+        if self._path and self._on_area_transition:
+            self._on_area_transition(self._current_area, self._path[0], False)
+
+        if self._consecutive_stuck >= 4:
+            # Give up on this waypoint
+            log.warning("Stuck %d times -- skipping waypoint", self._consecutive_stuck)
+            self._consecutive_stuck = 0
+            if self._path:
+                self._path.pop(0)
+            self._stuck_count = 0
+            return
+
+        if self._consecutive_stuck == 1:
+            # First try: quick wall dodge (turn 90 deg, try to walk around)
+            log.info("Trying wall dodge...")
+            if self.wall_dodge():
+                self._stuck_count = 0
+                return
+            # Wall dodge failed -- fall through to random unstick
+            self._random_unstick()
+        elif self._consecutive_stuck == 2 and capture_fn:
+            # Second try: scan-and-probe exit finder
+            log.info("Using exit finder...")
+            from .exit_finder import find_exit
+            result = find_exit(self.bridge, capture_fn)
+            if result:
+                exit_yaw, dist = result
+                log.info("Exit found at yaw=%.0f (%.0f units clear)", exit_yaw, dist)
+                self._steer_toward(
+                    self.pos[0] + 500 * math.cos(math.radians(exit_yaw)),
+                    self.pos[1] + 500 * math.sin(math.radians(exit_yaw)),
+                )
+                self.bridge.move_forward(True)
+                self._stuck_cleanup = ("none", "none", time.time() + 1.5)
+            else:
+                self._random_unstick()
+        else:
+            self._random_unstick()
+
+        self._stuck_count = 0
+        if self._path:
+            self._path.pop(0)
+
+    def wall_dodge(self):
+        """
+        Quick wall avoidance: try 90 deg left, if blocked try 90 deg right.
+        Returns True if we found an open direction.
+        """
+        if not self.pos:
+            return False
+
+        for try_dir in ["left", "right"]:
+            # Turn 90 degrees
+            self.bridge.cmd("cl_yawspeed 250")
+            self.bridge.action_start(try_dir)
+            time.sleep(90 / 250)
+            self.bridge.action_stop(try_dir)
+            time.sleep(0.05)
+
+            # Walk forward briefly
+            px0, py0 = self.pos[0], self.pos[1]
+            self.bridge.cmd("+forward")
+            time.sleep(0.4)
+            self.bridge.cmd("-forward")
+            time.sleep(0.1)
+
+            # Check if we moved
+            self.update_position()
+            if self.pos:
+                dist = math.hypot(self.pos[0] - px0, self.pos[1] - py0)
+                if dist > 20:
+                    log.info("Wall dodge: %s worked (moved %.0f)", try_dir, dist)
+                    return True
+
+            # Didn't move -- turn back and try other direction
+            opposite = "right" if try_dir == "left" else "left"
+            self.bridge.cmd("cl_yawspeed 250")
+            self.bridge.action_start(opposite)
+            time.sleep(90 / 250)
+            self.bridge.action_stop(opposite)
+            time.sleep(0.05)
+
+        return False
+
+    def _random_unstick(self):
+        """Quick random jump + strafe + turn recovery."""
+        near_stairs = False
+        if self._path and self.pos and self.graph:
+            target = self._path[0]
+            tc = self.graph.area_center(target)
+            near_stairs = abs(tc[2] - self.pos[2]) > 16
+
+        if near_stairs:
+            self.bridge.move_forward(True)
+            strafe_dir = random.choice(["moveleft", "moveright"])
+            self.bridge.action_start(strafe_dir)
+            for _ in range(3):
+                self.bridge.cmd("+moveup")
+                self.bridge.cmd("-moveup")
+                time.sleep(0.15)
+            self._stuck_cleanup = ("none", strafe_dir, time.time() + 0.8)
+        else:
+            self.bridge.move_forward(False)
+            self.bridge.action_start("back")
+            strafe_dir = random.choice(["moveleft", "moveright"])
+            self.bridge.action_start(strafe_dir)
+            turn_dir = random.choice(["left", "right"])
+            self.bridge.cmd("cl_yawspeed 350")
+            self.bridge.action_start(turn_dir)
+            self.bridge.cmd("+moveup")
+            self.bridge.cmd("-moveup")
+            self._stuck_cleanup = (turn_dir, strafe_dir, time.time() + 1.2)
+
+    def check_stuck_cleanup(self):
+        """Call each tick to clean up stuck recovery actions."""
+        if hasattr(self, '_stuck_cleanup') and self._stuck_cleanup:
+            turn_dir, strafe_dir, end_time = self._stuck_cleanup
+            if time.time() >= end_time:
+                if turn_dir != "none":
+                    self.bridge.action_stop(turn_dir)
+                self.bridge.action_stop(strafe_dir)
+                self.bridge.action_stop("back")
+                self.bridge.move_forward(True)
+                self.bridge.cmd("+moveup")
+                self.bridge.cmd("-moveup")
+                self._stuck_cleanup = None
+
+    @property
+    def is_recovering(self) -> bool:
+        return hasattr(self, '_stuck_cleanup') and self._stuck_cleanup is not None
+
+    # -- Status -------------------------------------------------------------
+
+    def get_status(self) -> str:
+        pos_str = f"({self.pos[0]:.0f},{self.pos[1]:.0f})" if self.pos else "?"
+        area_str = f"a={self._current_area}" if self.graph else ""
+        path_str = f" path={len(self._path)}" if self._path else ""
+        stuck = " STUCK" if self.is_stuck else ""
+        n_areas = self.graph.num_areas if self.graph else 0
+        return f"pos={pos_str} y={self.yaw:.0f} {area_str}/{n_areas}{path_str}{stuck}"
+
+    # -- Internal -----------------------------------------------------------
+
+    def _astar_allow_swim(self, start: int, goal: int) -> List[int]:
+        """A* that ALLOWS swim edges (for deliberate swim missions)."""
+        if start == goal:
+            return [goal]
+        if not self.graph:
+            return []
+
+        open_set = [(0.0, start)]
+        came_from: Dict[int, int] = {}
+        g_score: Dict[int, float] = {start: 0.0}
+        gx, gy, gz = self.graph.area_center(goal)
+
+        while open_set:
+            _, cur = heapq.heappop(open_set)
+            if cur == goal:
+                path = [cur]
+                while cur in came_from:
+                    cur = came_from[cur]
+                    path.append(cur)
+                path.reverse()
+                return path
+
+            area = self.graph.areas[cur]
+            for i, nb in enumerate(area.neighbors):
+                nx, ny, nz = self.graph.area_center(nb)
+                cx, cy, cz = self.graph.area_center(cur)
+                d = math.hypot(nx-cx, ny-cy) + abs(nz-cz) * 0.3
+                tentative = g_score[cur] + d
+                if tentative < g_score.get(nb, float('inf')):
+                    came_from[nb] = cur
+                    g_score[nb] = tentative
+                    h = math.hypot(nx-gx, ny-gy) + abs(nz-gz) * 0.3
+                    heapq.heappush(open_set, (tentative + h, nb))
+
+        return []
+
+    @staticmethod
+    def _yaw_diff(current: float, target: float) -> float:
+        """Signed yaw difference. Positive = turn left."""
+        return (target - current + 180) % 360 - 180
+
+    def _check_stuck(self):
+        if self._prev_pos and self.pos:
+            d = math.hypot(self.pos[0]-self._prev_pos[0], self.pos[1]-self._prev_pos[1])
+            if d < self.STUCK_THRESHOLD:
+                self._stuck_count += 1
+            else:
+                self._stuck_count = 0
+
+    # Travel types that require ground movement (preferred)
+    GROUND_TRAVEL = {1, 2, 3, 4, 5, 6, 17}  # walk, crouch, barrierjump, jump, ladder, walkoffledge, jumppad
+    SWIM_TRAVEL = {7, 8}  # swim, waterjump
+    SWIM_PENALTY = 999999.0  # effectively block swim paths -- bot will drown
+
+    def _astar(self, start: int, goal: int) -> List[int]:
+        if start == goal:
+            return [goal]
+        if not self.graph:
+            return []
+
+        open_set = [(0.0, start)]
+        came_from: Dict[int, int] = {}
+        g_score: Dict[int, float] = {start: 0.0}
+        gx, gy, gz = self.graph.area_center(goal)
+
+        while open_set:
+            _, cur = heapq.heappop(open_set)
+            if cur == goal:
+                path = [cur]
+                while cur in came_from:
+                    cur = came_from[cur]
+                    path.append(cur)
+                path.reverse()
+                return path
+
+            area = self.graph.areas[cur]
+            for i, nb in enumerate(area.neighbors):
+                nx, ny, nz = self.graph.area_center(nb)
+                cx, cy, cz = self.graph.area_center(cur)
+                d = math.hypot(nx-cx, ny-cy) + abs(nz-cz) * 0.3
+
+                # Skip swim paths entirely -- bot will drown
+                ttype = area.travel_types[i] if i < len(area.travel_types) else 1
+                if ttype in self.SWIM_TRAVEL:
+                    continue  # don't even consider this edge
+
+                # Add learned edge penalty (avoid repeatedly failed edges)
+                if self._edge_cost_fn:
+                    d += self._edge_cost_fn(cur, nb)
+
+                tentative = g_score[cur] + d
+                if tentative < g_score.get(nb, float('inf')):
+                    came_from[nb] = cur
+                    g_score[nb] = tentative
+                    h = math.hypot(nx-gx, ny-gy) + abs(nz-gz) * 0.3
+                    heapq.heappush(open_set, (tentative + h, nb))
+
+        return []

@@ -1,0 +1,38 @@
+"""DEPRECATED: Use openarena_perception.navigation.aas_parser instead."""
+from openarena_perception.navigation.aas_parser import (
+    AASGraph,
+    AASArea,
+    AASReach,
+    parse_aas,
+    TRAVEL_WALK,
+    TRAVEL_CROUCH,
+    TRAVEL_BARRIERJUMP,
+    TRAVEL_JUMP,
+    TRAVEL_LADDER,
+    TRAVEL_WALKOFFLEDGE,
+    TRAVEL_SWIM,
+    TRAVEL_WATERJUMP,
+    TRAVEL_TELEPORT,
+    TRAVEL_ELEVATOR,
+    TRAVEL_JUMPPAD,
+    TRAVEL_NAMES,
+)
+
+__all__ = [
+    "AASGraph",
+    "AASArea",
+    "AASReach",
+    "parse_aas",
+    "TRAVEL_WALK",
+    "TRAVEL_CROUCH",
+    "TRAVEL_BARRIERJUMP",
+    "TRAVEL_JUMP",
+    "TRAVEL_LADDER",
+    "TRAVEL_WALKOFFLEDGE",
+    "TRAVEL_SWIM",
+    "TRAVEL_WATERJUMP",
+    "TRAVEL_TELEPORT",
+    "TRAVEL_ELEVATOR",
+    "TRAVEL_JUMPPAD",
+    "TRAVEL_NAMES",
+]
