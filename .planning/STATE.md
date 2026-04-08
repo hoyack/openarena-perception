@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 05-02-PLAN.md
-last_updated: "2026-04-08T22:02:06.923Z"
+stopped_at: Completed 05-03-PLAN.md
+last_updated: "2026-04-08T22:05:51.937Z"
 last_activity: 2026-04-08
 progress:
   total_phases: 9
   completed_phases: 4
   total_plans: 20
-  completed_plans: 18
-  percent: 90
+  completed_plans: 19
+  percent: 95
 ---
 
 # Project State
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-04-08)
 ## Current Position
 
 Phase: 05 (Tactics and Strategy Extraction) — EXECUTING
-Plan: 3 of 4
+Plan: 4 of 4
 Status: Ready to execute
 Last activity: 2026-04-08
 
@@ -73,6 +73,7 @@ Progress: [..........] 0%
 | Phase 04 P05 | 4min | 3 tasks | 3 files |
 | Phase 05 P01 | 3min | 2 tasks | 3 files |
 | Phase 05 P02 | 2min | 2 tasks | 6 files |
+| Phase 05 P03 | 2min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -116,6 +117,10 @@ Recent decisions affecting current work:
 - [Phase 05]: Property bridges for _state and _state_enter_time on StrategicBrain delegate to TacticalFSM
 - [Phase 05]: Commander relocated to tactics/ (goal selection, not navigation) with re-export stubs preserving all existing import paths
 - [Phase 05]: FightOrFlight wraps ThreatAssessor via delegation, no logic duplication
+- [Phase 05]: Used Pydantic model_validate_json for strict LLM response validation with StrategyAction enum
+- [Phase 05]: Alias mapping normalizes old LLM vocabulary (CAMP/AMBUSH->DEFEND, GRAB_ITEM->EXPLORE)
+- [Phase 05]: Lazy AsyncClient initialization avoids import-time side effects in strategy/llm_brain.py
+- [Phase 05]: Root llm_brain.py and strategic_agent.py kept intact with DEPRECATED notices for safe migration
 
 ### Pending Todos
 
@@ -128,6 +133,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-08T22:02:06.913Z
-Stopped at: Completed 05-02-PLAN.md
+Last session: 2026-04-08T22:05:51.927Z
+Stopped at: Completed 05-03-PLAN.md
 Resume file: None

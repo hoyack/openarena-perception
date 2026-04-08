@@ -71,9 +71,9 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Strategy
 
-- [ ] **STRT-01**: LLM brain via Ollama for high-level strategic reasoning (~0.25 Hz)
-- [ ] **STRT-02**: LLM receives structured game state snapshots + optional screenshots
-- [ ] **STRT-03**: Strategy outputs constrained to defined action vocabulary (HUNT/DEFEND/RETREAT/EXPLORE)
+- [x] **STRT-01**: LLM brain via Ollama for high-level strategic reasoning (~0.25 Hz)
+- [x] **STRT-02**: LLM receives structured game state snapshots + optional screenshots
+- [x] **STRT-03**: Strategy outputs constrained to defined action vocabulary (HUNT/DEFEND/RETREAT/EXPLORE)
 
 ### Skills System
 
@@ -203,9 +203,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TACT-01 | Phase 5 | Complete |
 | TACT-02 | Phase 5 | Complete |
 | TACT-03 | Phase 5 | Complete |
-| STRT-01 | Phase 5 | Pending |
-| STRT-02 | Phase 5 | Pending |
-| STRT-03 | Phase 5 | Pending |
+| STRT-01 | Phase 5 | Complete |
+| STRT-02 | Phase 5 | Complete |
+| STRT-03 | Phase 5 | Complete |
 | SKIL-01 | Phase 6 | Pending |
 | SKIL-02 | Phase 6 | Pending |
 | SKIL-03 | Phase 6 | Pending |
