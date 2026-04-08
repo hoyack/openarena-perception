@@ -1,12 +1,17 @@
 """
-strategic_brain.py — Layered strategic decision architecture.
+strategic_brain.py -- Layered strategic decision architecture.
+
+Thin orchestrator that delegates all behavior to subsystem modules:
+  - reflexes/ (SubsumptionArbiter, DeathHandler, StuckEscape)
+  - combat/ (CombatEngager)
+  - navigation/ (NavBehavior, SurveyBehavior)
 
 Single tick entry point that orchestrates ALL perception and action modules
 through a finite state machine with unified situational awareness.
 
 States:
-  DEAD → COMBAT → STUCK → PICKING_UP_ITEM → TRAVERSING_DOOR →
-  SURVEYING → NAVIGATING → EXPLORING
+  DEAD -> COMBAT -> STUCK -> PICKING_UP_ITEM -> TRAVERSING_DOOR ->
+  SURVEYING -> NAVIGATING -> EXPLORING
 
 Each state has specific behaviors and transition conditions.
 All movement goes through VirtualController (pipe-only, no mouse).
@@ -26,11 +31,7 @@ from typing import Dict, Optional
 import cv2
 import numpy as np
 
-from .aas_parser import (
-    TRAVEL_JUMP, TRAVEL_JUMPPAD, TRAVEL_BARRIERJUMP,
-    TRAVEL_WALKOFFLEDGE, TRAVEL_LADDER,
-)
-from .combat import CombatMover
+from .combat import CombatEngager, CombatMover
 from .commander import Commander
 from .damage_tracker import DamageTracker
 from .game_bridge import GameBridge
@@ -38,8 +39,10 @@ from .game_state import GameState
 from .models import BrainState, SituationalAwareness, SpatialKnowledge
 from .motion_anomaly import MotionAnomalyTracker
 from .navigator import Navigator
+from .navigation import NavBehavior, SurveyBehavior
 from .object_tracker import ObjectTracker
 from .perception import Perception
+from .reflexes import SubsumptionArbiter, DeathHandler, StuckEscape
 from .room_surveyor import RoomSurveyor
 from .learned_map import LearnedMap
 from .virtual_controller import VirtualController
@@ -47,7 +50,7 @@ from .virtual_controller import VirtualController
 log = logging.getLogger(__name__)
 
 
-# ── Build Situational Awareness ─────────────────────────────────────
+# -- Build Situational Awareness ---------------------------------------------
 
 def build_situational_awareness(tick, gs, nav, damage, perception, obj_tracker,
                                  anomaly_tracker, surveyor, spatial, nav_target=None):
@@ -128,12 +131,12 @@ def build_situational_awareness(tick, gs, nav, damage, perception, obj_tracker,
     )
 
 
-# ── Strategic Brain ──────────────────────────────────────────────────
+# -- Strategic Brain ----------------------------------------------------------
 
 class StrategicBrain:
     """
     Top-level orchestrator. Single tick() entry point.
-    Owns the state machine, calls all modules, exports HUD state.
+    Owns the state machine, delegates all behavior to subsystem modules.
     """
 
     STATE_FILE = "/tmp/oa_hud_state.json"
@@ -167,7 +170,7 @@ class StrategicBrain:
         self.map_name = map_name
         self.combat_mover = CombatMover()
 
-        # Learned map — self-mapping navigation layer
+        # Learned map -- self-mapping navigation layer
         self.learned_map = LearnedMap(map_name=map_name, aas_graph=nav.graph)
         self.learned_map.load()
         # Wire edge cost callback into A*
@@ -183,15 +186,10 @@ class StrategicBrain:
 
         # Awareness
         self._awareness: Optional[SituationalAwareness] = None
-        self._nav_target: Optional[str] = None
 
         # Tick counter
         self._tick = 0
         self._start_time = time.time()
-        self._deaths = 0
-        self._was_alive = True
-        self._stuck_attempts = 0
-        self._items_collected = 0
 
         # Timing
         self._last_refocus = 0.0
@@ -199,18 +197,75 @@ class StrategicBrain:
         self._last_strategic_query = 0.0
         self._last_status_log = 0.0
 
-        # Target blacklist — skip unreachable targets temporarily
-        self._target_failures: Dict[str, int] = {}   # classname -> failure count
-        self._target_blacklist: Dict[str, float] = {} # classname -> blacklist until timestamp
-        self._stucks_on_current_target = 0
-
         # Window focus
         self._window_id = ""
 
-    # ── Public API ────────────────────────────────────────────────
+        # -- Subsystem modules (Phase 4 extraction) --
+        self._arbiter = SubsumptionArbiter()
+        self._death_handler = DeathHandler(bridge, ctrl)
+        self._stuck_escape = StuckEscape(nav)
+        self._engager = CombatEngager(ctrl, bridge, self.combat_mover)
+        self._nav_behavior = NavBehavior(ctrl, nav, commander, nav.graph if nav else None)
+        self._survey_behavior = SurveyBehavior(surveyor, self.spatial) if surveyor else None
+
+    # -- Property bridges for backward compat with tests/external access ------
+
+    @property
+    def _deaths(self) -> int:
+        return self._death_handler.deaths
+
+    @_deaths.setter
+    def _deaths(self, value: int) -> None:
+        self._death_handler._deaths = value
+
+    @property
+    def _was_alive(self) -> bool:
+        return self._death_handler.was_alive
+
+    @_was_alive.setter
+    def _was_alive(self, value: bool) -> None:
+        self._death_handler.was_alive = value
+
+    @property
+    def _stuck_attempts(self) -> int:
+        return self._stuck_escape.stuck_attempts
+
+    @_stuck_attempts.setter
+    def _stuck_attempts(self, value: int) -> None:
+        self._stuck_escape._stuck_attempts = value
+
+    @property
+    def _stucks_on_current_target(self) -> int:
+        return self._stuck_escape._stucks_on_current_target
+
+    @_stucks_on_current_target.setter
+    def _stucks_on_current_target(self, value: int) -> None:
+        self._stuck_escape._stucks_on_current_target = value
+
+    @property
+    def _target_failures(self) -> Dict[str, int]:
+        return self._stuck_escape.target_failures
+
+    @property
+    def _target_blacklist(self) -> Dict[str, float]:
+        return self._stuck_escape.target_blacklist
+
+    @property
+    def _nav_target(self) -> Optional[str]:
+        return self._nav_behavior.nav_target
+
+    @_nav_target.setter
+    def _nav_target(self, value: Optional[str]) -> None:
+        self._nav_behavior.nav_target = value
+
+    @property
+    def _items_collected(self) -> int:
+        return self._nav_behavior.items_collected
+
+    # -- Public API -----------------------------------------------------------
 
     async def tick(self, gs: GameState):
-        """Single entry point — called every frame."""
+        """Single entry point -- called every frame."""
         self._tick += 1
         now = time.time()
 
@@ -250,6 +305,10 @@ class StrategicBrain:
             if sa.under_attack:
                 self.spatial.record_danger(sa.current_area)
 
+        # Propagate was_alive for death detection (T-04-08 mitigation)
+        if sa.is_alive:
+            self._death_handler.was_alive = True
+
         # Evaluate state transitions
         new_state = self._evaluate_transitions(sa)
         if new_state != self._state:
@@ -258,22 +317,12 @@ class StrategicBrain:
             self._state = new_state
             self._state_enter_time = now
             self._on_enter_state(new_state, sa)
-            log.info("BRAIN: %s → %s [%s hp=%s area=%d]",
+            log.info("BRAIN: %s -> %s [%s hp=%s area=%d]",
                      old.value, new_state.value, sa.disposition,
                      sa.health, sa.current_area)
 
-        # Execute current state behavior
-        handlers = {
-            BrainState.DEAD: self._tick_dead,
-            BrainState.COMBAT: self._tick_combat,
-            BrainState.STUCK: self._tick_stuck,
-            BrainState.SURVEYING: self._tick_surveying,
-            BrainState.NAVIGATING: self._tick_navigating,
-            BrainState.EXPLORING: self._tick_exploring,
-            BrainState.TRAVERSING_DOOR: self._tick_traversing_door,
-            BrainState.PICKING_UP_ITEM: self._tick_picking_up_item,
-        }
-        await handlers[self._state](sa, gs)
+        # Execute current state behavior via subsystem dispatch
+        await self._dispatch(self._state, sa, gs)
 
         # Status log every ~4s
         if now - self._last_status_log > 4.0:
@@ -320,307 +369,78 @@ class StrategicBrain:
         self.bridge.stop_firing()
         self.learned_map.save()
 
-    # ── State Transitions ─────────────────────────────────────────
+    # -- State Transitions (delegated to SubsumptionArbiter) ------------------
 
     def _evaluate_transitions(self, sa: SituationalAwareness) -> BrainState:
-        """Priority-ordered transition evaluation."""
+        """Priority-ordered transition evaluation via SubsumptionArbiter."""
         state_time = time.time() - self._state_enter_time
-
-        # P1: Dead
-        if not sa.is_alive:
-            return BrainState.DEAD
-
-        # P2: Combat (under attack with visible enemies)
-        if (sa.under_attack and sa.enemies_visible > 0 and
-                self._state != BrainState.DEAD):
-            return BrainState.COMBAT
-
-        # P3: Stuck
-        if (sa.is_stuck and not sa.is_recovering and
-                self._state not in (BrainState.DEAD, BrainState.COMBAT,
-                                     BrainState.SURVEYING)):
-            return BrainState.STUCK
-
-        # P4: Item pickup (motion anomaly detected while navigating)
-        if (sa.lockable_anomaly and
-                self._state in (BrainState.NAVIGATING, BrainState.EXPLORING)):
-            return BrainState.PICKING_UP_ITEM
-
-        # P5: Door/wall obstruction while navigating
-        if (sa.wall_ahead and sa.wall_score > 0.7 and
-                sa.has_path and
-                self._state == BrainState.NAVIGATING and
-                state_time > 2.0):  # only if stuck for >2s
-            return BrainState.TRAVERSING_DOOR
-
-        # P6: Survey new room
-        if (not sa.room_surveyed and
-                sa.current_area > 0 and
-                self.surveyor and
-                time.time() > self._survey_cooldown and
-                self.spatial.should_survey(sa.current_area, sa.pos) and
-                self._state in (BrainState.NAVIGATING, BrainState.EXPLORING)):
-            return BrainState.SURVEYING
-
-        # Returning from states
-        if self._state == BrainState.DEAD and sa.is_alive:
-            return BrainState.EXPLORING
-
-        if (self._state == BrainState.COMBAT and
-                not sa.under_attack and sa.seconds_since_damage > 3.0):
-            return BrainState.NAVIGATING
-
-        if (self._state == BrainState.STUCK and
-                not sa.is_stuck and not sa.is_recovering):
-            return BrainState.NAVIGATING
-
-        if self._state == BrainState.SURVEYING and state_time > 15.0:
-            return BrainState.NAVIGATING  # timeout
-
-        if self._state == BrainState.TRAVERSING_DOOR:
-            if sa.wall_score < 0.3 or state_time > 5.0:
-                return BrainState.NAVIGATING
-
-        if (self._state == BrainState.PICKING_UP_ITEM and
-                (not sa.lockable_anomaly or state_time > 5.0)):
-            return BrainState.NAVIGATING
-
-        if (self._state == BrainState.EXPLORING and
-                self.commander.should_decide()):
-            return BrainState.NAVIGATING
-
-        if (self._state == BrainState.NAVIGATING and
-                not sa.has_path and not self.commander.should_decide()):
-            return BrainState.EXPLORING
-
-        return self._state
+        return self._arbiter.evaluate(
+            sa, self._state, state_time,
+            survey_cooldown=self._survey_cooldown,
+            spatial=self.spatial,
+            surveyor=self.surveyor,
+            commander=self.commander,
+            nav_target=self._nav_target,
+        )
 
     def _on_enter_state(self, state: BrainState, sa: SituationalAwareness):
+        """Delegate state entry side-effects to subsystem modules."""
         if state == BrainState.DEAD:
-            self._deaths += 1
-            self.ctrl.release_all()
-            self.anomaly.reset()
-            self.obj_tracker.reset()
+            self._death_handler.on_enter(sa, self.anomaly, self.obj_tracker)
 
         elif state == BrainState.COMBAT:
-            self.bridge.fire(True)
+            self._engager.on_enter(sa)
 
         elif state == BrainState.STUCK:
-            self._stuck_attempts += 1
-            self._stucks_on_current_target += 1
-            # Blacklist target after 2 stucks — move on faster
-            if self._nav_target and self._stucks_on_current_target >= 2:
-                self._target_failures[self._nav_target] = \
-                    self._target_failures.get(self._nav_target, 0) + 1
-                self._target_blacklist[self._nav_target] = time.time() + 90.0
-                log.warning("Blacklisting %s for 90s (stuck %d times)",
-                            self._nav_target, self._stucks_on_current_target)
-                self._nav_target = None
-                self._stucks_on_current_target = 0
+            new_target = self._stuck_escape.on_enter(sa, self._nav_target)
+            if new_target is None and self._nav_target is not None:
+                self._nav_target = None  # target was blacklisted
 
         elif state == BrainState.EXPLORING:
-            self._stuck_attempts = 0
-            self.nav.path_to_random()
+            self._nav_behavior.on_enter_exploring()
+            self._stuck_escape.reset_stuck_count()
 
         elif state == BrainState.NAVIGATING:
-            self._stuck_attempts = 0
+            self._nav_behavior.on_enter_navigating()
+            self._stuck_escape.reset_stuck_count()
 
     def _on_exit_state(self, state: BrainState, sa: SituationalAwareness):
+        """Delegate state exit side-effects to subsystem modules."""
         # Always release look actions to prevent stuck lookdown
-        self.bridge.cmd("-lookup")
-        self.bridge.cmd("-lookdown")
-        self.bridge.cmd("centerview")
+        self._death_handler.on_exit(sa)
 
         if state == BrainState.COMBAT:
-            self.bridge.fire(False)
-            self.ctrl.strafe_left(False)
-            self.ctrl.strafe_right(False)
+            self._engager.on_exit(sa)
 
         elif state == BrainState.SURVEYING:
             self.ctrl.center_view()
 
-    # ── State Behaviors ───────────────────────────────────────────
+    # -- State Dispatch (delegated to subsystem modules) ----------------------
 
-    async def _tick_dead(self, sa, gs):
-        if self._was_alive:
-            self._was_alive = False
-            log.info("DIED (#%d)", self._deaths)
-        self.bridge.release_all()
-        self.bridge.cmd("+attack")
-        self.bridge.cmd("-attack")
+    async def _dispatch(self, state: BrainState, sa: SituationalAwareness, gs):
+        """Dispatch tick to the appropriate subsystem handler."""
+        if state == BrainState.DEAD:
+            await self._death_handler.tick(sa, gs)
+        elif state == BrainState.COMBAT:
+            await self._engager.tick(sa, gs)
+        elif state == BrainState.STUCK:
+            await self._stuck_escape.tick(sa, gs)
+        elif state == BrainState.SURVEYING:
+            if self._survey_behavior:
+                state_time = time.time() - self._state_enter_time
+                cooldown = await self._survey_behavior.tick(sa, gs, state_time)
+                if cooldown is not None:
+                    self._survey_cooldown = cooldown
+        elif state == BrainState.NAVIGATING:
+            await self._nav_behavior.tick_navigating(sa, gs, self._tick)
+        elif state == BrainState.EXPLORING:
+            await self._nav_behavior.tick_exploring(sa, gs, self._tick)
+        elif state == BrainState.TRAVERSING_DOOR:
+            await self._nav_behavior.tick_door(sa, gs)
+        elif state == BrainState.PICKING_UP_ITEM:
+            await self._nav_behavior.tick_pickup(sa, gs, self.anomaly)
 
-    async def _tick_combat(self, sa, gs):
-        self._was_alive = True
-
-        # Snap aim toward attacker
-        if sa.attacker_direction != 0 and sa.seconds_since_damage < 0.3:
-            self.ctrl.turn_degrees(-sa.attacker_direction * 15)
-
-        # Move aggressively
-        self.ctrl.forward(True)
-        move = self.combat_mover.get_movement(300, 'machinegun', 0.9)
-        self.ctrl.strafe_left(move['strafe_left'])
-        self.ctrl.strafe_right(move['strafe_right'])
-        if move['jump']:
-            self.ctrl.jump()
-
-    async def _tick_stuck(self, sa, gs):
-        self._was_alive = True
-
-        def capture():
-            return gs.frame
-
-        self.nav.handle_stuck(capture_fn=capture if sa.has_frame else None)
-
-    async def _tick_surveying(self, sa, gs):
-        self._was_alive = True
-        state_time = time.time() - self._state_enter_time
-
-        # Only survey once per entry
-        if state_time < 0.5 and self.surveyor and sa.pos:
-            def capture():
-                return gs.frame
-            survey = self.surveyor.perform_survey(
-                area_id=sa.current_area, pos=sa.pos,
-                start_yaw=sa.yaw, capture_fn=capture,
-            )
-            if survey:
-                self.spatial.store_survey(survey)
-                log.info("SURVEY: %s | exits=%d | recommended=%s",
-                         survey.room_type, len(survey.exits),
-                         survey.recommended_exit)
-            self._survey_cooldown = time.time() + 45.0
-
-    async def _tick_navigating(self, sa, gs):
-        self._was_alive = True
-        now = time.time()
-
-        # Commander decides target every 3s
-        if self.commander.should_decide() or not sa.has_path:
-            px = sa.pos[0] if sa.pos else 0
-            py = sa.pos[1] if sa.pos else 0
-
-            # Try up to 5 targets in case some are blacklisted
-            for _ in range(5):
-                target = self.commander.decide(
-                    health=sa.health, armor=sa.armor, ammo=sa.ammo,
-                    pos_x=px, pos_y=py, enemies_visible=sa.enemies_visible,
-                )
-                if not target:
-                    break
-
-                # Check blacklist
-                bl_until = self._target_blacklist.get(target.classname, 0)
-                if bl_until > now:
-                    # Force commander to skip this one next time
-                    target.last_visited = now
-                    continue
-
-                new_target = target.classname != self._nav_target
-                self._nav_target = target.classname
-                if new_target:
-                    self._stucks_on_current_target = 0
-
-                target_area = self.nav.graph.nearest_area(target.x, target.y, target.z)
-                # Skip liquid targets
-                if (target_area < len(self.nav.graph.areas) and
-                        self.nav.graph.areas[target_area].is_liquid):
-                    log.warning("Target %s in liquid — skipping", target.classname)
-                    continue
-
-                if self.nav.path_to_area(target_area):
-                    break  # path found
-                else:
-                    log.warning("No path to %s — trying next", target.classname)
-                    continue
-            else:
-                # All targets exhausted — explore randomly
-                self._nav_target = None
-                self.nav.path_to_random()
-
-        # Move forward
-        self.ctrl.forward(True)
-
-        # Follow path
-        travel_type = self.nav.follow_path()
-        if travel_type is not None:
-            if travel_type in (TRAVEL_JUMP, TRAVEL_JUMPPAD, TRAVEL_BARRIERJUMP,
-                               TRAVEL_WALKOFFLEDGE, TRAVEL_LADDER):
-                self.ctrl.jump()
-
-        # Bunny hop
-        if self._tick % 8 == 0:
-            self.ctrl.jump()
-
-        # Keep view level
-        if self._tick % 12 == 0:
-            self.ctrl.center_view()
-
-        # Check arrival
-        if not sa.has_path and self._nav_target:
-            log.info("ARRIVED at %s", self._nav_target)
-            self._items_collected += 1
-            self._nav_target = None
-
-    async def _tick_exploring(self, sa, gs):
-        self._was_alive = True
-
-        self.ctrl.forward(True)
-
-        # Follow random path
-        travel_type = self.nav.follow_path()
-        if travel_type is not None:
-            if travel_type in (TRAVEL_JUMP, TRAVEL_JUMPPAD, TRAVEL_BARRIERJUMP,
-                               TRAVEL_WALKOFFLEDGE, TRAVEL_LADDER):
-                self.ctrl.jump()
-
-        if not sa.has_path:
-            self.nav.path_to_random()
-
-        if self._tick % 8 == 0:
-            self.ctrl.jump()
-        if self._tick % 12 == 0:
-            self.ctrl.center_view()
-
-    async def _tick_traversing_door(self, sa, gs):
-        self._was_alive = True
-
-        # Slow approach: walk forward briefly, check wall
-        self.ctrl.forward(True)
-
-        # If wall still ahead, try turning toward open direction
-        if sa.wall_ahead:
-            if sa.open_direction < 0:
-                self.ctrl.turn_degrees(20)  # turn left
-            elif sa.open_direction > 0:
-                self.ctrl.turn_degrees(-20)  # turn right
-            else:
-                self.ctrl.turn_degrees(-30)  # default turn right
-
-            self.ctrl.jump()  # try jumping in case it's a step
-
-    async def _tick_picking_up_item(self, sa, gs):
-        self._was_alive = True
-
-        lockable = self.anomaly.get_lockable_anomaly()
-        if lockable and sa.has_frame:
-            # Aim toward the anomaly
-            screen_w, screen_h = 800, 600
-            dx = lockable.cx - screen_w // 2
-            dy = lockable.cy - screen_h // 2
-            self.ctrl.track_target(dx, dy, smoothing=0.4)
-            self.ctrl.forward(True)
-
-            # Identify if not yet identified
-            if not lockable.identified:
-                report = self.anomaly.identify_anomaly(lockable, gs.frame)
-                if report:
-                    log.info("PICKUP: %s (%s) — %s",
-                             report.identity, report.category, report.action)
-        else:
-            self.ctrl.forward(True)
-
-    # ── Utility ───────────────────────────────────────────────────
+    # -- Utility --------------------------------------------------------------
 
     def _refocus(self):
         import subprocess
