@@ -39,6 +39,7 @@ from .object_tracker import ObjectTracker
 from .perception import Perception
 from .reflexes import DeathHandler, StuckEscape, SubsumptionArbiter
 from .room_surveyor import RoomSurveyor
+from .tactics import TacticalFSM
 from .virtual_controller import VirtualController
 
 log = logging.getLogger(__name__)
@@ -173,11 +174,6 @@ class StrategicBrain:
         self._prev_area_for_learning = 0
         nav._on_area_transition = self._on_area_transition
 
-        # State machine
-        self._state = BrainState.EXPLORING
-        self._state_enter_time = time.time()
-        self._prev_state = BrainState.EXPLORING
-
         # Awareness
         self._awareness: SituationalAwareness | None = None
 
@@ -201,6 +197,19 @@ class StrategicBrain:
         self._engager = CombatEngager(ctrl, bridge, self.combat_mover)
         self._nav_behavior = NavBehavior(ctrl, nav, commander, nav.graph if nav else None)
         self._survey_behavior = SurveyBehavior(surveyor, self.spatial) if surveyor else None
+
+        # -- Tactical FSM (Phase 5 extraction) --
+        self._fsm = TacticalFSM(
+            arbiter=self._arbiter,
+            death_handler=self._death_handler,
+            stuck_escape=self._stuck_escape,
+            engager=self._engager,
+            nav_behavior=self._nav_behavior,
+            survey_behavior=self._survey_behavior,
+            ctrl=self.ctrl,
+            anomaly_tracker=self.anomaly,
+            obj_tracker=self.obj_tracker,
+        )
 
     # -- Property bridges for backward compat with tests/external access ------
 
@@ -255,6 +264,24 @@ class StrategicBrain:
     @property
     def _items_collected(self) -> int:
         return self._nav_behavior.items_collected
+
+    # -- FSM property bridges (delegate to TacticalFSM) ----------------------
+
+    @property
+    def _state(self) -> BrainState:
+        return self._fsm._state
+
+    @_state.setter
+    def _state(self, value: BrainState) -> None:
+        self._fsm._state = value
+
+    @property
+    def _state_enter_time(self) -> float:
+        return self._fsm._state_enter_time
+
+    @_state_enter_time.setter
+    def _state_enter_time(self, value: float) -> None:
+        self._fsm._state_enter_time = value
 
     # -- Public API -----------------------------------------------------------
 
@@ -334,7 +361,7 @@ class StrategicBrain:
 
     @property
     def state(self) -> BrainState:
-        return self._state
+        return self._fsm.state
 
     def get_status(self) -> str:
         sa = self._awareness
@@ -363,13 +390,12 @@ class StrategicBrain:
         self.bridge.stop_firing()
         self.learned_map.save()
 
-    # -- State Transitions (delegated to SubsumptionArbiter) ------------------
+    # -- State Machine (delegated to TacticalFSM) ------------------------------
 
     def _evaluate_transitions(self, sa: SituationalAwareness) -> BrainState:
-        """Priority-ordered transition evaluation via SubsumptionArbiter."""
-        state_time = time.time() - self._state_enter_time
-        return self._arbiter.evaluate(
-            sa, self._state, state_time,
+        """Priority-ordered transition evaluation via TacticalFSM."""
+        return self._fsm.evaluate_transitions(
+            sa,
             survey_cooldown=self._survey_cooldown,
             spatial=self.spatial,
             surveyor=self.surveyor,
@@ -378,61 +404,18 @@ class StrategicBrain:
         )
 
     def _on_enter_state(self, state: BrainState, sa: SituationalAwareness):
-        """Delegate state entry side-effects to subsystem modules."""
-        if state == BrainState.DEAD:
-            self._death_handler.on_enter(sa, self.anomaly, self.obj_tracker)
-
-        elif state == BrainState.COMBAT:
-            self._engager.on_enter(sa)
-
-        elif state == BrainState.STUCK:
-            new_target = self._stuck_escape.on_enter(sa, self._nav_target)
-            if new_target is None and self._nav_target is not None:
-                self._nav_target = None  # target was blacklisted
-
-        elif state == BrainState.EXPLORING:
-            self._nav_behavior.on_enter_exploring()
-            self._stuck_escape.reset_stuck_count()
-
-        elif state == BrainState.NAVIGATING:
-            self._nav_behavior.on_enter_navigating()
-            self._stuck_escape.reset_stuck_count()
+        """Delegate state entry to TacticalFSM."""
+        self._fsm.on_enter_state(state, sa)
 
     def _on_exit_state(self, state: BrainState, sa: SituationalAwareness):
-        """Delegate state exit side-effects to subsystem modules."""
-        # Always release look actions to prevent stuck lookdown
-        self._death_handler.on_exit(sa)
-
-        if state == BrainState.COMBAT:
-            self._engager.on_exit(sa)
-
-        elif state == BrainState.SURVEYING:
-            self.ctrl.center_view()
-
-    # -- State Dispatch (delegated to subsystem modules) ----------------------
+        """Delegate state exit to TacticalFSM."""
+        self._fsm.on_exit_state(state, sa)
 
     async def _dispatch(self, state: BrainState, sa: SituationalAwareness, gs):
-        """Dispatch tick to the appropriate subsystem handler."""
-        if state == BrainState.DEAD:
-            await self._death_handler.tick(sa, gs)
-        elif state == BrainState.COMBAT:
-            await self._engager.tick(sa, gs)
-        elif state == BrainState.STUCK:
-            await self._stuck_escape.tick(sa, gs)
-        elif state == BrainState.SURVEYING:
-            if self._survey_behavior:
-                state_time = time.time() - self._state_enter_time
-                cooldown = await self._survey_behavior.tick(sa, gs, state_time)
-                if cooldown is not None:
-                    self._survey_cooldown = cooldown
-        elif state == BrainState.NAVIGATING:
-            await self._nav_behavior.tick_navigating(sa, gs, self._tick)
-        elif state == BrainState.EXPLORING:
-            await self._nav_behavior.tick_exploring(sa, gs, self._tick)
-        elif state == BrainState.TRAVERSING_DOOR:
-            await self._nav_behavior.tick_door(sa, gs)
-        elif state == BrainState.PICKING_UP_ITEM:
-            await self._nav_behavior.tick_pickup(sa, gs, self.anomaly)
+        """Delegate tick dispatch to TacticalFSM."""
+        cooldown = await self._fsm.dispatch(state, sa, gs, tick_count=self._tick)
+        if cooldown is not None:
+            self._survey_cooldown = cooldown
 
     # -- Utility --------------------------------------------------------------
 
