@@ -39,12 +39,12 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Navigation
 
-- [ ] **NAV-01**: AAS pathfinding with A* on navigation mesh (existing, extracted)
-- [ ] **NAV-02**: Stuck detection and recovery via scan-and-probe (existing, extracted)
-- [ ] **NAV-03**: Learned map with occupancy grid and edge cost tracking (existing, extracted)
-- [ ] **NAV-04**: Room surveyor producing 360-degree spatial documentation (existing, extracted)
-- [ ] **NAV-05**: Obstacle avoidance during combat — real-time path adjustment
-- [ ] **NAV-06**: Respawn handling — immediate orientation and navigation after death
+- [x] **NAV-01**: AAS pathfinding with A* on navigation mesh (existing, extracted)
+- [x] **NAV-02**: Stuck detection and recovery via scan-and-probe (existing, extracted)
+- [x] **NAV-03**: Learned map with occupancy grid and edge cost tracking (existing, extracted)
+- [x] **NAV-04**: Room surveyor producing 360-degree spatial documentation (existing, extracted)
+- [x] **NAV-05**: Obstacle avoidance during combat — real-time path adjustment
+- [x] **NAV-06**: Respawn handling — immediate orientation and navigation after death
 
 ### Combat
 
@@ -183,12 +183,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 | MEM-03 | Phase 3 | Complete |
 | MEM-04 | Phase 3 | Complete |
 | MEM-05 | Phase 3 | Complete |
-| NAV-01 | Phase 4 | Pending |
-| NAV-02 | Phase 4 | Pending |
-| NAV-03 | Phase 4 | Pending |
-| NAV-04 | Phase 4 | Pending |
-| NAV-05 | Phase 4 | Pending |
-| NAV-06 | Phase 4 | Pending |
+| NAV-01 | Phase 4 | Complete |
+| NAV-02 | Phase 4 | Complete |
+| NAV-03 | Phase 4 | Complete |
+| NAV-04 | Phase 4 | Complete |
+| NAV-05 | Phase 4 | Complete |
+| NAV-06 | Phase 4 | Complete |
 | CMBT-01 | Phase 4 | Complete |
 | CMBT-02 | Phase 4 | Complete |
 | CMBT-03 | Phase 4 | Complete |

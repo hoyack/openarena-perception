@@ -88,7 +88,7 @@ Plans:
 Plans:
 - [x] 04-01-PLAN.md — Reflexes extraction (arbiter, death handler, stuck escape)
 - [x] 04-02-PLAN.md — Combat extraction (weapons, aim, movement, engage, threat)
-- [ ] 04-03-PLAN.md — Navigation extraction (AAS, navigator, learned map, behaviors)
+- [x] 04-03-PLAN.md — Navigation extraction (AAS, navigator, learned map, behaviors)
 - [ ] 04-04-PLAN.md — Rewire strategic_brain.py orchestrator to use subsystems
 - [ ] 04-05-PLAN.md — Subsystem unit tests for all 17 requirements
 
