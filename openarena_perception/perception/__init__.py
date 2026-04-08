@@ -14,8 +14,13 @@ from openarena_perception.perception.damage_tracker import DamageTracker
 from openarena_perception.perception.motion_anomaly import (
     MotionAnomalyTracker, TrackedAnomaly, AnomalyReport,
 )
+from openarena_perception.perception.pipeline import (
+    PerceptionPipeline, build_situational_awareness,
+)
+from openarena_perception.perception.config import PerceptionPipelineConfig
 
 __all__ = [
+    "PerceptionPipeline", "build_situational_awareness", "PerceptionPipelineConfig",
     "ScreenCapture", "make_capture",
     "HUDParser", "WorldParser", "Perception",
     "MotionDetector", "PlayerDetector",
