@@ -54,7 +54,7 @@ Plans:
   5. Motion detection identifies movement regions via frame differencing and optical flow
 **Plans**: 3 plans
 Plans:
-- [ ] 02-01-PLAN.md — Move 9 perception modules into perception/ with re-export stubs
+- [x] 02-01-PLAN.md — Move 9 perception modules into perception/ with re-export stubs
 - [ ] 02-02-PLAN.md — PerceptionPipeline orchestrator with tick budget and attention priority
 - [ ] 02-03-PLAN.md — Comprehensive tests for PERC-01 through PERC-07
 

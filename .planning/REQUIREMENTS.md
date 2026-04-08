@@ -21,12 +21,12 @@ Requirements for initial release. Each maps to roadmap phases.
 ### Perception
 
 - [ ] **PERC-01**: Perception module produces immutable SituationalAwareness snapshots at 15+ FPS on Pi 5
-- [ ] **PERC-02**: Enemy detection with bounding boxes via HSV thresholding (existing, extracted)
-- [ ] **PERC-03**: HUD state parsing — health, armor, ammo, weapon, frags, deaths via OCR (existing, extracted)
-- [ ] **PERC-04**: Damage direction detection from screen flash analysis
-- [ ] **PERC-05**: Enemy distance estimation from bounding box size
-- [ ] **PERC-06**: Multi-target tracking with persistent IDs across frames
-- [ ] **PERC-07**: Motion detection via frame differencing and optical flow (existing, extracted)
+- [x] **PERC-02**: Enemy detection with bounding boxes via HSV thresholding (existing, extracted)
+- [x] **PERC-03**: HUD state parsing — health, armor, ammo, weapon, frags, deaths via OCR (existing, extracted)
+- [x] **PERC-04**: Damage direction detection from screen flash analysis
+- [x] **PERC-05**: Enemy distance estimation from bounding box size
+- [x] **PERC-06**: Multi-target tracking with persistent IDs across frames
+- [x] **PERC-07**: Motion detection via frame differencing and optical flow (existing, extracted)
 - [ ] **PERC-08**: Sound awareness — parse Q3 console output for footsteps, weapon fire, item pickup events
 
 ### Memory
@@ -171,12 +171,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 | FOUND-07 | Phase 1 | Complete |
 | FOUND-08 | Phase 1 | Complete |
 | PERC-01 | Phase 2 | Pending |
-| PERC-02 | Phase 2 | Pending |
-| PERC-03 | Phase 2 | Pending |
-| PERC-04 | Phase 2 | Pending |
-| PERC-05 | Phase 2 | Pending |
-| PERC-06 | Phase 2 | Pending |
-| PERC-07 | Phase 2 | Pending |
+| PERC-02 | Phase 2 | Complete |
+| PERC-03 | Phase 2 | Complete |
+| PERC-04 | Phase 2 | Complete |
+| PERC-05 | Phase 2 | Complete |
+| PERC-06 | Phase 2 | Complete |
+| PERC-07 | Phase 2 | Complete |
 | PERC-08 | Phase 7 | Pending |
 | MEM-01 | Phase 3 | Pending |
 | MEM-02 | Phase 3 | Pending |
