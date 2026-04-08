@@ -20,31 +20,25 @@ LLM is used strategically (not every tick).
 
 from __future__ import annotations
 
-import asyncio
 import json
 import logging
-import math
 import os
 import time
-from typing import Dict, Optional
-
-import cv2
-import numpy as np
 
 from .combat import CombatEngager, CombatMover
 from .commander import Commander
 from .damage_tracker import DamageTracker
 from .game_bridge import GameBridge
 from .game_state import GameState
+from .learned_map import LearnedMap
 from .models import BrainState, SituationalAwareness, SpatialKnowledge
 from .motion_anomaly import MotionAnomalyTracker
-from .navigator import Navigator
 from .navigation import NavBehavior, SurveyBehavior
+from .navigator import Navigator
 from .object_tracker import ObjectTracker
 from .perception import Perception
-from .reflexes import SubsumptionArbiter, DeathHandler, StuckEscape
+from .reflexes import DeathHandler, StuckEscape, SubsumptionArbiter
 from .room_surveyor import RoomSurveyor
-from .learned_map import LearnedMap
 from .virtual_controller import VirtualController
 
 log = logging.getLogger(__name__)
@@ -149,11 +143,11 @@ class StrategicBrain:
         perception: Perception,
         damage_tracker: DamageTracker,
         ctrl: VirtualController,
-        obj_tracker: Optional[ObjectTracker] = None,
-        anomaly_tracker: Optional[MotionAnomalyTracker] = None,
-        surveyor: Optional[RoomSurveyor] = None,
-        spatial: Optional[SpatialKnowledge] = None,
-        items: Optional[list] = None,
+        obj_tracker: ObjectTracker | None = None,
+        anomaly_tracker: MotionAnomalyTracker | None = None,
+        surveyor: RoomSurveyor | None = None,
+        spatial: SpatialKnowledge | None = None,
+        items: list | None = None,
         map_name: str = "unknown",
     ):
         self.bridge = bridge
@@ -185,7 +179,7 @@ class StrategicBrain:
         self._prev_state = BrainState.EXPLORING
 
         # Awareness
-        self._awareness: Optional[SituationalAwareness] = None
+        self._awareness: SituationalAwareness | None = None
 
         # Tick counter
         self._tick = 0
@@ -243,19 +237,19 @@ class StrategicBrain:
         self._stuck_escape._stucks_on_current_target = value
 
     @property
-    def _target_failures(self) -> Dict[str, int]:
+    def _target_failures(self) -> dict[str, int]:
         return self._stuck_escape.target_failures
 
     @property
-    def _target_blacklist(self) -> Dict[str, float]:
+    def _target_blacklist(self) -> dict[str, float]:
         return self._stuck_escape.target_blacklist
 
     @property
-    def _nav_target(self) -> Optional[str]:
+    def _nav_target(self) -> str | None:
         return self._nav_behavior.nav_target
 
     @_nav_target.setter
-    def _nav_target(self, value: Optional[str]) -> None:
+    def _nav_target(self, value: str | None) -> None:
         self._nav_behavior.nav_target = value
 
     @property
