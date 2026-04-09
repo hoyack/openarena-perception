@@ -18,7 +18,10 @@ import math
 import time
 from collections import deque
 from dataclasses import dataclass, field
-from typing import Deque, Optional, Tuple
+from typing import TYPE_CHECKING, Deque, Optional, Tuple
+
+if TYPE_CHECKING:
+    from .humanize import AimHumanizer
 
 
 @dataclass
@@ -121,7 +124,11 @@ class AimController:
         input.mouse_move(dx, dy)
     """
 
-    def __init__(self, profile: Optional[AimProfile] = None):
+    def __init__(
+        self,
+        profile: Optional[AimProfile] = None,
+        humanize: AimHumanizer | None = None,
+    ):
         self.profile = profile or PROFILES["default"]
         self._pid_x = PIDState()
         self._pid_y = PIDState()
@@ -134,6 +141,11 @@ class AimController:
         # Stats
         self._on_target_ticks = 0
         self._total_ticks = 0
+
+        # HUMN-01: Humanization support
+        self._humanize = humanize
+        self._recent_turn_rate: float = 0.0
+        self._accuracy_window: deque = deque(maxlen=100)
 
     def set_weapon(self, weapon_name: Optional[str]):
         """Switch aim profile based on current weapon."""
@@ -166,6 +178,25 @@ class AimController:
         # Estimate target velocity
         self._update_velocity(target_cx, target_cy, now)
 
+        # --- HUMN-01: Humanization noise injection (BEFORE PID) ---
+        if self._humanize is not None:
+            target_velocity = math.hypot(self._target_vx, self._target_vy)
+            target_distance = math.hypot(target_cx - screen_cx, target_cy - screen_cy)
+            noise_x, noise_y = self._humanize.sample(
+                now,
+                target_velocity=target_velocity,
+                target_distance=target_distance,
+                turn_rate=self._recent_turn_rate,
+            )
+            # Accuracy cap feedback: if on_target_ratio too high, boost noise
+            if len(self._accuracy_window) >= 50:
+                recent_ratio = sum(self._accuracy_window) / len(self._accuracy_window)
+                if recent_ratio > self._humanize._cfg.max_accuracy:
+                    noise_x *= 1.5
+                    noise_y *= 1.5
+            target_cx += noise_x
+            target_cy += noise_y
+
         # Apply predictive lead
         lead_x = self._target_vx * self.profile.lead_factor
         lead_y = self._target_vy * self.profile.lead_factor
@@ -181,9 +212,15 @@ class AimController:
         # Deadzone -- we're on target
         if distance < self.profile.deadzone_px:
             self._on_target_ticks += 1
+            if self._humanize is not None:
+                self._accuracy_window.append(1)
             self._pid_x.last_error = 0
             self._pid_y.last_error = 0
             return (0, 0)
+
+        # Track off-target for accuracy window
+        if self._humanize is not None:
+            self._accuracy_window.append(0)
 
         # PID for each axis
         dx = self._pid_step(self._pid_x, error_x, now)
@@ -213,6 +250,8 @@ class AimController:
         self._target_history.clear()
         self._target_vx = 0.0
         self._target_vy = 0.0
+        self._accuracy_window.clear()
+        self._recent_turn_rate = 0.0
 
     @property
     def on_target_ratio(self) -> float:
@@ -261,3 +300,10 @@ class AimController:
                 alpha = 0.3
                 self._target_vx = alpha * raw_vx + (1 - alpha) * self._target_vx
                 self._target_vy = alpha * raw_vy + (1 - alpha) * self._target_vy
+
+                # HUMN-01: Estimate turn rate (deg/s approximation)
+                prev_vx = self._target_vx
+                prev_vy = self._target_vy
+                delta_vx = raw_vx - prev_vx
+                delta_vy = raw_vy - prev_vy
+                self._recent_turn_rate = math.hypot(delta_vx, delta_vy) / dt
