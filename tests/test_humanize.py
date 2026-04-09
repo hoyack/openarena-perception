@@ -187,3 +187,111 @@ class TestAimHumanizer:
         avg_low = sum(mags_low) / len(mags_low)
         avg_high = sum(mags_high) / len(mags_high)
         assert avg_high > avg_low, f"High velocity ({avg_high}) should produce more noise than zero ({avg_low})"
+
+
+# ── AimController + Humanization ───────────────────────────────────
+
+
+class TestAimControllerHumanized:
+    """HUMN-01: AimController with humanize injects noise before PID."""
+
+    def test_backward_compat_no_humanize(self):
+        """AimController() with no humanize behaves identically."""
+        from openarena_perception.combat.aim_controller import AimController
+
+        a = AimController()
+        dx, dy = a.update(400, 300, 400, 300)
+        assert (dx, dy) == (0, 0), "On-target should return (0, 0)"
+
+    def test_humanized_reduces_on_target(self):
+        """With humanize set, on_target_ratio is reduced below 1.0."""
+        from openarena_perception.combat.aim_controller import AimController
+        from openarena_perception.combat.humanize import AimHumanizer, HumanizationConfig
+
+        cfg = HumanizationConfig.from_skill_level(3)
+        humanizer = AimHumanizer(cfg, seed=42)
+        a = AimController(humanize=humanizer)
+
+        on_target = 0
+        for _ in range(200):
+            dx, dy = a.update(400, 300, 400, 300)
+            if dx == 0 and dy == 0:
+                on_target += 1
+        ratio = on_target / 200
+        assert ratio < 0.95, f"Expected noise to reduce on-target ratio, got {ratio}"
+
+    def test_accuracy_cap_enforced(self):
+        """on_target_ratio over 200 ticks stays below max_accuracy for skill 5."""
+        from openarena_perception.combat.aim_controller import AimController
+        from openarena_perception.combat.humanize import AimHumanizer, HumanizationConfig
+
+        cfg = HumanizationConfig.from_skill_level(5)
+        humanizer = AimHumanizer(cfg, seed=42)
+        a = AimController(humanize=humanizer)
+
+        on_target = 0
+        for _ in range(200):
+            dx, dy = a.update(400, 300, 400, 300)
+            if dx == 0 and dy == 0:
+                on_target += 1
+        ratio = on_target / 200
+        assert ratio < cfg.max_accuracy, (
+            f"Accuracy {ratio:.2f} should be below cap {cfg.max_accuracy}"
+        )
+
+    def test_accuracy_window_exists(self):
+        """AimController with humanize has _accuracy_window attribute."""
+        from openarena_perception.combat.aim_controller import AimController
+        from openarena_perception.combat.humanize import AimHumanizer, HumanizationConfig
+
+        cfg = HumanizationConfig.from_skill_level(3)
+        humanizer = AimHumanizer(cfg, seed=42)
+        a = AimController(humanize=humanizer)
+        assert hasattr(a, "_accuracy_window")
+
+    def test_turn_rate_estimated(self):
+        """AimController with humanize estimates turn rate."""
+        from openarena_perception.combat.aim_controller import AimController
+        from openarena_perception.combat.humanize import AimHumanizer, HumanizationConfig
+
+        cfg = HumanizationConfig.from_skill_level(3)
+        humanizer = AimHumanizer(cfg, seed=42)
+        a = AimController(humanize=humanizer)
+        assert hasattr(a, "_recent_turn_rate")
+        # After updates, turn rate should update
+        a.update(100, 100, 400, 300)
+        a.update(200, 100, 400, 300)
+        a.update(300, 100, 400, 300)
+        assert a._recent_turn_rate >= 0.0
+
+    def test_reset_clears_accuracy_window(self):
+        """reset() clears the accuracy window."""
+        from openarena_perception.combat.aim_controller import AimController
+        from openarena_perception.combat.humanize import AimHumanizer, HumanizationConfig
+
+        cfg = HumanizationConfig.from_skill_level(3)
+        humanizer = AimHumanizer(cfg, seed=42)
+        a = AimController(humanize=humanizer)
+        # Run some ticks
+        for _ in range(10):
+            a.update(400, 300, 400, 300)
+        a.reset()
+        assert len(a._accuracy_window) == 0
+
+    def test_close_range_still_has_noise(self):
+        """At close range (distance < 50px), noise is still present (Pitfall 3)."""
+        from openarena_perception.combat.aim_controller import AimController
+        from openarena_perception.combat.humanize import AimHumanizer, HumanizationConfig
+
+        cfg = HumanizationConfig.from_skill_level(3)
+        humanizer = AimHumanizer(cfg, seed=42)
+        a = AimController(humanize=humanizer)
+
+        # Target at 20px offset -- close range
+        on_target = 0
+        for _ in range(100):
+            dx, dy = a.update(420, 300, 400, 300)
+            if dx == 0 and dy == 0:
+                on_target += 1
+        # Should NOT be perfectly on target every time
+        assert on_target < 100, "Close range should still have noise"
