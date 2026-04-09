@@ -118,8 +118,8 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Documentation
 
-- [ ] **DOCS-01**: Full documentation site with system architecture diagrams
-- [ ] **DOCS-02**: API reference auto-generated from FastAPI OpenAPI spec
+- [x] **DOCS-01**: Full documentation site with system architecture diagrams
+- [x] **DOCS-02**: API reference auto-generated from FastAPI OpenAPI spec
 - [ ] **DOCS-03**: Subsystem documentation — perception, combat, navigation, memory, tactics, strategy
 - [ ] **DOCS-04**: Skill catalog — all available actions, behaviors, and missions
 - [ ] **DOCS-05**: Configuration guide — all tunable parameters with descriptions
@@ -232,8 +232,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TEST-04 | Phase 9 | Complete |
 | TEST-05 | Phase 9 | Complete |
 | TEST-06 | Phase 9 | Complete |
-| DOCS-01 | Phase 9 | Pending |
-| DOCS-02 | Phase 9 | Pending |
+| DOCS-01 | Phase 9 | Complete |
+| DOCS-02 | Phase 9 | Complete |
 | DOCS-03 | Phase 9 | Pending |
 | DOCS-04 | Phase 9 | Pending |
 | DOCS-05 | Phase 9 | Pending |
