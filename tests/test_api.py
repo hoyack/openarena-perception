@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import asyncio
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock
 
 from httpx import ASGITransport, AsyncClient
 
@@ -15,7 +14,6 @@ from openarena_perception.api.app import create_app
 from openarena_perception.api.deps import BotState
 from openarena_perception.models import SituationalAwareness
 from openarena_perception.skills.base import SkillLayer, SkillRegistry, SkillResult
-
 
 # ── Helpers ───────────────────────────────────────────────────────────
 
@@ -428,3 +426,141 @@ def test_metrics_content_type():
         assert "text/plain" in ct or "text/openmetrics" in ct
 
     asyncio.run(_run())
+
+
+# ── Integration Tests ───────────────────────────────────────────────
+
+
+def test_api_skill_execute_integration():
+    """POST /skills/execute with a real SkillRegistry (mocked subsystems).
+
+    Verifies full request -> registry.execute -> SkillResult -> response cycle.
+    """
+    from unittest.mock import MagicMock
+
+    from openarena_perception.skills.catalog import build_registry
+
+    async def _run():
+        ctrl = MagicMock()
+        ctrl.forward = MagicMock()
+        ctrl.back = MagicMock()
+        bridge = MagicMock()
+
+        registry = build_registry(ctrl, bridge)
+        bot = BotState()
+        bot.last_sa = _fake_sa()
+        bot.registry = registry
+
+        client = await _client(bot=bot)
+        async with client:
+            r = await client.post(
+                "/skills/execute",
+                json={"name": "move", "params": {"direction": "forward", "duration": 0.01}},
+            )
+        assert r.status_code == 200
+        body = r.json()
+        assert body["success"] is True
+        ctrl.forward.assert_any_call(True)
+        ctrl.forward.assert_any_call(False)
+
+    asyncio.run(_run())
+
+
+def test_api_skill_catalog_populated():
+    """GET /skills/catalog with build_registry returns all 10 skills."""
+    from unittest.mock import AsyncMock, MagicMock
+
+    from openarena_perception.skills.catalog import build_registry
+
+    async def _run():
+        ctrl = MagicMock()
+        ctrl.forward = MagicMock()
+        ctrl.back = MagicMock()
+        ctrl.turn_degrees = MagicMock()
+        bridge = MagicMock()
+        bridge.fire = MagicMock()
+        bridge.select_weapon_by_name = MagicMock(return_value=True)
+        engager = MagicMock()
+        engager.tick = AsyncMock()
+        survey = MagicMock()
+
+        registry = build_registry(ctrl, bridge, engager=engager, survey=survey)
+        bot = BotState()
+        bot.last_sa = _fake_sa()
+        bot.registry = registry
+
+        client = await _client(bot=bot)
+        async with client:
+            r = await client.get("/skills/catalog")
+        assert r.status_code == 200
+        body = r.json()
+        assert len(body) == 10
+        names = {e["name"] for e in body}
+        assert "move" in names
+        assert "turn" in names
+        assert "fire" in names
+        assert "weapon_select" in names
+        assert "patrol" in names
+        assert "room_survey" in names
+        assert "combat_engage" in names
+        assert "explore_map" in names
+        assert "deathmatch" in names
+        assert "defend_area" in names
+        layers = {e["layer"] for e in body}
+        assert layers == {"action", "behavior", "mission"}
+
+    asyncio.run(_run())
+
+
+def test_api_perception_all_fields():
+    """Verify PerceptionStateResponse includes all key SA fields."""
+    async def _run():
+        client = await _client()
+        async with client:
+            r = await client.get("/perception/state")
+        assert r.status_code == 200
+        body = r.json()
+        # Core SA fields must be present
+        expected_fields = [
+            "tick", "timestamp", "pos", "yaw", "current_area",
+            "health", "armor", "ammo", "weapon", "is_alive",
+            "disposition", "enemies_visible", "under_attack",
+            "wall_ahead", "has_path", "is_stuck", "nav_target",
+            "has_frame",
+        ]
+        for field in expected_fields:
+            assert field in body, f"Missing field: {field}"
+        # Verify specific values match our fake SA
+        assert body["tick"] == 42
+        assert body["pos"] == [100.0, 200.0, 300.0]
+        assert body["yaw"] == 90.0
+        assert body["enemies_visible"] == 2
+        assert body["is_stuck"] is False
+
+    asyncio.run(_run())
+
+
+def test_websocket_stream_rate():
+    """Connect WebSocket, receive 2+ messages, verify interval ~333ms (3 Hz)."""
+    import time
+
+    from starlette.testclient import TestClient
+
+    bot = _bot_with_sa()
+    app = create_app(bot=bot)
+    from openarena_perception.api.deps import set_bot
+
+    set_bot(bot)
+    client = TestClient(app)
+    with client.websocket_connect("/ws/state") as ws:
+        t0 = time.monotonic()
+        msg1 = ws.receive_json()
+        msg2 = ws.receive_json()
+        t1 = time.monotonic()
+
+    elapsed = t1 - t0
+    assert msg1["tick"] == 42
+    assert msg2["tick"] == 42
+    # At 3 Hz, two messages should take ~333ms interval.
+    # Allow generous tolerance (100ms - 1500ms) for CI variability.
+    assert 0.1 < elapsed < 1.5, f"Elapsed {elapsed:.3f}s outside expected range"

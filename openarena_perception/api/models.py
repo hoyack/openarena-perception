@@ -1,12 +1,11 @@
 """Pydantic v2 request/response models for the bot REST API."""
 from __future__ import annotations
 
-from typing import Any, Optional, Self, Tuple
+from typing import Any, Self
 
 from pydantic import BaseModel, ConfigDict
 
 from openarena_perception.skills.base import SkillResult
-
 
 # ── Perception ────────────────────────────────────────────────────────
 
@@ -18,13 +17,13 @@ class PerceptionStateResponse(BaseModel):
 
     tick: int
     timestamp: float
-    pos: Optional[Tuple[float, float, float]]
+    pos: tuple[float, float, float] | None
     yaw: float
     current_area: int
-    health: Optional[int]
-    armor: Optional[int]
-    ammo: Optional[int]
-    weapon: Optional[str]
+    health: int | None
+    armor: int | None
+    ammo: int | None
+    weapon: str | None
     is_alive: bool
     disposition: str
     armament: str
@@ -33,7 +32,7 @@ class PerceptionStateResponse(BaseModel):
     attacker_direction: int
     seconds_since_damage: float
     enemies_visible: int
-    nearest_enemy_distance: Optional[str]
+    nearest_enemy_distance: str | None
     wall_ahead: bool
     wall_score: float
     open_direction: int
@@ -49,7 +48,7 @@ class PerceptionStateResponse(BaseModel):
     path_length: int
     is_stuck: bool
     is_recovering: bool
-    nav_target: Optional[str]
+    nav_target: str | None
     has_frame: bool
 
     @classmethod
@@ -97,17 +96,17 @@ class PerceptionStateResponse(BaseModel):
 class HudResponse(BaseModel):
     """HUD vitals subset."""
 
-    health: Optional[int] = None
-    armor: Optional[int] = None
-    ammo: Optional[int] = None
-    weapon: Optional[str] = None
+    health: int | None = None
+    armor: int | None = None
+    ammo: int | None = None
+    weapon: str | None = None
 
 
 class EnemyInfo(BaseModel):
     """Enemy threat summary."""
 
     enemies_visible: int
-    nearest_enemy_distance: Optional[str] = None
+    nearest_enemy_distance: str | None = None
     under_attack: bool
 
 
@@ -117,8 +116,8 @@ class EnemyInfo(BaseModel):
 class NavigationRequest(BaseModel):
     """Request to navigate to an area or named target."""
 
-    area_id: Optional[int] = None
-    target: Optional[str] = None
+    area_id: int | None = None
+    target: str | None = None
 
 
 class NavigationStateResponse(BaseModel):
@@ -127,7 +126,7 @@ class NavigationStateResponse(BaseModel):
     has_path: bool
     path_length: int
     is_stuck: bool
-    nav_target: Optional[str] = None
+    nav_target: str | None = None
 
 
 # ── Combat ────────────────────────────────────────────────────────────
@@ -137,8 +136,8 @@ class CombatStateResponse(BaseModel):
     """Current combat state."""
 
     in_combat: bool
-    weapon: Optional[str] = None
-    ammo: Optional[int] = None
+    weapon: str | None = None
+    ammo: int | None = None
 
 
 # ── Skills ────────────────────────────────────────────────────────────
@@ -195,5 +194,5 @@ class BotFullStateResponse(BaseModel):
     """Full bot state combining FSM + perception."""
 
     brain_state: str
-    perception: Optional[PerceptionStateResponse] = None
-    score: Optional[dict] = None
+    perception: PerceptionStateResponse | None = None
+    score: dict | None = None

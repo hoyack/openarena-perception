@@ -1,6 +1,8 @@
 """Skills REST endpoints."""
 from __future__ import annotations
 
+from typing import Annotated
+
 from fastapi import APIRouter, Depends, HTTPException
 
 from openarena_perception.api.deps import BotState, get_bot
@@ -12,10 +14,12 @@ from openarena_perception.api.models import (
 
 router = APIRouter()
 
+BotDep = Annotated[BotState, Depends(get_bot)]
+
 
 @router.post("/execute", response_model=SkillExecuteResponse)
 async def skills_execute(
-    req: SkillExecuteRequest, bot: BotState = Depends(get_bot)
+    req: SkillExecuteRequest, bot: BotDep
 ) -> SkillExecuteResponse:
     """Execute a skill by name with given parameters."""
     if bot.registry is None:
@@ -29,7 +33,7 @@ async def skills_execute(
 
 
 @router.get("/catalog", response_model=list[SkillCatalogEntry])
-async def skills_catalog(bot: BotState = Depends(get_bot)) -> list[SkillCatalogEntry]:
+async def skills_catalog(bot: BotDep) -> list[SkillCatalogEntry]:
     """Return the full skill catalog for LLM agent discovery."""
     if bot.registry is None:
         raise HTTPException(status_code=503, detail="Skill registry not available")
@@ -39,7 +43,7 @@ async def skills_catalog(bot: BotState = Depends(get_bot)) -> list[SkillCatalogE
 
 @router.get("/{name}", response_model=SkillCatalogEntry)
 async def skills_detail(
-    name: str, bot: BotState = Depends(get_bot)
+    name: str, bot: BotDep
 ) -> SkillCatalogEntry:
     """Return detail for a single skill by name."""
     if bot.registry is None:

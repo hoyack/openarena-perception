@@ -5,11 +5,9 @@ import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from openarena_perception.skills import (
-    AtomicAction,
     Skill,
     SkillLayer,
     SkillRegistry,
-    SkillResult,
 )
 from openarena_perception.skills.actions import (
     FireAction,
@@ -17,7 +15,6 @@ from openarena_perception.skills.actions import (
     TurnAction,
     WeaponSelectAction,
 )
-
 
 # ── Helpers ───────────────────────────────────────────────────────────
 

@@ -1,6 +1,8 @@
 """Perception REST endpoints."""
 from __future__ import annotations
 
+from typing import Annotated
+
 from fastapi import APIRouter, Depends, HTTPException
 
 from openarena_perception.api.deps import BotState, get_bot
@@ -12,9 +14,11 @@ from openarena_perception.api.models import (
 
 router = APIRouter()
 
+BotDep = Annotated[BotState, Depends(get_bot)]
+
 
 @router.get("/state", response_model=PerceptionStateResponse)
-async def perception_state(bot: BotState = Depends(get_bot)) -> PerceptionStateResponse:
+async def perception_state(bot: BotDep) -> PerceptionStateResponse:
     """Return the latest SituationalAwareness snapshot."""
     if bot.last_sa is None:
         raise HTTPException(status_code=503, detail="No perception data")
@@ -22,7 +26,7 @@ async def perception_state(bot: BotState = Depends(get_bot)) -> PerceptionStateR
 
 
 @router.get("/enemies", response_model=EnemyInfo)
-async def perception_enemies(bot: BotState = Depends(get_bot)) -> EnemyInfo:
+async def perception_enemies(bot: BotDep) -> EnemyInfo:
     """Return enemy threat summary from last SA."""
     if bot.last_sa is None:
         raise HTTPException(status_code=503, detail="No perception data")
@@ -35,7 +39,7 @@ async def perception_enemies(bot: BotState = Depends(get_bot)) -> EnemyInfo:
 
 
 @router.get("/hud", response_model=HudResponse)
-async def perception_hud(bot: BotState = Depends(get_bot)) -> HudResponse:
+async def perception_hud(bot: BotDep) -> HudResponse:
     """Return HUD vitals from last SA."""
     if bot.last_sa is None:
         raise HTTPException(status_code=503, detail="No perception data")

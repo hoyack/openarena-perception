@@ -59,7 +59,7 @@ class RoomSurveyBehavior(ComposedBehavior):
         self._turn = TurnAction(ctrl)
 
     async def execute(self, **params: Any) -> SkillResult:
-        for i in range(4):
+        for _i in range(4):
             if self._cancelled:
                 return SkillResult(success=False, message="Cancelled")
             await self._turn.execute(degrees=90.0)

@@ -9,14 +9,14 @@ All skills follow the Skill Protocol (structural typing via PEP 544).
 """
 from __future__ import annotations
 
-import asyncio
-from enum import Enum
-from typing import Any, Callable, Protocol, runtime_checkable
+from collections.abc import Callable
+from enum import StrEnum
+from typing import Any, Protocol, runtime_checkable
 
 from pydantic import BaseModel
 
 
-class SkillLayer(str, Enum):
+class SkillLayer(StrEnum):
     """Hierarchy layer for skill classification."""
 
     ACTION = "action"

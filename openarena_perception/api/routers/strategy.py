@@ -1,6 +1,8 @@
 """Strategy REST endpoints."""
 from __future__ import annotations
 
+from typing import Annotated
+
 from fastapi import APIRouter, Depends
 
 from openarena_perception.api.deps import BotState, get_bot
@@ -8,9 +10,11 @@ from openarena_perception.api.models import StrategyOverrideRequest, StrategySta
 
 router = APIRouter()
 
+BotDep = Annotated[BotState, Depends(get_bot)]
+
 
 @router.get("/current", response_model=StrategyStateResponse)
-async def strategy_current(bot: BotState = Depends(get_bot)) -> StrategyStateResponse:
+async def strategy_current(bot: BotDep) -> StrategyStateResponse:
     """Return current strategy / FSM state."""
     brain_state = "unknown"
     current_action = "idle"
@@ -31,7 +35,7 @@ async def strategy_current(bot: BotState = Depends(get_bot)) -> StrategyStateRes
 
 @router.post("/override")
 async def strategy_override(
-    req: StrategyOverrideRequest, bot: BotState = Depends(get_bot)
+    req: StrategyOverrideRequest, bot: BotDep
 ) -> dict:
     """Override the current strategy action."""
     bot.override_action = req.action

@@ -1,6 +1,8 @@
 """Navigation REST endpoints."""
 from __future__ import annotations
 
+from typing import Annotated
+
 from fastapi import APIRouter, Depends, HTTPException
 
 from openarena_perception.api.deps import BotState, get_bot
@@ -11,10 +13,12 @@ from openarena_perception.api.models import (
 
 router = APIRouter()
 
+BotDep = Annotated[BotState, Depends(get_bot)]
+
 
 @router.post("/goto")
 async def navigation_goto(
-    req: NavigationRequest, bot: BotState = Depends(get_bot)
+    req: NavigationRequest, bot: BotDep
 ) -> dict:
     """Request navigation to an area or named target."""
     target = req.area_id if req.area_id is not None else req.target
@@ -24,7 +28,7 @@ async def navigation_goto(
 
 
 @router.get("/path", response_model=NavigationStateResponse)
-async def navigation_path(bot: BotState = Depends(get_bot)) -> NavigationStateResponse:
+async def navigation_path(bot: BotDep) -> NavigationStateResponse:
     """Return current navigation state from last SA."""
     if bot.last_sa is None:
         raise HTTPException(status_code=503, detail="No perception data")
@@ -38,6 +42,6 @@ async def navigation_path(bot: BotState = Depends(get_bot)) -> NavigationStateRe
 
 
 @router.post("/explore")
-async def navigation_explore(bot: BotState = Depends(get_bot)) -> dict:
+async def navigation_explore(bot: BotDep) -> dict:
     """Start random exploration."""
     return {"status": "exploring"}
