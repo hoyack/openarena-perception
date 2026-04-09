@@ -8,23 +8,38 @@ from __future__ import annotations
 
 import random
 import time
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from .weapons import WEAPONS
+
+if TYPE_CHECKING:
+    from .humanize import HumanizationConfig
 
 
 class CombatMover:
     """
     Combat movement controller.
     Handles circle-strafing, dodging, positioning based on weapon range.
+    Optionally injects movement variability from HumanizationConfig.
     """
 
-    def __init__(self):
+    def __init__(
+        self,
+        humanize_config: HumanizationConfig | None = None,
+    ) -> None:
         self._strafe_dir = 1      # 1=right, -1=left
         self._last_switch = 0.0
         self._switch_interval = 0.6
         self._jump_chance = 0.25
         self._last_jump = 0.0
+        self._humanize_config = humanize_config
+
+    @property
+    def corner_overshoot_px(self) -> float:
+        """Corner overshoot in pixels for NavBehavior consumption."""
+        if self._humanize_config is not None:
+            return self._humanize_config.corner_overshoot_px
+        return 0.0
 
     def get_movement(
         self,
@@ -68,9 +83,22 @@ class CombatMover:
                 self._strafe_dir *= -1
             self._last_switch = now
             # Vary timing to be unpredictable
-            self._switch_interval = random.uniform(0.3, 0.8)
+            lo, hi = 0.3, 0.8
+            if self._humanize_config is not None:
+                noise = self._humanize_config.strafe_timing_noise
+                lo -= noise / 2
+                hi += noise / 2
+            self._switch_interval = max(0.15, min(1.5, random.uniform(lo, hi)))
 
-        if self._strafe_dir > 0:
+        # Path deviation: occasionally invert strafe direction (HUMN-03)
+        strafe_dir = self._strafe_dir
+        if (
+            self._humanize_config is not None
+            and random.random() < self._humanize_config.path_deviation_chance
+        ):
+            strafe_dir *= -1
+
+        if strafe_dir > 0:
             result["strafe_right"] = True
         else:
             result["strafe_left"] = True
