@@ -16,5 +16,8 @@ class PerceptionPipelineConfig:
     combat_tracker_interval: int = 1   # every tick during combat
     combat_anomaly_enabled: bool = False  # skip anomaly during combat
 
+    # Sound polling (PERC-08)
+    sound_poll_interval: int = 8  # poll game log every N ticks (~2 Hz at 15 FPS)
+
     # Death reset
     reset_on_death: bool = True

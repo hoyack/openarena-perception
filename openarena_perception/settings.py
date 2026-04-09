@@ -51,6 +51,10 @@ class BotSettings(BaseSettings):
     log_json: bool = True
     log_level: str = "INFO"
 
+    # Game log (PERC-08)
+    game_log_path: str = Field(default="~/.openarena/baseoa/games.log", description="Path to Q3 server game log")
+    sound_poll_interval: int = Field(default=8, description="Poll game log every N perception ticks (~2 Hz at 15 FPS)")
+
     # Database
     db_path: str = Field(default="~/.openarena/bot.db", description="Path to SQLite database file")
 

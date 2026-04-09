@@ -92,6 +92,12 @@ class SituationalAwareness:
     # Frame available
     has_frame: bool
 
+    # Sound awareness (PERC-08)
+    sound_events_recent: int = 0
+    sound_nearby_combat: bool = False
+    sound_last_pickup_item: Optional[str] = None
+    sound_last_kill_victim: Optional[str] = None
+
 
 # ── Spatial Knowledge ────────────────────────────────────────────────
 

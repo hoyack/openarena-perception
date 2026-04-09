@@ -13,10 +13,13 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Any, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 from openarena_perception.config import PerceptionConfig, build_config
 from openarena_perception.models import SituationalAwareness
+
+if TYPE_CHECKING:
+    from openarena_perception.perception.sound_parser import ConsoleLogParser
 from openarena_perception.perception.capture import ScreenCapture, make_capture
 from openarena_perception.perception.config import PerceptionPipelineConfig
 from openarena_perception.perception.damage_tracker import DamageTracker
@@ -53,6 +56,7 @@ def build_situational_awareness(
     nav_state: Any,
     spatial: Any,
     has_frame: bool,
+    sound_events: Optional[list] = None,
 ) -> SituationalAwareness:
     """Assemble a frozen SituationalAwareness snapshot from detector outputs."""
     health = hud.get("health")
@@ -107,6 +111,20 @@ def build_situational_awareness(
     is_recovering = getattr(nav_state, "is_recovering", False) if nav_state else False
     nav_target = getattr(nav_state, "nav_target", None) if nav_state else None
 
+    # Sound awareness derivation (PERC-08)
+    _sound_events = sound_events or []
+    sound_events_recent = len(_sound_events)
+    sound_nearby_combat = any(e.event_type == "Kill" for e in _sound_events)
+    sound_last_pickup_item: Optional[str] = None
+    sound_last_kill_victim: Optional[str] = None
+    for e in reversed(_sound_events):
+        if sound_last_pickup_item is None and e.event_type == "Item":
+            sound_last_pickup_item = getattr(e, "item_name", None) or e.data
+        if sound_last_kill_victim is None and e.event_type == "Kill":
+            sound_last_kill_victim = getattr(e, "data", "")
+        if sound_last_pickup_item is not None and sound_last_kill_victim is not None:
+            break
+
     return SituationalAwareness(
         tick=tick,
         timestamp=time.time(),
@@ -143,6 +161,10 @@ def build_situational_awareness(
         is_recovering=is_recovering,
         nav_target=nav_target,
         has_frame=has_frame,
+        sound_events_recent=sound_events_recent,
+        sound_nearby_combat=sound_nearby_combat,
+        sound_last_pickup_item=sound_last_pickup_item,
+        sound_last_kill_victim=sound_last_kill_victim,
     )
 
 
@@ -166,9 +188,14 @@ class PerceptionPipeline:
         perception_cfg: Optional[PerceptionConfig] = None,
         *,
         capture: Optional[ScreenCapture] = None,
+        sound_parser: Optional["ConsoleLogParser"] = None,
     ):
         self._pcfg = pipeline_cfg or PerceptionPipelineConfig()
         self._cfg = perception_cfg or build_config()
+
+        # Sound parser (PERC-08)
+        self._sound_parser = sound_parser
+        self._last_sound_events: list = []
 
         # Sub-modules
         self._capture = capture or make_capture(
@@ -289,6 +316,14 @@ class PerceptionPipeline:
             if anomalies is not None:
                 self._last_anomalies = anomalies
 
+        # (h2) Rate-limited: sound event polling (PERC-08) ----------------------
+        if self._sound_parser and self._tick % self._pcfg.sound_poll_interval == 0:
+            events = self._safe_call("sound", self._sound_parser.poll)
+            if events is not None:
+                self._last_sound_events = events
+            else:
+                self._last_sound_events = []
+
         # (i) Death reset -------------------------------------------------------
         is_alive = self._last_hud.get("health") is None or self._last_hud.get("health", 1) > 0
         if self._was_alive and not is_alive and self._pcfg.reset_on_death:
@@ -313,6 +348,7 @@ class PerceptionPipeline:
             nav_state=nav_state,
             spatial=spatial,
             has_frame=True,
+            sound_events=self._last_sound_events,
         )
 
     # -- helpers -------------------------------------------------------------
@@ -363,6 +399,7 @@ class PerceptionPipeline:
             nav_state=nav_state,
             spatial=spatial,
             has_frame=False,
+            sound_events=[],
         )
 
     @property

@@ -52,6 +52,8 @@ class TestSituationalAwareness:
             "room_surveyed", "room_type", "room_exits",
             "has_path", "path_length", "is_stuck", "is_recovering",
             "nav_target", "has_frame",
+            "sound_events_recent", "sound_nearby_combat",
+            "sound_last_pickup_item", "sound_last_kill_victim",
         }
         assert fields == expected
 
