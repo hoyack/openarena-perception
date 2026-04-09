@@ -139,7 +139,7 @@ Plans:
 Plans:
 - [x] 07-01-PLAN.md — Game log parser + item timing service with unit tests
 - [x] 07-02-PLAN.md — SA sound fields + pipeline wiring + Commander spawn-aware scoring
-- [ ] 07-03-PLAN.md — TimescaleConfig formalization + PerceptionPipelineConfig integration
+- [x] 07-03-PLAN.md — TimescaleConfig formalization + PerceptionPipelineConfig integration
 
 ### Phase 8: Human-Likeness
 **Goal**: The bot behaves believably human -- imperfect aim, variable reaction times, movement quirks, and configurable personality profiles
