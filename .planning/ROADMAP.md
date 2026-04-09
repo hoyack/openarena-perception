@@ -172,7 +172,7 @@ Plans:
 **Plans**: 5 plans
 Plans:
 - [x] 09-01-PLAN.md — Unit tests for perception/navigation/combat edge cases + integration loop test
-- [ ] 09-02-PLAN.md — Tour testing with metrics + property-based tests via hypothesis
+- [x] 09-02-PLAN.md — Tour testing with metrics + property-based tests via hypothesis
 - [ ] 09-03-PLAN.md — Architecture documentation with diagrams + API reference from OpenAPI
 - [ ] 09-04-PLAN.md — Subsystem documentation + skill catalog
 - [ ] 09-05-PLAN.md — Configuration guide + getting started guide

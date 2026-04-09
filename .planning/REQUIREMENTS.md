@@ -113,8 +113,8 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **TEST-02**: Unit tests for navigation (pathfinding, stuck detection, learned map)
 - [x] **TEST-03**: Unit tests for combat (aim control PID, weapon selection, threat assessment)
 - [x] **TEST-04**: Integration tests for full perception → decision → action loop
-- [ ] **TEST-05**: Tour testing with metrics — stuck count, completion time, visual verification
-- [ ] **TEST-06**: Property-based tests via hypothesis for PID math, navigation coordinates, pathfinding
+- [x] **TEST-05**: Tour testing with metrics — stuck count, completion time, visual verification
+- [x] **TEST-06**: Property-based tests via hypothesis for PID math, navigation coordinates, pathfinding
 
 ### Documentation
 
@@ -230,8 +230,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TEST-02 | Phase 9 | Complete |
 | TEST-03 | Phase 9 | Complete |
 | TEST-04 | Phase 9 | Complete |
-| TEST-05 | Phase 9 | Pending |
-| TEST-06 | Phase 9 | Pending |
+| TEST-05 | Phase 9 | Complete |
+| TEST-06 | Phase 9 | Complete |
 | DOCS-01 | Phase 9 | Pending |
 | DOCS-02 | Phase 9 | Pending |
 | DOCS-03 | Phase 9 | Pending |
