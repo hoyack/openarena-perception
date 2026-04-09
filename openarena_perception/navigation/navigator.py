@@ -169,11 +169,17 @@ class Navigator:
                 reach = r
                 break
 
+        # Primary navigation: steer toward the TARGET AREA CENTER.
+        # Reachability start/end points can be far from the bot's actual position
+        # (Q3 AAS areas are large convex regions), so area centers are more reliable.
+        # Only use reach data for special travel types (jump, ladder, swim).
+        tx, ty, tz = self.graph.area_center(target_area)
+        dist = math.hypot(tx - self.pos[0], ty - self.pos[1])
+
         if reach:
-            # Swim edges: allow if it's the only way (A* penalized but didn't block)
+            # Swim edges: allow if it's the only way
             if reach.travel_type in self.SWIM_TRAVEL:
                 log.warning("Traversing swim edge to area %d (may take damage!)", target_area)
-                # Jump forward through the liquid quickly
                 self.bridge.cmd("+moveup")
                 self.bridge.cmd("-moveup")
 
@@ -185,58 +191,28 @@ class Navigator:
                 log.warning("Skipping walkoffledge into liquid area %d!", target_area)
                 return None
 
-            sx, sy, sz = reach.start
-            ex, ey, ez = reach.end
-            dist_start = math.hypot(sx - self.pos[0], sy - self.pos[1])
-            dist_end = math.hypot(ex - self.pos[0], ey - self.pos[1])
+            # Jump for special travel types
+            if reach.travel_type in (TRAVEL_JUMP, TRAVEL_JUMPPAD, TRAVEL_BARRIERJUMP,
+                                     TRAVEL_WALKOFFLEDGE, TRAVEL_LADDER):
+                self.bridge.cmd("+moveup")
+                self.bridge.cmd("-moveup")
 
-            # Detect height changes (stairs, ramps, ledges)
-            height_delta = ez - sz  # positive = going up
-            is_ascending = height_delta > 16  # Q3 step height is 18 units
-            is_descending = height_delta < -16
+            # Jump if target is above us (stairs/ramps)
+            if tz > self.pos[2] + 16:
+                self.bridge.cmd("+moveup")
+                self.bridge.cmd("-moveup")
 
-            # Tighter arrival distance for vertical transitions
-            start_threshold = 40 if abs(height_delta) > 16 else 50
-            end_threshold = 40 if abs(height_delta) > 16 else 50
+        # Check if we're close enough to advance to next step
+        if dist < self.AREA_REACH_DIST or self._current_area == target_area:
+            self._path.pop(0)
+            if not self._path:
+                log.info("Reached destination (area %d)", target_area)
+                return None
+            return reach.travel_type if reach else 1
 
-            if dist_start > start_threshold:
-                # Phase 1: steer toward start point
-                self._steer_toward(sx, sy)
-                # If ascending and near the start, start jumping to climb stairs
-                if is_ascending and dist_start < 120:
-                    self.bridge.cmd("+moveup")
-                    self.bridge.cmd("-moveup")
-            elif dist_end > end_threshold:
-                # Phase 2: steer toward end point
-                self._steer_toward(ex, ey)
-                # Jump continuously while ascending (stairs/ramps)
-                if is_ascending:
-                    self.bridge.cmd("+moveup")
-                    self.bridge.cmd("-moveup")
-            else:
-                # Arrived at end -- advance path
-                self._path.pop(0)
-                if not self._path:
-                    log.info("Reached destination (area %d)", target_area)
-                    return None
-
-            return reach.travel_type
-        else:
-            # No direct reachability -- use area center as fallback
-            tx, ty, tz = self.graph.area_center(target_area)
-            dist = math.hypot(tx - self.pos[0], ty - self.pos[1])
-            if dist < self.AREA_REACH_DIST:
-                self._path.pop(0)
-                if not self._path:
-                    log.info("Reached destination (area %d)", target_area)
-                    return None
-            else:
-                self._steer_toward(tx, ty)
-                # Jump if target is above us (stairs without reachability data)
-                if tz > self.pos[2] + 16:
-                    self.bridge.cmd("+moveup")
-                    self.bridge.cmd("-moveup")
-            return 1  # walk
+        # Steer toward target area center
+        self._steer_toward(tx, ty)
+        return reach.travel_type if reach else 1
 
     def _steer_toward(self, tx: float, ty: float):
         """
