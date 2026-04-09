@@ -138,7 +138,7 @@ Plans:
 **Plans**: 3 plans
 Plans:
 - [x] 07-01-PLAN.md — Game log parser + item timing service with unit tests
-- [ ] 07-02-PLAN.md — SA sound fields + pipeline wiring + Commander spawn-aware scoring
+- [x] 07-02-PLAN.md — SA sound fields + pipeline wiring + Commander spawn-aware scoring
 - [ ] 07-03-PLAN.md — TimescaleConfig formalization + PerceptionPipelineConfig integration
 
 ### Phase 8: Human-Likeness

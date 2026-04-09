@@ -94,7 +94,7 @@ Requirements for initial release. Each maps to roadmap phases.
 ### Competitive Features
 
 - [x] **COMP-01**: Item timing — track pickup timestamps and predict next spawn for Mega Health (35s), Red Armor (25s), Quad Damage (120s)
-- [ ] **COMP-02**: Spawn prediction — navigate preemptively to high-value item spawns
+- [x] **COMP-02**: Spawn prediction — navigate preemptively to high-value item spawns
 - [ ] **COMP-03**: Multi-timescale decision architecture formalized — fast reflexes (10-22 Hz) + slow strategy (~0.25 Hz)
 
 ### Human-Likeness
@@ -217,7 +217,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | API-04 | Phase 6 | Complete |
 | API-05 | Phase 6 | Complete |
 | COMP-01 | Phase 7 | Complete |
-| COMP-02 | Phase 7 | Pending |
+| COMP-02 | Phase 7 | Complete |
 | COMP-03 | Phase 7 | Pending |
 | HUMN-01 | Phase 8 | Pending |
 | HUMN-02 | Phase 8 | Pending |
