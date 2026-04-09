@@ -27,7 +27,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **PERC-05**: Enemy distance estimation from bounding box size
 - [x] **PERC-06**: Multi-target tracking with persistent IDs across frames
 - [x] **PERC-07**: Motion detection via frame differencing and optical flow (existing, extracted)
-- [ ] **PERC-08**: Sound awareness — parse Q3 console output for footsteps, weapon fire, item pickup events
+- [x] **PERC-08**: Sound awareness — parse Q3 console output for footsteps, weapon fire, item pickup events
 
 ### Memory
 
@@ -93,7 +93,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Competitive Features
 
-- [ ] **COMP-01**: Item timing — track pickup timestamps and predict next spawn for Mega Health (35s), Red Armor (25s), Quad Damage (120s)
+- [x] **COMP-01**: Item timing — track pickup timestamps and predict next spawn for Mega Health (35s), Red Armor (25s), Quad Damage (120s)
 - [ ] **COMP-02**: Spawn prediction — navigate preemptively to high-value item spawns
 - [ ] **COMP-03**: Multi-timescale decision architecture formalized — fast reflexes (10-22 Hz) + slow strategy (~0.25 Hz)
 
@@ -177,7 +177,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PERC-05 | Phase 2 | Complete |
 | PERC-06 | Phase 2 | Complete |
 | PERC-07 | Phase 2 | Complete |
-| PERC-08 | Phase 7 | Pending |
+| PERC-08 | Phase 7 | Complete |
 | MEM-01 | Phase 3 | Complete |
 | MEM-02 | Phase 3 | Complete |
 | MEM-03 | Phase 3 | Complete |
@@ -216,7 +216,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | API-03 | Phase 6 | Complete |
 | API-04 | Phase 6 | Complete |
 | API-05 | Phase 6 | Complete |
-| COMP-01 | Phase 7 | Pending |
+| COMP-01 | Phase 7 | Complete |
 | COMP-02 | Phase 7 | Pending |
 | COMP-03 | Phase 7 | Pending |
 | HUMN-01 | Phase 8 | Pending |

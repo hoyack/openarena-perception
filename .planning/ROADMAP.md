@@ -137,7 +137,7 @@ Plans:
   3. Multi-timescale architecture is formalized -- reflexes run at 10-22 Hz, tactics at 2-5 Hz, strategy at ~0.25 Hz with clean boundaries
 **Plans**: 3 plans
 Plans:
-- [ ] 07-01-PLAN.md — Game log parser + item timing service with unit tests
+- [x] 07-01-PLAN.md — Game log parser + item timing service with unit tests
 - [ ] 07-02-PLAN.md — SA sound fields + pipeline wiring + Commander spawn-aware scoring
 - [ ] 07-03-PLAN.md — TimescaleConfig formalization + PerceptionPipelineConfig integration
 
