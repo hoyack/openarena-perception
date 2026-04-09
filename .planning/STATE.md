@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 06-02-PLAN.md
-last_updated: "2026-04-09T00:32:09.615Z"
+stopped_at: Completed 06-03-PLAN.md
+last_updated: "2026-04-09T00:37:46.619Z"
 last_activity: 2026-04-09
 progress:
   total_phases: 9
   completed_phases: 5
   total_plans: 25
-  completed_plans: 22
-  percent: 88
+  completed_plans: 23
+  percent: 92
 ---
 
 # Project State
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-04-08)
 ## Current Position
 
 Phase: 06 (Skill System and API Layer) — EXECUTING
-Plan: 3 of 5
+Plan: 4 of 5
 Status: Ready to execute
 Last activity: 2026-04-09
 
@@ -78,6 +78,7 @@ Progress: [..........] 0%
 | Phase 05 P04 | 3min | 2 tasks | 4 files |
 | Phase 06 P01 | 3min | 2 tasks | 6 files |
 | Phase 06 P02 | 5min | 2 tasks | 6 files |
+| Phase 06 P03 | 3min | 2 tasks | 12 files |
 
 ## Accumulated Context
 
@@ -131,6 +132,8 @@ Recent decisions affecting current work:
 - [Phase 06]: asyncio.to_thread for TurnAction to offload blocking VirtualController.turn_degrees()
 - [Phase 06]: Input validation on skill params: direction whitelist, duration clamp 0-5s, degrees clamp -360..360 (T-06-01/T-06-02)
 - [Phase 06]: Behaviors are thin async wrappers over atomic actions with cancellation; mission params clamped (T-06-03/T-06-04)
+- [Phase 06]: Used set_bot() explicit call in test helper for httpx ASGITransport (does not trigger lifespan)
+- [Phase 06]: PerceptionStateResponse.from_sa() builds fields manually to avoid slow dataclasses.asdict()
 
 ### Pending Todos
 
@@ -143,6 +146,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-09T00:32:09.607Z
-Stopped at: Completed 06-02-PLAN.md
+Last session: 2026-04-09T00:37:46.612Z
+Stopped at: Completed 06-03-PLAN.md
 Resume file: None

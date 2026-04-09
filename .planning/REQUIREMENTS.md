@@ -85,10 +85,10 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### API Layer
 
-- [ ] **API-01**: FastAPI backend exposing bot control endpoints for LLM agents
-- [ ] **API-02**: REST endpoints for perception state, navigation commands, combat control, skill execution
+- [x] **API-01**: FastAPI backend exposing bot control endpoints for LLM agents
+- [x] **API-02**: REST endpoints for perception state, navigation commands, combat control, skill execution
 - [ ] **API-03**: WebSocket endpoint for real-time state streaming at 2-5 Hz
-- [ ] **API-04**: Pydantic models for all request/response schemas with auto-generated docs
+- [x] **API-04**: Pydantic models for all request/response schemas with auto-generated docs
 - [ ] **API-05**: Prometheus metrics endpoint (/metrics) — FPS gauge, kill counter, LLM latency, stuck frequency
 
 ### Competitive Features
@@ -211,10 +211,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SKIL-03 | Phase 6 | Complete |
 | SKIL-04 | Phase 6 | Complete |
 | SKIL-05 | Phase 6 | Complete |
-| API-01 | Phase 6 | Pending |
-| API-02 | Phase 6 | Pending |
+| API-01 | Phase 6 | Complete |
+| API-02 | Phase 6 | Complete |
 | API-03 | Phase 6 | Pending |
-| API-04 | Phase 6 | Pending |
+| API-04 | Phase 6 | Complete |
 | API-05 | Phase 6 | Pending |
 | COMP-01 | Phase 7 | Pending |
 | COMP-02 | Phase 7 | Pending |
