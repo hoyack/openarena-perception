@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 08-03-PLAN.md
-last_updated: "2026-04-09T15:57:32.029Z"
+stopped_at: Completed 08-04-PLAN.md
+last_updated: "2026-04-09T16:04:40.607Z"
 last_activity: 2026-04-09
 progress:
   total_phases: 9
   completed_phases: 7
   total_plans: 33
-  completed_plans: 31
-  percent: 94
+  completed_plans: 32
+  percent: 97
 ---
 
 # Project State
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-04-08)
 ## Current Position
 
 Phase: 08 (Human-Likeness) — EXECUTING
-Plan: 4 of 5
+Plan: 5 of 5
 Status: Ready to execute
 Last activity: 2026-04-09
 
@@ -89,6 +89,7 @@ Progress: [..........] 0%
 | Phase 08 P01 | 3min | 2 tasks | 4 files |
 | Phase 08 P02 | 4min | 2 tasks | 4 files |
 | Phase 08 P03 | 2min | 2 tasks | 2 files |
+| Phase 08 P04 | 5min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -165,6 +166,8 @@ Recent decisions affecting current work:
 - [Phase 08]: NavBehavior file is nav_behavior.py not behaviors.py -- plan referenced wrong filename
 - [Phase 08]: on_enter_exploring accepts optional SpatialKnowledge for danger zone population on respawn
 - [Phase 08]: Cautious disengage at 30 HP with absolute 15 HP floor (T-08-07)
+- [Phase 08]: Noise injected BEFORE PID to prevent integral windup (Research Pitfall 2)
+- [Phase 08]: Accuracy cap uses sliding window feedback with 1.5x noise boost
 
 ### Pending Todos
 
@@ -177,6 +180,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-09T15:57:32.021Z
-Stopped at: Completed 08-03-PLAN.md
+Last session: 2026-04-09T16:04:40.596Z
+Stopped at: Completed 08-04-PLAN.md
 Resume file: None
