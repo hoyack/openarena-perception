@@ -348,22 +348,23 @@ class Navigator:
             if hazard:
                 log.warning("HAZARD DETECTED: %s ahead (%.0f%% coverage) -- backing away!",
                             htype, coverage * 100)
-                # Back away from the hazard
+                # Stop moving forward and back up briefly
                 self.bridge.move_forward(False)
                 self.bridge.action_start("back")
-                time.sleep(0.8)
+                time.sleep(0.5)
                 self.bridge.action_stop("back")
-                # Turn away (180 degrees)
-                self.bridge.cmd("cl_yawspeed 400")
+                # Gentle turn (90 degrees, not 180 — less disorienting)
+                self.bridge.cmd("cl_yawspeed 300")
                 self.bridge.action_start("left")
-                time.sleep(180 / 400)
+                time.sleep(90 / 300)
                 self.bridge.action_stop("left")
                 self.bridge.move_forward(True)
-                # Skip the current path step — it leads into hazard
+                # Penalize the hazard path step (soft, not blocking)
                 if self._path:
                     bad_area = self._path[0]
-                    self._area_stuck_counts[bad_area] = self._area_stuck_counts.get(bad_area, 0) + 5
-                    log.info("Blacklisted hazard area %d", bad_area)
+                    self._area_stuck_counts[bad_area] = self._area_stuck_counts.get(bad_area, 0) + 3
+                    log.info("Penalized hazard area %d (stuck count now %d)",
+                             bad_area, self._area_stuck_counts[bad_area])
                     self._path.pop(0)
                 return True
         except Exception as e:
