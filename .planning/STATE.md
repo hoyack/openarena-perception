@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 07-03-PLAN.md
-last_updated: "2026-04-09T14:00:19.805Z"
-last_activity: 2026-04-09 -- Phase 8 planning complete
+stopped_at: Completed 08-01-PLAN.md
+last_updated: "2026-04-09T15:46:35.796Z"
+last_activity: 2026-04-09
 progress:
   total_phases: 9
   completed_phases: 7
   total_plans: 33
-  completed_plans: 28
-  percent: 85
+  completed_plans: 29
+  percent: 88
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-08)
 
 **Core value:** The bot must be a competitive deathmatch player -- able to perceive enemies, navigate maps, select weapons, aim accurately, and make strategic decisions in real-time on constrained Pi hardware.
-**Current focus:** Phase 07 — Competitive Features
+**Current focus:** Phase 08 — Human-Likeness
 
 ## Current Position
 
-Phase: 8
-Plan: Not started
+Phase: 08 (Human-Likeness) — EXECUTING
+Plan: 2 of 5
 Status: Ready to execute
-Last activity: 2026-04-09 -- Phase 8 planning complete
+Last activity: 2026-04-09
 
 Progress: [..........] 0%
 
@@ -86,6 +86,7 @@ Progress: [..........] 0%
 | Phase 07 P01 | 3min | 2 tasks | 4 files |
 | Phase 07 P02 | 5min | 2 tasks | 7 files |
 | Phase 07 P03 | 2min | 2 tasks | 3 files |
+| Phase 08 P01 | 3min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -152,6 +153,10 @@ Recent decisions affecting current work:
 - [Phase 07]: Sound fields on SA use defaults so existing construction sites don't break
 - [Phase 07]: rate_limited uses time.time() wall-clock (same pattern as Commander.should_decide)
 - [Phase 07]: from_timescale is opt-in classmethod, default PerceptionPipelineConfig() unchanged
+- [Phase 08]: Used numpy PerlinNoise1D (~30 lines) instead of external noise library
+- [Phase 08]: Frozen slotted dataclass for HumanizationConfig (project convention)
+- [Phase 08]: Re-export humanization types from models.py for cross-subsystem access
+- [Phase 08]: Pydantic ge=1 le=5 validation on skill_level (T-08-01 mitigation)
 
 ### Pending Todos
 
@@ -164,6 +169,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-09T13:06:36.176Z
-Stopped at: Completed 07-03-PLAN.md
+Last session: 2026-04-09T15:46:35.789Z
+Stopped at: Completed 08-01-PLAN.md
 Resume file: None
