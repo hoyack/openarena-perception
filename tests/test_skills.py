@@ -90,16 +90,13 @@ def test_turn_offloads_to_thread():
     """TurnAction uses asyncio.to_thread for the blocking call."""
     ctrl = _mock_controller()
     action = TurnAction(ctrl)
+
+    async def _fake_to_thread(fn, *args):
+        fn(*args)
+
     with patch("openarena_perception.skills.actions.asyncio") as mock_asyncio:
-        mock_asyncio.to_thread = MagicMock(
-            return_value=asyncio.coroutine(lambda: None)()
-        )
-        # We need a real event loop to run this
-        loop = asyncio.new_event_loop()
-        try:
-            loop.run_until_complete(action.execute(degrees=45.0))
-        finally:
-            loop.close()
+        mock_asyncio.to_thread = MagicMock(side_effect=_fake_to_thread)
+        asyncio.run(action.execute(degrees=45.0))
         mock_asyncio.to_thread.assert_called_once_with(ctrl.turn_degrees, 45.0)
 
 
