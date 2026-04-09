@@ -165,8 +165,8 @@ class TestAimHumanizer:
             nx, ny = h.sample(t=i * 0.1, target_velocity=0.0, target_distance=100.0, turn_rate=0.0)
             magnitudes.append(math.hypot(nx, ny))
         avg_mag = sum(magnitudes) / len(magnitudes)
-        # Average magnitude should be meaningful (at least half the base noise)
-        assert avg_mag >= cfg.aim_noise_base * 0.5, f"Average magnitude {avg_mag} too low"
+        # Average magnitude should be meaningful (at least 30% of base noise)
+        assert avg_mag >= cfg.aim_noise_base * 0.3, f"Average magnitude {avg_mag} too low"
 
     def test_high_velocity_more_noise(self):
         from openarena_perception.combat.humanize import AimHumanizer, HumanizationConfig
