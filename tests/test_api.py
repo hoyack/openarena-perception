@@ -404,7 +404,7 @@ def test_metrics():
     async def _run():
         client = await _client()
         async with client:
-            r = await client.get("/metrics")
+            r = await client.get("/metrics/")
         assert r.status_code == 200
         body = r.text
         assert "bot_perception_fps" in body
@@ -422,7 +422,7 @@ def test_metrics_content_type():
     async def _run():
         client = await _client()
         async with client:
-            r = await client.get("/metrics")
+            r = await client.get("/metrics/")
         assert r.status_code == 200
         ct = r.headers.get("content-type", "")
         assert "text/plain" in ct or "text/openmetrics" in ct

@@ -1,7 +1,7 @@
 """FastAPI application factory.
 
-``create_app()`` builds the app with lifespan, CORS, and all routers.
-Does NOT mount /metrics or WebSocket yet (Plan 04).
+``create_app()`` builds the app with lifespan, CORS, routers,
+WebSocket state streaming, and Prometheus metrics.
 """
 from __future__ import annotations
 
@@ -47,12 +47,19 @@ def create_app(bot: BotState | None = None) -> FastAPI:
 
     # --- Routers ---
     from .routers import combat, navigation, perception, skills, strategy
+    from .ws import ws_router
 
     app.include_router(perception.router, prefix="/perception", tags=["perception"])
     app.include_router(navigation.router, prefix="/navigation", tags=["navigation"])
     app.include_router(combat.router, prefix="/combat", tags=["combat"])
     app.include_router(skills.router, prefix="/skills", tags=["skills"])
     app.include_router(strategy.router, prefix="/strategy", tags=["strategy"])
+    app.include_router(ws_router)
+
+    # --- Prometheus metrics ---
+    from .metrics import metrics_app
+
+    app.mount("/metrics", metrics_app)
 
     # --- Top-level endpoints ---
 
