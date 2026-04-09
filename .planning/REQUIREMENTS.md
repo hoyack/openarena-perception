@@ -109,10 +109,10 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Testing
 
-- [ ] **TEST-01**: Unit tests for perception pipeline (HUD parsing, enemy detection, motion detection)
-- [ ] **TEST-02**: Unit tests for navigation (pathfinding, stuck detection, learned map)
-- [ ] **TEST-03**: Unit tests for combat (aim control PID, weapon selection, threat assessment)
-- [ ] **TEST-04**: Integration tests for full perception → decision → action loop
+- [x] **TEST-01**: Unit tests for perception pipeline (HUD parsing, enemy detection, motion detection)
+- [x] **TEST-02**: Unit tests for navigation (pathfinding, stuck detection, learned map)
+- [x] **TEST-03**: Unit tests for combat (aim control PID, weapon selection, threat assessment)
+- [x] **TEST-04**: Integration tests for full perception → decision → action loop
 - [ ] **TEST-05**: Tour testing with metrics — stuck count, completion time, visual verification
 - [ ] **TEST-06**: Property-based tests via hypothesis for PID math, navigation coordinates, pathfinding
 
@@ -226,10 +226,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | HUMN-05 | Phase 8 | Complete |
 | HUMN-06 | Phase 8 | Complete |
 | HUMN-07 | Phase 8 | Complete |
-| TEST-01 | Phase 9 | Pending |
-| TEST-02 | Phase 9 | Pending |
-| TEST-03 | Phase 9 | Pending |
-| TEST-04 | Phase 9 | Pending |
+| TEST-01 | Phase 9 | Complete |
+| TEST-02 | Phase 9 | Complete |
+| TEST-03 | Phase 9 | Complete |
+| TEST-04 | Phase 9 | Complete |
 | TEST-05 | Phase 9 | Pending |
 | TEST-06 | Phase 9 | Pending |
 | DOCS-01 | Phase 9 | Pending |
