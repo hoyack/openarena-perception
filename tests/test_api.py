@@ -360,3 +360,71 @@ def test_full_state():
         assert body["perception"]["tick"] == 42
 
     asyncio.run(_run())
+
+
+# ── WebSocket Tests ──────────────────────────────────────────────────
+
+
+def test_websocket():
+    """Connect to /ws/state, receive at least 1 message with SA fields."""
+    from starlette.testclient import TestClient
+
+    bot = _bot_with_sa()
+    app = create_app(bot=bot)
+    from openarena_perception.api.deps import set_bot
+
+    set_bot(bot)
+    client = TestClient(app)
+    with client.websocket_connect("/ws/state") as ws:
+        data = ws.receive_json()
+        # Should have SA fields since last_sa is set
+        assert "tick" in data
+        assert data["tick"] == 42
+        assert data["health"] == 75
+        assert data["weapon"] == "rocket"
+
+
+def test_websocket_no_sa():
+    """With last_sa=None, verify receives heartbeat {"type": "waiting"}."""
+    from starlette.testclient import TestClient
+
+    bot = _bot_without_sa()
+    app = create_app(bot=bot)
+    from openarena_perception.api.deps import set_bot
+
+    set_bot(bot)
+    client = TestClient(app)
+    with client.websocket_connect("/ws/state") as ws:
+        data = ws.receive_json()
+        assert data == {"type": "waiting"}
+
+
+def test_metrics():
+    """GET /metrics returns 200, body contains metric names."""
+    async def _run():
+        client = await _client()
+        async with client:
+            r = await client.get("/metrics")
+        assert r.status_code == 200
+        body = r.text
+        assert "bot_perception_fps" in body
+        assert "bot_kills_total" in body
+        assert "bot_deaths_total" in body
+        assert "bot_llm_latency_seconds" in body
+        assert "bot_stuck_total" in body
+        assert "bot_tick_duration_seconds" in body
+
+    asyncio.run(_run())
+
+
+def test_metrics_content_type():
+    """Response content-type is text/plain or Prometheus format."""
+    async def _run():
+        client = await _client()
+        async with client:
+            r = await client.get("/metrics")
+        assert r.status_code == 200
+        ct = r.headers.get("content-type", "")
+        assert "text/plain" in ct or "text/openmetrics" in ct
+
+    asyncio.run(_run())
