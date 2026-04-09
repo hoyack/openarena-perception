@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import asyncio
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from openarena_perception.skills import (
     AtomicAction,
@@ -263,7 +263,7 @@ def test_combat_engage_behavior():
     from openarena_perception.skills.behaviors import CombatEngageBehavior
 
     engager = MagicMock()
-    engager.tick = MagicMock()
+    engager.tick = AsyncMock()
     ctrl = _mock_controller()
     bridge = _mock_bridge()
     behavior = CombatEngageBehavior(engager, ctrl, bridge)
