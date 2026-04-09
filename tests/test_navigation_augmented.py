@@ -130,11 +130,12 @@ class TestAStarEdgeCases:
         ]
         nav.graph = _make_graph(areas)
 
-        # Standard A* blocks swim -- should find no path
+        # Standard A* now allows swim with heavy penalty (not blocked)
         result_standard = nav._astar(1, 2)
-        assert result_standard == []
+        assert len(result_standard) >= 2
+        assert result_standard[-1] == 2
 
-        # Swim-allowed A* should find a path
+        # Swim-allowed A* should also find a path
         result_swim = nav._astar_allow_swim(1, 2)
         assert len(result_swim) >= 2
         assert result_swim[-1] == 2

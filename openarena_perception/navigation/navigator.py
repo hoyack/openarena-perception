@@ -153,11 +153,12 @@ class Navigator:
                 break
 
         if reach:
-            # Never follow swim edges
+            # Swim edges: allow if it's the only way (A* penalized but didn't block)
             if reach.travel_type in self.SWIM_TRAVEL:
-                self._path.pop(0)
-                log.info("Skipping swim edge to area %d", target_area)
-                return None
+                log.warning("Traversing swim edge to area %d (may take damage!)", target_area)
+                # Jump forward through the liquid quickly
+                self.bridge.cmd("+moveup")
+                self.bridge.cmd("-moveup")
 
             # Never walk off a ledge into a liquid area (lava/water)
             if (reach.travel_type == TRAVEL_WALKOFFLEDGE and
@@ -646,7 +647,7 @@ class Navigator:
     # Travel types that require ground movement (preferred)
     GROUND_TRAVEL = {1, 2, 3, 4, 5, 6, 17}  # walk, crouch, barrierjump, jump, ladder, walkoffledge, jumppad
     SWIM_TRAVEL = {7, 8}  # swim, waterjump
-    SWIM_PENALTY = 999999.0  # effectively block swim paths -- bot will drown
+    SWIM_PENALTY = 5000.0  # expensive but not blocked — swim edges may be the only route out
 
     def _astar(self, start: int, goal: int) -> List[int]:
         if start == goal:
@@ -675,10 +676,11 @@ class Navigator:
                 cx, cy, cz = self.graph.area_center(cur)
                 d = math.hypot(nx-cx, ny-cy) + abs(nz-cz) * 0.3
 
-                # Skip swim paths entirely -- bot will drown
+                # Penalize swim paths heavily (lava/slime) but don't block —
+                # they may be the only route out of dead-end areas
                 ttype = area.travel_types[i] if i < len(area.travel_types) else 1
                 if ttype in self.SWIM_TRAVEL:
-                    continue  # don't even consider this edge
+                    d += self.SWIM_PENALTY
 
                 # Add learned edge penalty (avoid repeatedly failed edges)
                 if self._edge_cost_fn:
