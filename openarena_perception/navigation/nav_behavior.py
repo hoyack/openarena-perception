@@ -26,6 +26,8 @@ from .commander import Commander
 from .navigator import Navigator
 
 if TYPE_CHECKING:
+    from openarena_perception.memory.episodic import EpisodicMemory
+    from openarena_perception.models import SpatialKnowledge
     from openarena_perception.virtual_controller import VirtualController
 
 log = logging.getLogger(__name__)
@@ -42,17 +44,26 @@ class NavBehavior:
     the bot an immediate exploration target after respawn.
     """
 
+    # Maximum concurrent danger zones to prevent blocking all paths (T-08-06)
+    _MAX_DANGER_ZONES: int = 10
+    # Minimum death count to consider a zone dangerous
+    _MIN_DEATHS: int = 2
+
     def __init__(
         self,
         ctrl: "VirtualController",
         navigator: Navigator,
         commander: Commander,
         aas_graph,
+        episodic_memory: "EpisodicMemory | None" = None,
+        map_name: str = "",
     ):
         self.ctrl = ctrl
         self.nav = navigator
         self.commander = commander
         self.aas_graph = aas_graph
+        self._episodic_memory = episodic_memory
+        self._map_name = map_name
 
         # Navigation target tracking
         self._nav_target: Optional[str] = None
@@ -61,16 +72,68 @@ class NavBehavior:
         self._target_blacklist: Dict[str, float] = {}
         self._target_failures: Dict[str, int] = {}
 
+    # -- Adaptive learning -------------------------------------------------
+
+    def populate_danger_zones(self, spatial: "SpatialKnowledge") -> int:
+        """Query death heatmap and record top danger zones.
+
+        Returns the number of danger zones populated.  Capped at
+        ``_MAX_DANGER_ZONES`` to prevent blocking all navigation paths
+        (T-08-06 DoS mitigation).  Only zones with >= ``_MIN_DEATHS``
+        repeated deaths are considered.
+
+        When *episodic_memory* or *map_name* were not provided at
+        construction time this is a no-op returning 0 (backward compat).
+        """
+        if self._episodic_memory is None or not self._map_name:
+            return 0
+
+        heatmap = self._episodic_memory.get_death_heatmap(self._map_name)
+        if not heatmap:
+            return 0
+
+        # Sort by death count descending, cap at max zones
+        sorted_zones = sorted(heatmap, key=lambda z: z[3], reverse=True)[
+            : self._MAX_DANGER_ZONES
+        ]
+        count = 0
+        for x, y, z, deaths in sorted_zones:
+            if deaths < self._MIN_DEATHS:
+                continue
+            # Hash position to an area-like ID.  If the navigator exposes
+            # an area lookup we prefer that; fall back to a deterministic
+            # position hash that maps into a stable ID space.
+            area_for = getattr(self.nav, "area_for_position", None)
+            if callable(area_for):
+                area_id: int = area_for(x, y, z)
+            else:
+                area_id = int(abs(x) * 31 + abs(y) * 17) % 10_000
+            spatial.record_danger(area_id)
+            count += 1
+            log.debug(
+                "Danger zone recorded: area=%d deaths=%d pos=(%.0f,%.0f,%.0f)",
+                area_id, deaths, x, y, z,
+            )
+        return count
+
     # -- State entry hooks -------------------------------------------------
 
-    def on_enter_exploring(self) -> None:
+    def on_enter_exploring(
+        self, spatial: "SpatialKnowledge | None" = None,
+    ) -> None:
         """Called when entering EXPLORING state.
 
         Resets stuck attempts and picks a random exploration path.
         This is the respawn recovery path (NAV-06): after DEAD -> EXPLORING,
         the bot immediately gets a random navigation target.
+
+        If *spatial* is provided and episodic memory is available, danger
+        zones are populated from the death heatmap (HUMN-05 adaptive
+        learning).
         """
         self._stucks_on_current_target = 0
+        if spatial is not None:
+            self.populate_danger_zones(spatial)
         self.nav.path_to_random()
 
     def on_enter_navigating(self) -> None:
