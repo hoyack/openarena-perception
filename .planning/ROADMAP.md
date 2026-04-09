@@ -123,7 +123,7 @@ Plans:
 - [x] 06-01-PLAN.md — Skill base, Protocol, SkillRegistry, atomic actions, deps install
 - [x] 06-02-PLAN.md — Behaviors, missions, catalog, SKILL.md migration
 - [x] 06-03-PLAN.md — FastAPI app factory, Pydantic models, REST routers
-- [ ] 06-04-PLAN.md — WebSocket state streaming and Prometheus metrics
+- [x] 06-04-PLAN.md — WebSocket state streaming and Prometheus metrics
 - [ ] 06-05-PLAN.md — Integration tests and full regression check
 **UI hint**: yes
 
