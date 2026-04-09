@@ -103,7 +103,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **HUMN-02**: Reaction time modeling — variable 150-250ms+ delay between perception and action
 - [x] **HUMN-03**: Movement variability — overshoot corners, hesitate, occasional suboptimal paths
 - [x] **HUMN-04**: Bot personality profiles — configurable aggression, caution, weapon preference, grudge tendency
-- [ ] **HUMN-05**: Adaptive learning — modify behavior based on death locations and engagement outcomes mid-match
+- [x] **HUMN-05**: Adaptive learning — modify behavior based on death locations and engagement outcomes mid-match
 - [x] **HUMN-06**: Hesitation pauses — 100-300ms decision delay on state transitions
 - [x] **HUMN-07**: Skill difficulty scaling — unified parameter (1-5) affecting aim noise, reaction delay, decision quality
 
@@ -223,7 +223,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | HUMN-02 | Phase 8 | Complete |
 | HUMN-03 | Phase 8 | Complete |
 | HUMN-04 | Phase 8 | Complete |
-| HUMN-05 | Phase 8 | Pending |
+| HUMN-05 | Phase 8 | Complete |
 | HUMN-06 | Phase 8 | Complete |
 | HUMN-07 | Phase 8 | Complete |
 | TEST-01 | Phase 9 | Pending |

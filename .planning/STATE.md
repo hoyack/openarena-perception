@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 08-02-PLAN.md
-last_updated: "2026-04-09T15:53:06.765Z"
+stopped_at: Completed 08-03-PLAN.md
+last_updated: "2026-04-09T15:57:32.029Z"
 last_activity: 2026-04-09
 progress:
   total_phases: 9
   completed_phases: 7
   total_plans: 33
-  completed_plans: 30
-  percent: 91
+  completed_plans: 31
+  percent: 94
 ---
 
 # Project State
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-04-08)
 ## Current Position
 
 Phase: 08 (Human-Likeness) — EXECUTING
-Plan: 3 of 5
+Plan: 4 of 5
 Status: Ready to execute
 Last activity: 2026-04-09
 
@@ -88,6 +88,7 @@ Progress: [..........] 0%
 | Phase 07 P03 | 2min | 2 tasks | 3 files |
 | Phase 08 P01 | 3min | 2 tasks | 4 files |
 | Phase 08 P02 | 4min | 2 tasks | 4 files |
+| Phase 08 P03 | 2min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -161,6 +162,9 @@ Recent decisions affecting current work:
 - [Phase 08]: Reaction delay uses timestamp comparison, not sleep/await -- tick loop runs at full speed
 - [Phase 08]: Extracted _execute_transition method from tick() for reuse by delay-aware and immediate paths
 - [Phase 08]: Strafe interval clamped to [0.15, 1.5] to prevent degenerate values (T-08-05)
+- [Phase 08]: NavBehavior file is nav_behavior.py not behaviors.py -- plan referenced wrong filename
+- [Phase 08]: on_enter_exploring accepts optional SpatialKnowledge for danger zone population on respawn
+- [Phase 08]: Cautious disengage at 30 HP with absolute 15 HP floor (T-08-07)
 
 ### Pending Todos
 
@@ -173,6 +177,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-09T15:53:06.751Z
-Stopped at: Completed 08-02-PLAN.md
+Last session: 2026-04-09T15:57:32.021Z
+Stopped at: Completed 08-03-PLAN.md
 Resume file: None
