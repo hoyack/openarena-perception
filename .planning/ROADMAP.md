@@ -154,7 +154,7 @@ Plans:
 **Plans**: 5 plans
 Plans:
 - [x] 08-01-PLAN.md — HumanizationConfig, PersonalityProfile, PerlinNoise1D, AimHumanizer, BotSettings skill_level
-- [ ] 08-02-PLAN.md — Reaction time delay buffer and hesitation in TacticalFSM, movement variability in CombatMover
+- [x] 08-02-PLAN.md — Reaction time delay buffer and hesitation in TacticalFSM, movement variability in CombatMover
 - [ ] 08-03-PLAN.md — Adaptive learning from death heatmap, personality-aware combat engagement
 - [ ] 08-04-PLAN.md — Aim humanizer wiring into AimController.update() with accuracy cap
 - [ ] 08-05-PLAN.md — Comprehensive test suite for HUMN-01 through HUMN-07 plus regression check

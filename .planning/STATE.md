@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 08-01-PLAN.md
-last_updated: "2026-04-09T15:46:35.796Z"
+stopped_at: Completed 08-02-PLAN.md
+last_updated: "2026-04-09T15:53:06.765Z"
 last_activity: 2026-04-09
 progress:
   total_phases: 9
   completed_phases: 7
   total_plans: 33
-  completed_plans: 29
-  percent: 88
+  completed_plans: 30
+  percent: 91
 ---
 
 # Project State
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-04-08)
 ## Current Position
 
 Phase: 08 (Human-Likeness) — EXECUTING
-Plan: 2 of 5
+Plan: 3 of 5
 Status: Ready to execute
 Last activity: 2026-04-09
 
@@ -87,6 +87,7 @@ Progress: [..........] 0%
 | Phase 07 P02 | 5min | 2 tasks | 7 files |
 | Phase 07 P03 | 2min | 2 tasks | 3 files |
 | Phase 08 P01 | 3min | 2 tasks | 4 files |
+| Phase 08 P02 | 4min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -157,6 +158,9 @@ Recent decisions affecting current work:
 - [Phase 08]: Frozen slotted dataclass for HumanizationConfig (project convention)
 - [Phase 08]: Re-export humanization types from models.py for cross-subsystem access
 - [Phase 08]: Pydantic ge=1 le=5 validation on skill_level (T-08-01 mitigation)
+- [Phase 08]: Reaction delay uses timestamp comparison, not sleep/await -- tick loop runs at full speed
+- [Phase 08]: Extracted _execute_transition method from tick() for reuse by delay-aware and immediate paths
+- [Phase 08]: Strafe interval clamped to [0.15, 1.5] to prevent degenerate values (T-08-05)
 
 ### Pending Todos
 
@@ -169,6 +173,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-09T15:46:35.789Z
-Stopped at: Completed 08-01-PLAN.md
+Last session: 2026-04-09T15:53:06.751Z
+Stopped at: Completed 08-02-PLAN.md
 Resume file: None
