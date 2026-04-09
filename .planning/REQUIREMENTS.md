@@ -78,10 +78,10 @@ Requirements for initial release. Each maps to roadmap phases.
 ### Skills System
 
 - [x] **SKIL-01**: Atomic action layer — individual game commands (move, turn, fire, weapon_select)
-- [ ] **SKIL-02**: Behavior layer — composed sequences (room_survey, item_tour, combat_engage, patrol)
-- [ ] **SKIL-03**: Mission layer — high-level goals (explore_map, deathmatch, defend_area)
+- [x] **SKIL-02**: Behavior layer — composed sequences (room_survey, item_tour, combat_engage, patrol)
+- [x] **SKIL-03**: Mission layer — high-level goals (explore_map, deathmatch, defend_area)
 - [x] **SKIL-04**: Skills are composable — behaviors built from actions, missions built from behaviors
-- [ ] **SKIL-05**: SKILL.md migrated to skills/ folder as a specific skill definition
+- [x] **SKIL-05**: SKILL.md migrated to skills/ folder as a specific skill definition
 
 ### API Layer
 
@@ -207,10 +207,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | STRT-02 | Phase 5 | Complete |
 | STRT-03 | Phase 5 | Complete |
 | SKIL-01 | Phase 6 | Complete |
-| SKIL-02 | Phase 6 | Pending |
-| SKIL-03 | Phase 6 | Pending |
+| SKIL-02 | Phase 6 | Complete |
+| SKIL-03 | Phase 6 | Complete |
 | SKIL-04 | Phase 6 | Complete |
-| SKIL-05 | Phase 6 | Pending |
+| SKIL-05 | Phase 6 | Complete |
 | API-01 | Phase 6 | Pending |
 | API-02 | Phase 6 | Pending |
 | API-03 | Phase 6 | Pending |
