@@ -13,10 +13,13 @@ import logging
 import time
 from typing import TYPE_CHECKING, Any
 
+import numpy as np
+
 from openarena_perception.models import BrainState
 
 if TYPE_CHECKING:
     from openarena_perception.combat import CombatEngager
+    from openarena_perception.combat.humanize import HumanizationConfig
     from openarena_perception.models import SituationalAwareness
     from openarena_perception.motion_anomaly import MotionAnomalyTracker
     from openarena_perception.navigation import NavBehavior, SurveyBehavior
@@ -47,6 +50,7 @@ class TacticalFSM:
         ctrl: VirtualController | None = None,
         anomaly_tracker: MotionAnomalyTracker | None = None,
         obj_tracker: ObjectTracker | None = None,
+        humanize_config: HumanizationConfig | None = None,
     ) -> None:
         self._arbiter = arbiter
         self._death_handler = death_handler
@@ -57,11 +61,15 @@ class TacticalFSM:
         self._ctrl = ctrl
         self._anomaly_tracker = anomaly_tracker
         self._obj_tracker = obj_tracker
+        self._humanize_config = humanize_config
 
         # FSM state
         self._state: BrainState = BrainState.EXPLORING
         self._state_enter_time: float = time.time()
         self._prev_state: BrainState = BrainState.EXPLORING
+
+        # Reaction delay buffer (HUMN-02/06)
+        self._pending_transition: tuple[BrainState, float] | None = None
 
     # -- Properties ----------------------------------------------------------
 
@@ -85,6 +93,66 @@ class TacticalFSM:
         return self._arbiter.evaluate(
             sa, self._state, state_time, **context
         )
+
+    # -- Humanization helpers --------------------------------------------------
+
+    def _sample_reaction_delay(
+        self, new_state: BrainState, old_state: BrainState
+    ) -> float:
+        """Sample reaction + hesitation delay for a state transition.
+
+        Returns 0.0 for DEAD transitions (safety invariant) and when
+        no humanization config is set.
+        """
+        cfg = self._humanize_config
+        if cfg is None or new_state == BrainState.DEAD:
+            return 0.0  # NEVER delay death handling
+
+        rng = np.random.default_rng()
+
+        # Reaction time from truncated normal
+        mean = (cfg.reaction_time_min + cfg.reaction_time_max) / 2
+        std = (cfg.reaction_time_max - cfg.reaction_time_min) / 4
+        base = float(
+            np.clip(rng.normal(mean, std), cfg.reaction_time_min, cfg.reaction_time_max)
+        )
+
+        # Surprise bonus: entering COMBAT from non-combat state
+        if new_state == BrainState.COMBAT and old_state not in (
+            BrainState.COMBAT,
+            BrainState.DEAD,
+        ):
+            base += cfg.reaction_surprise_bonus
+
+        # Hesitation on top (HUMN-06)
+        h_mean = (cfg.hesitation_min + cfg.hesitation_max) / 2
+        h_std = (cfg.hesitation_max - cfg.hesitation_min) / 4
+        hesitation = float(
+            np.clip(rng.normal(h_mean, h_std), cfg.hesitation_min, cfg.hesitation_max)
+        )
+
+        return base + hesitation
+
+    def _execute_transition(
+        self, new_state: BrainState, sa: SituationalAwareness
+    ) -> None:
+        """Execute a state transition (enter/exit hooks + logging)."""
+        self.on_exit_state(self._state, sa)
+        old = self._state
+        self._prev_state = old
+        self._state = new_state
+        self._state_enter_time = time.time()
+        self.on_enter_state(new_state, sa)
+        log.info(
+            "BRAIN: %s -> %s [%s hp=%s area=%d]",
+            old.value,
+            new_state.value,
+            sa.disposition,
+            sa.health,
+            sa.current_area,
+        )
+
+    # -- State hooks -----------------------------------------------------------
 
     def on_enter_state(
         self, state: BrainState, sa: SituationalAwareness
@@ -173,6 +241,10 @@ class TacticalFSM:
     ) -> float | None:
         """High-level FSM tick: evaluate transitions, handle state change, dispatch.
 
+        When *humanize_config* is set, transitions are buffered by a sampled
+        reaction + hesitation delay (timestamp comparison, NOT a sleep).
+        DEAD transitions are always immediate regardless of config.
+
         Args:
             sa: Situational awareness snapshot.
             gs: Game state object.
@@ -183,16 +255,33 @@ class TacticalFSM:
             Survey cooldown value if applicable, else None.
         """
         new_state = self.evaluate_transitions(sa, **context)
+        now = time.time()
+
         if new_state != self._state:
-            self.on_exit_state(self._state, sa)
-            old = self._state
-            self._prev_state = old
-            self._state = new_state
-            self._state_enter_time = time.time()
-            self.on_enter_state(new_state, sa)
-            log.info(
-                "BRAIN: %s -> %s [%s hp=%s area=%d]",
-                old.value, new_state.value, sa.disposition,
-                sa.health, sa.current_area,
-            )
+            if self._humanize_config is None:
+                # No humanization -- immediate transition (backward compat)
+                self._execute_transition(new_state, sa)
+            else:
+                if self._pending_transition is None:
+                    delay = self._sample_reaction_delay(new_state, self._state)
+                    if delay <= 0.0:
+                        # Zero delay (e.g. DEAD) -- execute immediately
+                        self._execute_transition(new_state, sa)
+                    else:
+                        self._pending_transition = (new_state, now + delay)
+                else:
+                    # Already pending -- check if situation changed
+                    if new_state != self._pending_transition[0]:
+                        self._pending_transition = None  # Cancel: situation changed
+                    elif now >= self._pending_transition[1]:
+                        # Delay expired, execute
+                        actual = self._pending_transition[0]
+                        self._pending_transition = None
+                        self._execute_transition(actual, sa)
+        else:
+            # Staying in same state -- cancel pending if target differs
+            if self._pending_transition is not None:
+                if self._pending_transition[0] != new_state:
+                    self._pending_transition = None
+
         return await self.dispatch(self._state, sa, gs, tick_count=tick_count)
