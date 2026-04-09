@@ -241,6 +241,93 @@ class Perception:
 
         return openness(left), openness(center), openness(right)
 
+    def detect_portal_or_door(self, frame: np.ndarray) -> dict:
+        """
+        Detect portals (mirror-like reflective surfaces) and doors/bars in the frame.
+
+        Portals in Q3/OA: shimmering blue/purple/white surfaces with high brightness variance.
+        Bars/gates: vertical dark lines with regular spacing.
+        Buttons: small bright colored squares on walls (often red or green).
+
+        Returns dict with:
+          portal_detected: bool
+          portal_region: (x, y, w, h) or None
+          bars_detected: bool
+          button_detected: bool
+          button_region: (x, y, w, h) or None
+        """
+        h, w = frame.shape[:2]
+        result = {
+            'portal_detected': False,
+            'portal_region': None,
+            'bars_detected': False,
+            'button_detected': False,
+            'button_region': None,
+        }
+
+        hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
+        # Exclude HUD (bottom 15%)
+        scan_h = int(h * 0.85)
+
+        # Portal detection: high-brightness, high-saturation blue/purple region
+        # Q3 portals shimmer with blue/cyan/purple tones
+        portal_mask1 = cv2.inRange(hsv[:scan_h], np.array([90, 50, 150]), np.array([140, 255, 255]))
+        portal_mask2 = cv2.inRange(hsv[:scan_h], np.array([0, 0, 200]), np.array([180, 40, 255]))  # bright white shimmer
+        portal_mask = cv2.bitwise_or(portal_mask1, portal_mask2)
+        portal_mask = cv2.morphologyEx(portal_mask, cv2.MORPH_CLOSE, np.ones((7, 7)))
+        portal_coverage = float(portal_mask.sum() / 255) / (scan_h * w)
+
+        if portal_coverage > 0.03:  # 3% of frame is portal-like
+            contours, _ = cv2.findContours(portal_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            if contours:
+                largest = max(contours, key=cv2.contourArea)
+                area = cv2.contourArea(largest)
+                if area > 2000:  # significant portal
+                    x_p, y_p, w_p, h_p = cv2.boundingRect(largest)
+                    result['portal_detected'] = True
+                    result['portal_region'] = (x_p, y_p, w_p, h_p)
+
+        # Bars detection: vertical edges with regular spacing in center frame
+        center = gray[int(h * 0.2):int(h * 0.7), int(w * 0.25):int(w * 0.75)]
+        edges_v = cv2.Sobel(center, cv2.CV_64F, 1, 0, ksize=3)
+        edges_v = np.abs(edges_v)
+        # Strong vertical lines = potential bars
+        col_sums = edges_v.mean(axis=0)
+        peaks = np.where(col_sums > col_sums.mean() * 3)[0]
+        if len(peaks) >= 3:
+            # Check for regular spacing
+            diffs = np.diff(peaks)
+            if len(diffs) >= 2:
+                mean_spacing = diffs.mean()
+                regularity = diffs.std() / (mean_spacing + 1e-6)
+                if regularity < 0.4 and mean_spacing > 5:  # regular vertical bars
+                    result['bars_detected'] = True
+
+        # Button detection: small bright red or green square
+        # Red buttons
+        red_mask = cv2.inRange(hsv[:scan_h], np.array([0, 150, 150]), np.array([10, 255, 255]))
+        red_mask2 = cv2.inRange(hsv[:scan_h], np.array([170, 150, 150]), np.array([180, 255, 255]))
+        button_mask = cv2.bitwise_or(red_mask, red_mask2)
+        # Green buttons
+        green_mask = cv2.inRange(hsv[:scan_h], np.array([40, 150, 150]), np.array([80, 255, 255]))
+        button_mask = cv2.bitwise_or(button_mask, green_mask)
+        button_mask = cv2.morphologyEx(button_mask, cv2.MORPH_OPEN, np.ones((3, 3)))
+
+        contours, _ = cv2.findContours(button_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        for c in contours:
+            area = cv2.contourArea(c)
+            if 100 < area < 5000:  # button-sized
+                x_b, y_b, w_b, h_b = cv2.boundingRect(c)
+                aspect = w_b / (h_b + 1e-6)
+                if 0.5 < aspect < 2.0:  # roughly square
+                    result['button_detected'] = True
+                    result['button_region'] = (x_b, y_b, w_b, h_b)
+                    break
+
+        return result
+
     @property
     def wall_score(self) -> float:
         return self._last_wall_score

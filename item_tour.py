@@ -682,14 +682,25 @@ class ItemTour:
         if self.agent.nav.path_to_area(target_area):
             return  # path found
 
-        # Path failed — try a random exploration instead of skipping
-        log.warning("No direct path to %s (area %d) — trying exploration",
+        # Path failed — try with fresh penalties (stuck blacklist may have cut off routes)
+        log.warning("No direct path to %s (area %d) — retrying with cleared penalties",
                     name, target_area)
+        if self.agent.nav.path_to_area_fresh(target_area):
+            return  # path found after clearing penalties
+
+        # Still no path — try exploring toward the target's general direction
+        log.warning("Still no path to %s — exploring toward (%.0f,%.0f)",
+                    name, x, y)
+        if self.agent.nav.explore_toward(x, y):
+            return  # exploring toward target
+
+        # Try random exploration as last resort
+        log.warning("Explore-toward failed for %s — trying random exploration", name)
         if self.agent.nav.path_to_random():
             return  # explore and retry next decision cycle
 
         # Truly no path — skip
-        log.warning("Skipping %s — unreachable", name)
+        log.warning("Skipping %s — unreachable from area %d", name, self.agent.nav.current_area)
         self._advance_route()
 
     def _advance_route(self):

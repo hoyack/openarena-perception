@@ -438,13 +438,61 @@ class Navigator:
         return False
 
     def area_stuck_penalty(self, area: int) -> float:
-        """A* cost penalty for areas where the bot repeatedly gets stuck."""
+        """A* cost penalty for areas where the bot repeatedly gets stuck.
+        Soft penalties only — never fully block (may be the only route)."""
         count = self._area_stuck_counts.get(area, 0)
         if count == 0:
             return 0.0
-        if count >= 5:
-            return 50000.0  # effectively block this area
-        return count * 500.0  # progressively penalize
+        # Soft cap at 2000 — expensive but not blocking
+        return min(count * 300.0, 2000.0)
+
+    def reset_stuck_penalties(self):
+        """Clear stuck penalties when retrying with fresh routes."""
+        if self._area_stuck_counts:
+            log.info("Resetting %d area stuck penalties for fresh pathfinding",
+                     len(self._area_stuck_counts))
+            self._area_stuck_counts.clear()
+
+    def path_to_area_fresh(self, target: int) -> bool:
+        """Try pathfinding with cleared penalties — last resort when normal path fails."""
+        self.reset_stuck_penalties()
+        return self.path_to_area(target)
+
+    def explore_toward(self, target_x: float, target_y: float) -> bool:
+        """Navigate toward a world position by picking the nearest reachable area
+        in that general direction. Used when direct A* fails."""
+        if not self.graph or not self.pos:
+            return False
+
+        best_area = -1
+        best_score = float('inf')
+        tx, ty = target_x, target_y
+        cx, cy = self.pos[0], self.pos[1]
+
+        for area in self.graph.areas:
+            if not area.neighbors or area.idx == self._current_area:
+                continue
+            ax, ay, az = area.cx, area.cy, area.cz
+            # Score = distance from area to target (prefer closer to target)
+            # with bonus for being reachable from current position
+            dist_to_target = math.hypot(ax - tx, ay - ty)
+            dist_from_us = math.hypot(ax - cx, ay - cy)
+            # Only consider areas that are closer to target than we are
+            our_dist = math.hypot(cx - tx, cy - ty)
+            if dist_to_target < our_dist:
+                score = dist_to_target + dist_from_us * 0.3
+                if score < best_score:
+                    # Quick check: can we path there?
+                    test_path = self._astar(self._current_area, area.idx)
+                    if test_path:
+                        best_score = score
+                        best_area = area.idx
+
+        if best_area >= 0:
+            log.info("Exploring toward (%.0f,%.0f) via area %d (score=%.0f)",
+                     tx, ty, best_area, best_score)
+            return self.path_to_area(best_area)
+        return False
 
     def wall_dodge(self):
         """
