@@ -9,6 +9,13 @@ from .aim_controller import AimController, AimProfile, PROFILES
 from .combat_movement import CombatMover
 from .engage import CombatEngager
 from .threat_assess import ThreatAssessor, evaluate_threat
+from .humanize import (
+    AimHumanizer,
+    HumanizationConfig,
+    PersonalityProfile,
+    PERSONALITIES,
+    SKILL_PARAMS,
+)
 
 __all__ = [
     "WEAPONS", "WeaponInfo",
@@ -17,4 +24,6 @@ __all__ = [
     "CombatMover",
     "CombatEngager",
     "ThreatAssessor", "evaluate_threat",
+    "AimHumanizer", "HumanizationConfig",
+    "PersonalityProfile", "PERSONALITIES", "SKILL_PARAMS",
 ]
