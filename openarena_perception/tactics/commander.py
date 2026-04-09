@@ -56,7 +56,7 @@ class Commander:
     RESPAWN_AMMO = 40.0
     RESPAWN_HEALTH = 35.0
     RESPAWN_ARMOR = 25.0
-    RESPAWN_MEGA = 120.0
+    RESPAWN_MEGA = 35.0  # Q3 source: RESPAWN_MEGAHEALTH = 35 (not RESPAWN_POWERUP = 120)
 
     # Strategy thresholds
     HEALTH_CRITICAL = 30
@@ -67,7 +67,9 @@ class Commander:
 
     DECISION_INTERVAL = 3.0  # seconds between strategic decisions
 
-    def __init__(self, items: List[Tuple[str, float, float, float]]):
+    def __init__(self, items: List[Tuple[str, float, float, float]], *,
+                 item_timing: Optional[object] = None):
+        self._item_timing = item_timing
         self.item_memory: List[ItemMemory] = []
         for classname, x, y, z in items:
             priority = self._item_priority(classname)
@@ -208,6 +210,11 @@ class Commander:
                 f"deaths={self._deaths} "
                 f"enemies_mem={len(self.enemy_sightings)}")
 
+    def process_sound_events(self, events: list) -> None:
+        """Feed game log events to item timing service."""
+        if self._item_timing is not None:
+            self._item_timing.process_events(events)
+
     # -- Internal -----------------------------------------------------------
 
     def _find_best_item(self, px: float, py: float, now: float,
@@ -227,6 +234,19 @@ class Commander:
             time_since = now - item.last_visited
             if item.last_visited > 0 and time_since < self._respawn_time(item.classname):
                 s *= 0.1  # heavily penalize -- item hasn't respawned
+
+            # Enhanced scoring with precise spawn prediction (COMP-02)
+            if self._item_timing is not None:
+                timer = self._item_timing.get_timer(item.classname)
+                if timer is not None and not timer.is_available:
+                    seconds_until = timer.seconds_until_spawn
+                    if seconds_until > 5.0:
+                        s *= 0.05  # not spawning soon, heavy penalty
+                    else:
+                        # Spawning soon -- boost based on travel-time match
+                        travel_time = dist / 320.0  # Q3 run speed ~320 units/sec
+                        timing_match = 1.0 - abs(seconds_until - travel_time) / max(seconds_until, 1.0)
+                        s *= max(0.3, timing_match)
 
             # Prefer stale items (for patrol mode)
             if prefer_stale and item.last_visited > 0:
