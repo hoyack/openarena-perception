@@ -1,4 +1,10 @@
-"""OpenArena Perception -- api subsystem.
+"""OpenArena Perception -- API subsystem.
 
-Stub created in Phase 1. Code will be extracted here in Phase 3.
+Exposes the bot framework to LLM agents via a typed REST API.
 """
+from __future__ import annotations
+
+from .app import create_app
+from .deps import BotState, get_bot
+
+__all__ = ["create_app", "BotState", "get_bot"]
