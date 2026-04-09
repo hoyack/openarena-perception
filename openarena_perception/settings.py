@@ -54,6 +54,12 @@ class BotSettings(BaseSettings):
     # Database
     db_path: str = Field(default="~/.openarena/bot.db", description="Path to SQLite database file")
 
+    # API
+    api_host: str = "127.0.0.1"
+    api_port: int = 8420
+    api_ws_hz: float = 3.0
+    api_ws_max_connections: int = 5
+
     @classmethod
     def settings_customise_sources(cls, settings_cls, init_settings,
                                     env_settings, dotenv_settings,
