@@ -124,7 +124,7 @@ Plans:
 - [x] 06-02-PLAN.md — Behaviors, missions, catalog, SKILL.md migration
 - [x] 06-03-PLAN.md — FastAPI app factory, Pydantic models, REST routers
 - [x] 06-04-PLAN.md — WebSocket state streaming and Prometheus metrics
-- [ ] 06-05-PLAN.md — Integration tests and full regression check
+- [x] 06-05-PLAN.md — Integration tests and full regression check
 **UI hint**: yes
 
 ### Phase 7: Competitive Features
