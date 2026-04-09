@@ -294,3 +294,103 @@ def test_composability():
     for b in behaviors:
         assert isinstance(b, Skill), f"{b.name} does not satisfy Skill protocol"
         assert b.layer == SkillLayer.BEHAVIOR
+
+
+# ── Mission tests ────────────────────────────────────────────────────
+
+
+def test_missions():
+    """Each mission executes with mocks and returns SkillResult."""
+    from openarena_perception.skills.missions import (
+        DeathmatchMission,
+        DefendAreaMission,
+        ExploreMapMission,
+    )
+
+    ctrl = _mock_controller()
+    bridge = _mock_bridge()
+    engager = MagicMock()
+    engager.tick = AsyncMock()
+
+    # ExploreMapMission
+    m1 = ExploreMapMission(ctrl, bridge)
+    r1 = asyncio.run(m1.execute(max_steps=2))
+    assert r1.success is True
+    assert r1.data.get("steps_completed") == 2
+
+    # DeathmatchMission
+    m2 = DeathmatchMission(ctrl, bridge, engager)
+    r2 = asyncio.run(m2.execute(rounds=2))
+    assert r2.success is True
+
+    # DefendAreaMission
+    m3 = DefendAreaMission(ctrl, bridge)
+    r3 = asyncio.run(m3.execute(area_id=5, max_steps=2))
+    assert r3.success is True
+
+
+def test_mission_cancel():
+    """Mission cancelled mid-execution returns failure."""
+    from openarena_perception.skills.missions import ExploreMapMission
+
+    ctrl = _mock_controller()
+    bridge = _mock_bridge()
+    mission = ExploreMapMission(ctrl, bridge)
+    mission._cancelled = True
+    result = asyncio.run(mission.execute(max_steps=5))
+    assert result.success is False
+    assert "Cancelled" in result.message
+
+
+def test_build_registry():
+    """build_registry returns SkillRegistry with 10 skills."""
+    from openarena_perception.skills.catalog import build_registry
+
+    ctrl = _mock_controller()
+    bridge = _mock_bridge()
+    engager = MagicMock()
+    engager.tick = AsyncMock()
+    survey = MagicMock()
+
+    registry = build_registry(ctrl, bridge, engager=engager, survey=survey)
+    catalog = registry.catalog()
+    assert len(catalog) == 10
+    layers = {e["layer"] for e in catalog}
+    assert layers == {"action", "behavior", "mission"}
+
+
+def test_full_composability():
+    """Mission -> behavior -> action chain verified."""
+    from openarena_perception.skills.missions import (
+        DeathmatchMission,
+        DefendAreaMission,
+        ExploreMapMission,
+    )
+
+    ctrl = _mock_controller()
+    bridge = _mock_bridge()
+    engager = MagicMock()
+
+    missions = [
+        ExploreMapMission(ctrl, bridge),
+        DeathmatchMission(ctrl, bridge, engager),
+        DefendAreaMission(ctrl, bridge),
+    ]
+
+    for m in missions:
+        assert isinstance(m, Skill), f"{m.name} does not satisfy Skill protocol"
+        assert m.layer == SkillLayer.MISSION
+
+
+def test_skill_md_exists():
+    """SKILL.md exists at openarena_perception/skills/SKILL.md."""
+    import os
+
+    path = os.path.join(
+        os.path.dirname(__file__),
+        "..",
+        "openarena_perception",
+        "skills",
+        "SKILL.md",
+    )
+    assert os.path.isfile(path), f"SKILL.md not found at {path}"
