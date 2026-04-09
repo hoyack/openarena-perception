@@ -141,6 +141,23 @@ class Navigator:
         if not self._path or not self.pos or not self.graph:
             return None
 
+        # Force-advance if stuck on same path step too long (15s)
+        now = time.time()
+        if not hasattr(self, '_path_step_start'):
+            self._path_step_start = now
+            self._path_step_area = self._path[0] if self._path else -1
+        if self._path and self._path[0] != self._path_step_area:
+            self._path_step_start = now
+            self._path_step_area = self._path[0]
+        elif now - self._path_step_start > 15.0 and self._path:
+            log.warning("Force-advancing path (stuck on step to area %d for %.0fs)",
+                        self._path[0], now - self._path_step_start)
+            self._path.pop(0)
+            self._path_step_start = now
+            self._path_step_area = self._path[0] if self._path else -1
+            if not self._path:
+                return None
+
         target_area = self._path[0]
         current = self._current_area
 
