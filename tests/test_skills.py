@@ -216,3 +216,81 @@ def test_registry_get():
 
     assert registry.get("move") is not None
     assert registry.get("nonexistent") is None
+
+
+# ── Behavior tests ───────────────────────────────────────────────────
+
+
+def test_behaviors():
+    """PatrolBehavior executes MoveAction steps for each waypoint."""
+    from openarena_perception.skills.behaviors import PatrolBehavior
+
+    ctrl = _mock_controller()
+    behavior = PatrolBehavior(ctrl)
+    result = asyncio.run(behavior.execute(waypoints=[1, 2, 3]))
+    assert result.success is True
+    assert result.data.get("waypoints_completed") == 3
+
+
+def test_patrol_cancel():
+    """PatrolBehavior cancelled mid-execution returns failure."""
+    from openarena_perception.skills.behaviors import PatrolBehavior
+
+    ctrl = _mock_controller()
+    behavior = PatrolBehavior(ctrl)
+    behavior._cancelled = True
+    result = asyncio.run(behavior.execute(waypoints=[1, 2, 3]))
+    assert result.success is False
+    assert "Cancelled" in result.message
+
+
+def test_room_survey_behavior():
+    """RoomSurveyBehavior delegates to SurveyBehavior."""
+    from openarena_perception.skills.behaviors import RoomSurveyBehavior
+
+    ctrl = _mock_controller()
+    bridge = _mock_bridge()
+    survey = MagicMock()
+    survey.tick = MagicMock(return_value=None)
+    behavior = RoomSurveyBehavior(ctrl, bridge, survey=survey)
+    result = asyncio.run(behavior.execute())
+    assert result.success is True
+    assert behavior.layer == SkillLayer.BEHAVIOR
+
+
+def test_combat_engage_behavior():
+    """CombatEngageBehavior delegates to CombatEngager."""
+    from openarena_perception.skills.behaviors import CombatEngageBehavior
+
+    engager = MagicMock()
+    engager.tick = MagicMock()
+    ctrl = _mock_controller()
+    bridge = _mock_bridge()
+    behavior = CombatEngageBehavior(engager, ctrl, bridge)
+    sa = MagicMock()
+    gs = MagicMock()
+    result = asyncio.run(behavior.execute(sa=sa, gs=gs))
+    assert result.success is True
+
+
+def test_composability():
+    """Behaviors compose actions -- isinstance checks and layer values."""
+    from openarena_perception.skills.behaviors import (
+        CombatEngageBehavior,
+        PatrolBehavior,
+        RoomSurveyBehavior,
+    )
+
+    ctrl = _mock_controller()
+    bridge = _mock_bridge()
+    engager = MagicMock()
+
+    behaviors = [
+        PatrolBehavior(ctrl),
+        RoomSurveyBehavior(ctrl, bridge),
+        CombatEngageBehavior(engager, ctrl, bridge),
+    ]
+
+    for b in behaviors:
+        assert isinstance(b, Skill), f"{b.name} does not satisfy Skill protocol"
+        assert b.layer == SkillLayer.BEHAVIOR
