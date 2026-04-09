@@ -169,13 +169,6 @@ class Navigator:
                 reach = r
                 break
 
-        # Primary navigation: steer toward the TARGET AREA CENTER.
-        # Reachability start/end points can be far from the bot's actual position
-        # (Q3 AAS areas are large convex regions), so area centers are more reliable.
-        # Only use reach data for special travel types (jump, ladder, swim).
-        tx, ty, tz = self.graph.area_center(target_area)
-        dist = math.hypot(tx - self.pos[0], ty - self.pos[1])
-
         if reach:
             # Swim edges: allow if it's the only way
             if reach.travel_type in self.SWIM_TRAVEL:
@@ -191,28 +184,51 @@ class Navigator:
                 log.warning("Skipping walkoffledge into liquid area %d!", target_area)
                 return None
 
-            # Jump for special travel types
+            # Navigate using reachability START point (floor-level, not area center
+            # which can be mid-air in tall areas). Fall back to END point once close.
+            sx, sy, sz = reach.start
+            ex, ey, ez = reach.end
+            dist_start = math.hypot(sx - self.pos[0], sy - self.pos[1])
+            dist_end = math.hypot(ex - self.pos[0], ey - self.pos[1])
+
+            # Jump for special travel types or ascending
             if reach.travel_type in (TRAVEL_JUMP, TRAVEL_JUMPPAD, TRAVEL_BARRIERJUMP,
                                      TRAVEL_WALKOFFLEDGE, TRAVEL_LADDER):
                 self.bridge.cmd("+moveup")
                 self.bridge.cmd("-moveup")
-
-            # Jump if target is above us (stairs/ramps)
-            if tz > self.pos[2] + 16:
+            elif ez > self.pos[2] + 16:
                 self.bridge.cmd("+moveup")
                 self.bridge.cmd("-moveup")
 
-        # Check if we're close enough to advance to next step
-        if dist < self.AREA_REACH_DIST or self._current_area == target_area:
-            self._path.pop(0)
-            if not self._path:
-                log.info("Reached destination (area %d)", target_area)
-                return None
-            return reach.travel_type if reach else 1
+            # Advance if: entered target area OR close to end point
+            if self._current_area == target_area or dist_end < 80:
+                self._path.pop(0)
+                if not self._path:
+                    log.info("Reached destination (area %d)", target_area)
+                    return None
+                return reach.travel_type
 
-        # Steer toward target area center
-        self._steer_toward(tx, ty)
-        return reach.travel_type if reach else 1
+            # Steer toward start point, then end point when close
+            if dist_start > 80:
+                self._steer_toward(sx, sy)
+            else:
+                self._steer_toward(ex, ey)
+            return reach.travel_type
+        else:
+            # No reachability edge — use area center as fallback
+            tx, ty, tz = self.graph.area_center(target_area)
+            dist = math.hypot(tx - self.pos[0], ty - self.pos[1])
+            if dist < self.AREA_REACH_DIST or self._current_area == target_area:
+                self._path.pop(0)
+                if not self._path:
+                    log.info("Reached destination (area %d)", target_area)
+                    return None
+            else:
+                self._steer_toward(tx, ty)
+                if tz > self.pos[2] + 16:
+                    self.bridge.cmd("+moveup")
+                    self.bridge.cmd("-moveup")
+            return 1
 
     def _steer_toward(self, tx: float, ty: float):
         """
