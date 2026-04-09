@@ -120,7 +120,7 @@ Plans:
   5. Prometheus metrics endpoint exposes FPS gauge, kill counter, LLM latency, and stuck frequency
 **Plans**: 5 plans
 Plans:
-- [ ] 06-01-PLAN.md — Skill base, Protocol, SkillRegistry, atomic actions, deps install
+- [x] 06-01-PLAN.md — Skill base, Protocol, SkillRegistry, atomic actions, deps install
 - [ ] 06-02-PLAN.md — Behaviors, missions, catalog, SKILL.md migration
 - [ ] 06-03-PLAN.md — FastAPI app factory, Pydantic models, REST routers
 - [ ] 06-04-PLAN.md — WebSocket state streaming and Prometheus metrics

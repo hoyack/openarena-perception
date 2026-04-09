@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 05-04-PLAN.md
-last_updated: "2026-04-08T23:02:19.663Z"
-last_activity: 2026-04-08 -- Phase 6 planning complete
+stopped_at: Completed 06-01-PLAN.md
+last_updated: "2026-04-09T00:25:13.488Z"
+last_activity: 2026-04-09
 progress:
   total_phases: 9
   completed_phases: 5
   total_plans: 25
-  completed_plans: 20
-  percent: 80
+  completed_plans: 21
+  percent: 84
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-08)
 
 **Core value:** The bot must be a competitive deathmatch player -- able to perceive enemies, navigate maps, select weapons, aim accurately, and make strategic decisions in real-time on constrained Pi hardware.
-**Current focus:** Phase 05 — Tactics and Strategy Extraction
+**Current focus:** Phase 06 — Skill System and API Layer
 
 ## Current Position
 
-Phase: 6
-Plan: Not started
+Phase: 06 (Skill System and API Layer) — EXECUTING
+Plan: 2 of 5
 Status: Ready to execute
-Last activity: 2026-04-08 -- Phase 6 planning complete
+Last activity: 2026-04-09
 
 Progress: [..........] 0%
 
@@ -76,6 +76,7 @@ Progress: [..........] 0%
 | Phase 05 P02 | 2min | 2 tasks | 6 files |
 | Phase 05 P03 | 2min | 2 tasks | 6 files |
 | Phase 05 P04 | 3min | 2 tasks | 4 files |
+| Phase 06 P01 | 3min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -125,6 +126,9 @@ Recent decisions affecting current work:
 - [Phase 05]: Root llm_brain.py and strategic_agent.py kept intact with DEPRECATED notices for safe migration
 - [Phase 05]: Used asyncio.run() for async tests (project convention from Phase 4)
 - [Phase 05]: Used patch.dict sys.modules for ollama to test LLMStrategyBrain without real dependency
+- [Phase 06]: Used typing.Protocol (not ABC) for Skill interface -- structural typing, duck-typed conformance
+- [Phase 06]: asyncio.to_thread for TurnAction to offload blocking VirtualController.turn_degrees()
+- [Phase 06]: Input validation on skill params: direction whitelist, duration clamp 0-5s, degrees clamp -360..360 (T-06-01/T-06-02)
 
 ### Pending Todos
 
@@ -137,6 +141,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-08T22:09:47.495Z
-Stopped at: Completed 05-04-PLAN.md
+Last session: 2026-04-09T00:25:13.478Z
+Stopped at: Completed 06-01-PLAN.md
 Resume file: None
