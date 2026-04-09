@@ -161,16 +161,18 @@ class Navigator:
         target_area = self._path[0]
         current = self._current_area
 
-        # If we drifted into an area not on the path, re-plan from here
+        # If we drifted into an area not on the path, re-plan from here (once)
         if current not in self._path and current != 0:
-            final_goal = self._path[-1]
-            new_path = self._astar(current, final_goal)
-            if new_path and len(new_path) > 1:
-                old_len = len(self._path)
-                self._path = new_path[1:]  # skip current area
-                log.info("Re-planned path from area %d: %d -> %d steps",
-                         current, old_len, len(self._path))
-                target_area = self._path[0]
+            if not hasattr(self, '_last_replan_area') or self._last_replan_area != current:
+                self._last_replan_area = current
+                final_goal = self._path[-1]
+                new_path = self._astar(current, final_goal)
+                if new_path and len(new_path) > 1:
+                    old_len = len(self._path)
+                    self._path = new_path[1:]  # skip current area
+                    log.info("Re-planned path from area %d: %d -> %d steps",
+                             current, old_len, len(self._path))
+                    target_area = self._path[0]
 
         # Find reachability edge from current area to target
         reach = None
