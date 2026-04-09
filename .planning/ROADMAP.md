@@ -20,7 +20,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 6: Skill System and API Layer** - Three-layer skill composition and FastAPI endpoints for LLM agent control
 - [ ] **Phase 7: Competitive Features** - Item timing, sound awareness, and formalized multi-timescale architecture
 - [ ] **Phase 8: Human-Likeness** - Aim humanization, reaction modeling, personality profiles, and adaptive learning
-- [ ] **Phase 9: Testing and Documentation** - Comprehensive test suite and full documentation site
+- [x] **Phase 9: Testing and Documentation** - Comprehensive test suite and full documentation site (completed 2026-04-09)
 
 ## Phase Details
 
@@ -175,7 +175,7 @@ Plans:
 - [x] 09-02-PLAN.md — Tour testing with metrics + property-based tests via hypothesis
 - [x] 09-03-PLAN.md — Architecture documentation with diagrams + API reference from OpenAPI
 - [x] 09-04-PLAN.md — Subsystem documentation + skill catalog
-- [ ] 09-05-PLAN.md — Configuration guide + getting started guide
+- [x] 09-05-PLAN.md — Configuration guide + getting started guide
 **UI hint**: yes
 
 ## Progress
@@ -193,4 +193,4 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 | 6. Skill System and API Layer | 0/TBD | Not started | - |
 | 7. Competitive Features | 0/3 | Planning complete | - |
 | 8. Human-Likeness | 0/5 | Planning complete | - |
-| 9. Testing and Documentation | 0/TBD | Not started | - |
+| 9. Testing and Documentation | 5/5 | Complete   | 2026-04-09 |
