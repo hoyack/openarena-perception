@@ -329,6 +329,42 @@ class ItemTour:
         if not self.agent.nav.pos or self.agent.nav.current_area == 0:
             log.error("Could not get position after 10 attempts — is the game running?")
             return
+
+        # If we spawned in a poorly-connected area (few reachable items),
+        # walk around to find a better-connected area before starting the tour
+        from openarena_perception.navigation.aas_parser import parse_aas
+        import collections
+        max_relocate = 5
+        for relocate in range(max_relocate):
+            # Quick connectivity check from current area (no swim)
+            reachable = set()
+            queue = collections.deque([self.agent.nav.current_area])
+            while queue:
+                node = queue.popleft()
+                if node in reachable or node >= len(self.agent.nav.graph.areas):
+                    continue
+                reachable.add(node)
+                area = self.agent.nav.graph.areas[node]
+                for i, nb in enumerate(area.neighbors):
+                    tt = area.travel_types[i] if i < len(area.travel_types) else 1
+                    if tt not in (7, 8) and nb not in reachable:
+                        queue.append(nb)
+
+            if len(reachable) > 50:
+                break  # well-connected area
+
+            log.warning("Poorly-connected spawn area %d (%d reachable) — walking to find better area (attempt %d/%d)",
+                        self.agent.nav.current_area, len(reachable), relocate + 1, max_relocate)
+            # Walk forward + jump to get out of dead-ends
+            self.bridge.cmd("+forward")
+            self.bridge.cmd("+moveup")
+            time.sleep(0.3)
+            self.bridge.cmd("-moveup")
+            time.sleep(2.0)
+            self.bridge.cmd("-forward")
+            time.sleep(0.5)
+            self.agent.nav.update_position()
+
         time.sleep(0.5)
 
         # Select items NOW that we know our position
