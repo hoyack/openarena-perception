@@ -13,6 +13,9 @@ from .base import (
     SkillRegistry,
     SkillResult,
 )
+from .behaviors import CombatEngageBehavior, PatrolBehavior, RoomSurveyBehavior
+from .catalog import build_registry
+from .missions import DeathmatchMission, DefendAreaMission, ExploreMapMission
 
 __all__ = [
     "AtomicAction",
@@ -22,4 +25,11 @@ __all__ = [
     "SkillLayer",
     "SkillRegistry",
     "SkillResult",
+    "PatrolBehavior",
+    "RoomSurveyBehavior",
+    "CombatEngageBehavior",
+    "ExploreMapMission",
+    "DeathmatchMission",
+    "DefendAreaMission",
+    "build_registry",
 ]
