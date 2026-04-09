@@ -319,7 +319,16 @@ class ItemTour:
 
         self._window_id = focus_game_window()
         self.agent.window_id = self._window_id
-        self.agent.init_game()
+        # Retry init_game until we get a valid position (RCON can be slow after launch)
+        for attempt in range(10):
+            self.agent.init_game()
+            if self.agent.nav.pos and self.agent.nav.current_area > 0:
+                break
+            log.warning("No position from RCON (attempt %d/10) — retrying in 1s...", attempt + 1)
+            time.sleep(1.0)
+        if not self.agent.nav.pos or self.agent.nav.current_area == 0:
+            log.error("Could not get position after 10 attempts — is the game running?")
+            return
         time.sleep(0.5)
 
         # Select items NOW that we know our position
