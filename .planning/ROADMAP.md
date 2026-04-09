@@ -153,11 +153,11 @@ Plans:
   5. Skill difficulty parameter (1-5) scales aim noise, reaction delay, and decision quality in a unified way
 **Plans**: 5 plans
 Plans:
-- [ ] 08-01-PLAN.md — TBD
-- [ ] 08-02-PLAN.md — TBD
-- [ ] 08-03-PLAN.md — TBD
-- [ ] 08-04-PLAN.md — TBD
-- [ ] 08-05-PLAN.md — TBD
+- [ ] 08-01-PLAN.md — HumanizationConfig, PersonalityProfile, PerlinNoise1D, AimHumanizer, BotSettings skill_level
+- [ ] 08-02-PLAN.md — Reaction time delay buffer and hesitation in TacticalFSM, movement variability in CombatMover
+- [ ] 08-03-PLAN.md — Adaptive learning from death heatmap, personality-aware combat engagement
+- [ ] 08-04-PLAN.md — Aim humanizer wiring into AimController.update() with accuracy cap
+- [ ] 08-05-PLAN.md — Comprehensive test suite for HUMN-01 through HUMN-07 plus regression check
 
 ### Phase 9: Testing and Documentation
 **Goal**: Comprehensive test coverage validates all subsystems and a documentation site provides architecture diagrams, API reference, skill catalog, and getting-started guide
@@ -192,5 +192,5 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 | 5. Tactics and Strategy Extraction | 0/4 | Planning complete | - |
 | 6. Skill System and API Layer | 0/TBD | Not started | - |
 | 7. Competitive Features | 0/3 | Planning complete | - |
-| 8. Human-Likeness | 0/TBD | Not started | - |
+| 8. Human-Likeness | 0/5 | Planning complete | - |
 | 9. Testing and Documentation | 0/TBD | Not started | - |
