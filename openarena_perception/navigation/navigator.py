@@ -48,6 +48,7 @@ class Navigator:
         self._prev_pos: Optional[Tuple[float, float, float]] = None
         self._stuck_count = 0
         self._last_query = 0.0
+        self._area_stuck_counts: Dict[int, int] = {}  # area_id -> total stuck events
         self._current_area = 0
         self._path: List[int] = []
 
@@ -261,24 +262,40 @@ class Navigator:
 
     def handle_stuck(self, capture_fn=None):
         """
-        Smart stuck recovery:
-          1st attempt: quick wall dodge (0.5s)
+        Smart stuck recovery with hazard detection and vision-informed dodging:
+          0. Check for lava/slime — if detected, back away immediately
+          1st attempt: vision-informed dodge (look before moving)
           2nd attempt: scan-and-probe exit finder (~4s)
-          3rd+: skip waypoint
+          3rd+: skip waypoint and blacklist area
         """
         if not hasattr(self, '_consecutive_stuck'):
             self._consecutive_stuck = 0
         self._consecutive_stuck += 1
 
-        log.info("STUCK #%d at area %d", self._consecutive_stuck, self._current_area)
+        # Track per-area stuck counts for A* penalty
+        area = self._current_area
+        self._area_stuck_counts[area] = self._area_stuck_counts.get(area, 0) + 1
+
+        log.info("STUCK #%d at area %d (total stucks in area: %d)",
+                 self._consecutive_stuck, area, self._area_stuck_counts[area])
 
         # Report edge failure to learned map
         if self._path and self._on_area_transition:
             self._on_area_transition(self._current_area, self._path[0], False)
 
+        # -- Hazard check: lava/slime detection via pixels --
+        if capture_fn:
+            frame = capture_fn()
+            if frame is not None:
+                hazard = self._check_hazard(frame)
+                if hazard:
+                    self._stuck_count = 0
+                    return
+
         if self._consecutive_stuck >= 4:
-            # Give up on this waypoint
-            log.warning("Stuck %d times -- skipping waypoint", self._consecutive_stuck)
+            # Give up on this waypoint and blacklist the area
+            log.warning("Stuck %d times at area %d -- skipping waypoint (area blacklisted)",
+                        self._consecutive_stuck, area)
             self._consecutive_stuck = 0
             if self._path:
                 self._path.pop(0)
@@ -286,12 +303,17 @@ class Navigator:
             return
 
         if self._consecutive_stuck == 1:
-            # First try: quick wall dodge (turn 90 deg, try to walk around)
+            # First try: vision-informed dodge (pick best direction from frame)
+            if capture_fn:
+                frame = capture_fn()
+                if frame is not None and self._vision_dodge(frame):
+                    self._stuck_count = 0
+                    return
+            # Fallback to blind wall dodge
             log.info("Trying wall dodge...")
             if self.wall_dodge():
                 self._stuck_count = 0
                 return
-            # Wall dodge failed -- fall through to random unstick
             self._random_unstick()
         elif self._consecutive_stuck == 2 and capture_fn:
             # Second try: scan-and-probe exit finder
@@ -315,6 +337,114 @@ class Navigator:
         self._stuck_count = 0
         if self._path:
             self._path.pop(0)
+
+    def _check_hazard(self, frame) -> bool:
+        """Check for lava/slime ahead. If found, back away and reroute."""
+        try:
+            from openarena_perception.perception.wall_detector import Perception
+            detector = Perception()
+            hazard, htype, coverage = detector.detect_hazard_ahead(frame)
+            if hazard:
+                log.warning("HAZARD DETECTED: %s ahead (%.0f%% coverage) -- backing away!",
+                            htype, coverage * 100)
+                # Back away from the hazard
+                self.bridge.move_forward(False)
+                self.bridge.action_start("back")
+                time.sleep(0.8)
+                self.bridge.action_stop("back")
+                # Turn away (180 degrees)
+                self.bridge.cmd("cl_yawspeed 400")
+                self.bridge.action_start("left")
+                time.sleep(180 / 400)
+                self.bridge.action_stop("left")
+                self.bridge.move_forward(True)
+                # Skip the current path step — it leads into hazard
+                if self._path:
+                    bad_area = self._path[0]
+                    self._area_stuck_counts[bad_area] = self._area_stuck_counts.get(bad_area, 0) + 5
+                    log.info("Blacklisted hazard area %d", bad_area)
+                    self._path.pop(0)
+                return True
+        except Exception as e:
+            log.debug("Hazard check failed: %s", e)
+        return False
+
+    def _vision_dodge(self, frame) -> bool:
+        """Use frame analysis to pick the most open direction for dodging."""
+        try:
+            from openarena_perception.perception.wall_detector import Perception
+            detector = Perception()
+            left_score, center_score, right_score = detector.score_direction_openness(frame)
+
+            # Pick the most open direction
+            if center_score > left_score and center_score > right_score:
+                # Center is open — maybe jump forward
+                log.info("Vision dodge: center is most open (%.1f) -- jumping forward",
+                         center_score)
+                self.bridge.cmd("+moveup")
+                self.bridge.cmd("-moveup")
+                self.bridge.move_forward(True)
+                time.sleep(0.5)
+                self.update_position()
+                if self.pos and self._prev_pos:
+                    dist = math.hypot(self.pos[0] - self._prev_pos[0],
+                                      self.pos[1] - self._prev_pos[1])
+                    if dist > 20:
+                        log.info("Vision dodge: jump forward worked (moved %.0f)", dist)
+                        return True
+                return False
+
+            # Pick the more open side
+            if left_score > right_score:
+                dodge_dir = "left"
+                score = left_score
+            else:
+                dodge_dir = "right"
+                score = right_score
+
+            log.info("Vision dodge: %s is more open (%.1f vs L=%.1f C=%.1f R=%.1f)",
+                     dodge_dir, score, left_score, center_score, right_score)
+
+            # Turn toward the open direction and walk
+            self.bridge.cmd("cl_yawspeed 250")
+            self.bridge.action_start(dodge_dir)
+            time.sleep(90 / 250)
+            self.bridge.action_stop(dodge_dir)
+            time.sleep(0.05)
+
+            px0, py0 = self.pos[0], self.pos[1]
+            self.bridge.cmd("+forward")
+            time.sleep(0.5)
+            self.bridge.cmd("-forward")
+            time.sleep(0.1)
+
+            self.update_position()
+            if self.pos:
+                dist = math.hypot(self.pos[0] - px0, self.pos[1] - py0)
+                if dist > 20:
+                    log.info("Vision dodge: %s worked (moved %.0f)", dodge_dir, dist)
+                    return True
+
+            # Turn back
+            opposite = "right" if dodge_dir == "left" else "left"
+            self.bridge.cmd("cl_yawspeed 250")
+            self.bridge.action_start(opposite)
+            time.sleep(90 / 250)
+            self.bridge.action_stop(opposite)
+            time.sleep(0.05)
+
+        except Exception as e:
+            log.debug("Vision dodge failed: %s", e)
+        return False
+
+    def area_stuck_penalty(self, area: int) -> float:
+        """A* cost penalty for areas where the bot repeatedly gets stuck."""
+        count = self._area_stuck_counts.get(area, 0)
+        if count == 0:
+            return 0.0
+        if count >= 5:
+            return 50000.0  # effectively block this area
+        return count * 500.0  # progressively penalize
 
     def wall_dodge(self):
         """
@@ -505,6 +635,9 @@ class Navigator:
                 # Add learned edge penalty (avoid repeatedly failed edges)
                 if self._edge_cost_fn:
                     d += self._edge_cost_fn(cur, nb)
+
+                # Add area stuck penalty (avoid areas where bot repeatedly gets stuck)
+                d += self.area_stuck_penalty(nb)
 
                 tentative = g_score[cur] + d
                 if tentative < g_score.get(nb, float('inf')):

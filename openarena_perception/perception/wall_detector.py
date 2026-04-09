@@ -174,6 +174,73 @@ class Perception:
             return True
         return False
 
+    def detect_hazard_ahead(self, frame: np.ndarray) -> Tuple[bool, str, float]:
+        """
+        Detect lava, slime, or void in the lower-center of the frame.
+
+        Lava: bright orange/red glow (H=0-20, S>100, V>150)
+        Slime: bright green (H=35-75, S>100, V>100)
+
+        Returns:
+          hazard_detected: True if hazard fills significant portion of lower frame
+          hazard_type: "lava" | "slime" | "none"
+          hazard_coverage: 0.0-1.0 fraction of lower-center covered by hazard pixels
+        """
+        h, w = frame.shape[:2]
+        # Sample the lower-center strip (where floor/hazard would appear)
+        # Exclude HUD at very bottom, focus on the floor area
+        y1 = int(h * 0.55)
+        y2 = int(h * 0.82)
+        x1 = int(w * 0.2)
+        x2 = int(w * 0.8)
+        roi = frame[y1:y2, x1:x2]
+
+        hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
+        roi_area = roi.shape[0] * roi.shape[1]
+
+        # Lava detection: bright orange-red glow
+        # Hue wraps around 0/180, so check two ranges
+        lava_mask1 = cv2.inRange(hsv, np.array([0, 100, 150]), np.array([20, 255, 255]))
+        lava_mask2 = cv2.inRange(hsv, np.array([160, 100, 150]), np.array([180, 255, 255]))
+        lava_mask = cv2.bitwise_or(lava_mask1, lava_mask2)
+        lava_coverage = float(lava_mask.sum() / 255) / roi_area
+
+        if lava_coverage > 0.08:  # 8% of lower frame is lava-colored
+            return True, "lava", lava_coverage
+
+        # Slime detection: bright green
+        slime_mask = cv2.inRange(hsv, np.array([35, 100, 100]), np.array([75, 255, 255]))
+        slime_coverage = float(slime_mask.sum() / 255) / roi_area
+
+        if slime_coverage > 0.08:
+            return True, "slime", slime_coverage
+
+        return False, "none", 0.0
+
+    def score_direction_openness(self, frame: np.ndarray) -> Tuple[float, float, float]:
+        """
+        Score openness in left, center, right thirds of the frame.
+        Higher score = more open/navigable. Used by smart stuck recovery.
+
+        Returns: (left_score, center_score, right_score)
+        """
+        h, w = frame.shape[:2]
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        y1 = int(h * 0.2)
+        y2 = int(h * 0.7)
+        third = w // 3
+
+        left = gray[y1:y2, :third]
+        center = gray[y1:y2, third:2*third]
+        right = gray[y1:y2, 2*third:]
+
+        # Combine edge density (perspective lines = depth) with brightness
+        def openness(region):
+            edges = cv2.Canny(region, 50, 150)
+            return float(edges.mean()) * 0.6 + float(region.mean()) * 0.4
+
+        return openness(left), openness(center), openness(right)
+
     @property
     def wall_score(self) -> float:
         return self._last_wall_score
