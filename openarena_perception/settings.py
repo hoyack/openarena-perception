@@ -55,6 +55,10 @@ class BotSettings(BaseSettings):
     game_log_path: str = Field(default="~/.openarena/baseoa/games.log", description="Path to Q3 server game log")
     sound_poll_interval: int = Field(default=8, description="Poll game log every N perception ticks (~2 Hz at 15 FPS)")
 
+    # Humanization (Phase 8)
+    skill_level: int = Field(default=3, ge=1, le=5, description="Unified skill difficulty 1-5 affecting aim, reaction, decisions")
+    personality: str = Field(default="balanced", description="Bot personality preset: aggressive, cautious, balanced, grudge")
+
     # Database
     db_path: str = Field(default="~/.openarena/bot.db", description="Path to SQLite database file")
 

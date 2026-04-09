@@ -16,6 +16,13 @@ from typing import Dict, Optional, Set, Tuple
 
 log = logging.getLogger(__name__)
 
+# Re-exported for cross-subsystem access (Phase 8)
+from openarena_perception.combat.humanize import (  # noqa: E402
+    HumanizationConfig,
+    PERSONALITIES,
+    PersonalityProfile,
+)
+
 
 # ── State Machine ────────────────────────────────────────────────────
 
