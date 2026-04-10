@@ -27,6 +27,7 @@ import subprocess
 import sys
 import time
 import urllib.request
+from dataclasses import replace as dc_replace
 
 import cv2
 import numpy as np
@@ -46,6 +47,17 @@ from openarena_perception.hud_schema import (
     build_hud_payload,
     ensure_runtime_dirs,
     write_hud_state,
+)
+from openarena_perception.intent_transitions import (
+    TransitionSignals,
+    detect_intent_transition,
+)
+from openarena_perception.models import (
+    BotContext,
+    Intent,
+    IntentStatus,
+    MacroIntent,
+    Problem,
 )
 from openarena_perception.motion_anomaly import MotionAnomalyTracker
 from openarena_perception.reactive_agent import ReactiveAgent
@@ -342,6 +354,25 @@ class ItemTour:
         self._was_alive = True
         self._deaths = 0
 
+        # Phase 10: intent tracking + pause-to-assess
+        pause_raw = os.environ.get("OA_INTENT_PAUSE_MS", "300")
+        try:
+            pause_ms = int(pause_raw)
+        except ValueError:
+            pause_ms = 300
+        pause_ms = max(0, min(5000, pause_ms))  # clamp [0, 5000]
+        self._intent_pause_duration: float = pause_ms / 1000.0
+        self._intent_pause_until: float = 0.0
+        self._threat_flag: bool = False
+        self._last_area: int = 0
+        initial_intent = Intent(
+            macro=MacroIntent.IDLE,
+            sub="",
+            description="Initializing",
+            started_at=time.time(),
+        )
+        self.context: BotContext = BotContext(current_intent=initial_intent)
+
         # Window focus
         self._window_id = ""
         self._last_refocus = 0.0
@@ -458,9 +489,112 @@ class ItemTour:
 
     # ── Tick ───────────────────────────────────────────────────────
 
+    @property
+    def threat_flag(self) -> bool:
+        """Stubbed to False for Phase 10. Later phases will wire enemy detection."""
+        return self._threat_flag
+
+    def _apply_intent_transition(self, now: float, gs, *,
+                                 halt_reason: str | None = None,
+                                 pinned: bool = False,
+                                 pin_escalated: bool = False,
+                                 advisor_hazard: bool = False,
+                                 advisor_warning: str = "",
+                                 was_alive_prev_tick: bool | None = None) -> None:
+        """Phase 10: detect + apply any intent transition for this tick.
+
+        Called at every tick-exit point in _on_state (early returns AND the
+        normal fallthrough). Handles push_intent, pause-gate opening (if
+        macro changed and no threat), and release_all() exactly once per
+        transition (Pitfall 4).
+        """
+        nav = self.agent.nav
+        route_target_name = ""
+        route_target_pos = None
+        if 0 <= self._route_idx < len(self._route):
+            name, x, y, z = self._route[self._route_idx]
+            route_target_name = name
+            route_target_pos = (float(x), float(y), float(z))
+
+        signals = TransitionSignals(
+            nav_is_stuck=getattr(nav, "is_stuck", False),
+            nav_is_climbing_stairs=getattr(nav, "is_climbing_stairs", False),
+            nav_current_area=getattr(nav, "current_area", 0),
+            route_idx=self._route_idx,
+            route_target_name=route_target_name,
+            route_target_pos=route_target_pos,
+            health=gs.health,
+            was_alive_prev_tick=(was_alive_prev_tick
+                                 if was_alive_prev_tick is not None
+                                 else self._was_alive),
+            halt_reason=halt_reason,
+            advisor_hazard=advisor_hazard,
+            advisor_warning=advisor_warning,
+            pinned=pinned,
+            pin_escalated=pin_escalated,
+            now=now,
+            prev_macro=self.context.current_intent.macro,
+            prev_sub=self.context.current_intent.sub,
+        )
+        new_intent = detect_intent_transition(signals)
+        if new_intent is not None:
+            macro_changed = new_intent.macro != self.context.current_intent.macro
+            prev_macro = self.context.current_intent.macro
+            self.context.push_intent(new_intent)
+            if macro_changed and not self.threat_flag:
+                # Open pause-to-assess window (Fix A clone pattern).
+                # release_all() is called ONCE here, not every tick during
+                # the pause (Pitfall 4).
+                self._intent_pause_until = now + self._intent_pause_duration
+                self.context.current_intent = dc_replace(
+                    new_intent, status=IntentStatus.PLANNING
+                )
+                self.bridge.release_all()
+                log.info("Intent transition: %s → %s (pause %dms)",
+                         prev_macro, new_intent.macro,
+                         int(self._intent_pause_duration * 1000))
+            else:
+                log.info("Intent: %s / %s", new_intent.macro, new_intent.sub)
+
+        # Area history tracking
+        cur_area = getattr(nav, "current_area", 0)
+        if cur_area != self._last_area and cur_area > 0:
+            self.context.record_area(cur_area)
+            self._last_area = cur_area
+
+        self.context.tick_count += 1
+        self.context.path_progress = (
+            self._route_idx,
+            len(self._route),
+        )
+
     async def _on_state(self, gs: GameState):
         self._tick += 1
         now = time.time()
+
+        # === Phase 10: Pause-to-assess gate ===
+        # Must sit ABOVE advisor/wall/Fix A early returns but BELOW death/stuck
+        # reflexes (which come later in this tick). Honors Pitfall 4:
+        # emergencies override the pause. release_all() is NOT called here --
+        # it was called exactly once when the pause window opened.
+        if now < self._intent_pause_until:
+            nav_is_stuck = getattr(self.agent.nav, "is_stuck", False)
+            health_ok = gs.health is None or gs.health > 0
+            if not self.threat_flag and not nav_is_stuck and health_ok:
+                # Stay paused — assessing
+                self.context.tick_count += 1
+                return
+            # Emergency or threat → break out
+            self._intent_pause_until = 0.0
+            if self.context.current_intent.status == IntentStatus.PLANNING:
+                self.context.current_intent = dc_replace(
+                    self.context.current_intent, status=IntentStatus.EXECUTING
+                )
+
+        # Phase 10: per-tick locals tracked for intent transition detection
+        halt_reason: str | None = None
+        pinned: bool = False
+        pin_escalated: bool = False
 
         # Refocus game window every 20s to prevent terminal capture
         if now - self._last_refocus > 20.0:
@@ -545,6 +679,17 @@ class ItemTour:
                 log.warning("ADVISOR HALT: %s [%s] %s -> %s",
                             top.kind, top.severity, top.text, hint)
             self._execute_advisor_action(hint)
+            # Phase 10: record advisor_halt Problem
+            _pos = tuple(self.agent.nav.pos) if self.agent.nav.pos else (0.0, 0.0, 0.0)
+            self.context.record_problem(Problem(
+                kind="advisor_halt", location=_pos, timestamp=now,
+                description=top.text if top else "advisor halt",
+            ))
+            self._apply_intent_transition(
+                now, gs,
+                advisor_hazard=True,
+                advisor_warning=top.text if top else "advisor halt",
+            )
             return  # skip normal movement this tick
 
         # Fix A: avoidance commitment — if we're still inside the commitment
@@ -552,6 +697,10 @@ class ItemTour:
         # bot actually gains distance from the wall instead of wall-sliding.
         if now < self._avoidance_until and self._avoidance_hint is not None:
             self._execute_advisor_action(self._avoidance_hint)
+            # Phase 10: hold current AVOIDING_WALL intent; report ongoing halt
+            self._apply_intent_transition(
+                now, gs, halt_reason=self._avoidance_hint,
+            )
             return
 
         # ── PROACTIVE WALL HALT (Option C) ──────────────────────────────────
@@ -609,6 +758,19 @@ class ItemTour:
                             halt_reason, wall_score, self._wall_vision_streak,
                             self._pin_count, self._frame_still_streak, hint)
                 self._execute_advisor_action(hint)
+                # Phase 10: record wall_halt Problem (pin/visual_pin handled below)
+                _pos = tuple(self.agent.nav.pos) if self.agent.nav.pos else (0.0, 0.0, 0.0)
+                if pinned or halt_reason == "visual_pin":
+                    self.context.record_problem(Problem(
+                        kind="pin", location=_pos, timestamp=now,
+                        description=f"pin escalation, replanning ({halt_reason})",
+                    ))
+                    pin_escalated = True
+                else:
+                    self.context.record_problem(Problem(
+                        kind="wall_halt", location=_pos, timestamp=now,
+                        description=f"halt_reason={halt_reason} score={wall_score:.2f}",
+                    ))
 
                 # Fix A: commit to this avoidance action for the next 0.5s so
                 # the bot actually gains distance instead of wall-sliding and
@@ -626,6 +788,13 @@ class ItemTour:
                     self._pin_count = 0
                     self._pin_origin = None
                     self._goto_next()
+                # Phase 10: fire AVOIDING_WALL or RECOVERING_STUCK (pin escalated)
+                self._apply_intent_transition(
+                    now, gs,
+                    halt_reason=halt_reason,
+                    pinned=pinned,
+                    pin_escalated=pin_escalated,
+                )
                 return  # skip normal movement this tick
         else:
             # No halt this tick: if we've walked >PIN_RADIUS from the pin spot,
@@ -648,9 +817,17 @@ class ItemTour:
                 log.info("DIED (#%d)! Will respawn and replan.", self._deaths)
                 if self.anomaly:
                     self.anomaly.reset()
+                # Phase 10: record respawn Problem on death edge
+                _pos = tuple(self.agent.nav.pos) if self.agent.nav.pos else (0.0, 0.0, 0.0)
+                self.context.record_problem(Problem(
+                    kind="respawn", location=_pos, timestamp=now,
+                    description="died, waiting for respawn",
+                ))
             self.bridge.release_all()
             self.bridge.cmd("+attack")
             self.bridge.cmd("-attack")
+            # Phase 10: fire RESPAWNING intent transition (edge-triggered)
+            self._apply_intent_transition(now, gs)
             return
 
         # Just respawned — replan from new position
@@ -671,13 +848,26 @@ class ItemTour:
                     self._route = [self._route[i] for i in range(self._route_idx)] + \
                                   nearest_neighbor_route(remaining, start)
                 self._goto_next()
+            # Phase 10: fire TOURING "recovering from respawn" transition.
+            # Pass was_alive_prev_tick=False so detect_intent_transition
+            # sees the was_dead -> alive edge.
+            self._apply_intent_transition(now, gs, was_alive_prev_tick=False)
             return
 
         # ── STUCK recovery ──
         if self.agent.nav.is_recovering:
+            self._apply_intent_transition(now, gs)
             return
 
         if self.agent.nav.is_stuck:
+            # Phase 10: record stuck Problem + fire RECOVERING_STUCK transition.
+            # First-tick only (edge) -- detect via stuck_attempts==0 before incr.
+            if self._stuck_attempts == 0:
+                _pos = tuple(self.agent.nav.pos) if self.agent.nav.pos else (0.0, 0.0, 0.0)
+                self.context.record_problem(Problem(
+                    kind="stuck", location=_pos, timestamp=now,
+                    description=f"stuck #{self._stuck_attempts + 1}",
+                ))
             self._stuck_attempts += 1
 
             # Edge-trigger advisor diagnosis on 2nd stuck attempt.
@@ -710,9 +900,11 @@ class ItemTour:
                         self._goto_next()
                     else:
                         self._finish_tour()
+                    self._apply_intent_transition(now, gs)
                     return
 
             self.agent.nav.handle_stuck()
+            self._apply_intent_transition(now, gs)
             return
 
         # ── ROOM SURVEY (throttled, clustered) ──
@@ -747,6 +939,7 @@ class ItemTour:
                                  survey.recommended_exit)
                     # Re-center after survey spin
                     self.bridge.cmd("centerview")
+                    self._apply_intent_transition(now, gs)
                     return  # skip this tick — we just spun around
 
         # ── Keep view level ──
@@ -819,6 +1012,7 @@ class ItemTour:
                 self._goto_next()
             else:
                 self._finish_tour()
+            self._apply_intent_transition(now, gs)
             return
 
         # ── CHECK ARRIVAL ──
@@ -847,6 +1041,13 @@ class ItemTour:
             log.info("[%3.0fs] [%d/%d] → %s | %s |%s",
                      elapsed, self._route_idx + 1, len(self._route),
                      wp, self.agent.nav.get_status(), extra)
+
+        # ── Phase 10: Intent transition detection (normal tick fallthrough) ──
+        # Runs after follow_path so nav.is_climbing_stairs / is_stuck reflect
+        # this tick's nav state. halt_reason is None on the normal path
+        # (the wall-halt early return handles non-None halt_reason cases).
+        self._apply_intent_transition(now, gs, halt_reason=halt_reason,
+                                      pinned=pinned, pin_escalated=pin_escalated)
 
     # ── Vision query (single async task) ──
 
@@ -1113,7 +1314,12 @@ class ItemTour:
                 "visual_pin_hits": self._visual_pin_hits,
                 "advisor_stats": self.advisor.stats() if hasattr(self, "advisor") else {},
             }
-            payload = build_hud_payload(extras=legacy_fields)
+            payload = build_hud_payload(
+                context=self.context,
+                is_paused_for_assess=(time.time() < self._intent_pause_until),
+                threat_flag=self.threat_flag,
+                extras=legacy_fields,
+            )
             write_hud_state(payload)
         except Exception as e:
             log.debug("HUD export failed: %s", e)

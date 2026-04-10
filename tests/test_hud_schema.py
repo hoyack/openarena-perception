@@ -110,3 +110,99 @@ def test_write_hud_state_creates_parent_dir(tmp_path):
     assert not target.parent.exists()
     write_hud_state({"k": 1}, state_file=target)
     assert target.is_file()
+
+
+# ── Phase 10-02: BotContext extension tests ─────────────────────────
+
+
+from openarena_perception.models import (  # noqa: E402
+    BotContext,
+    Intent,
+    IntentStatus,
+    MacroIntent,
+    Problem,
+)
+
+
+def _ctx() -> BotContext:
+    ci = Intent(
+        macro=MacroIntent.TOURING,
+        sub="heading to item_health_mega",
+        description="Heading to item_health_mega",
+        started_at=1000.0,
+        target=(232.0, 1600.0, -112.0),
+        status=IntentStatus.EXECUTING,
+    )
+    ctx = BotContext(current_intent=ci)
+    ctx.path_progress = (5, 13)
+    ctx.tick_count = 42
+    ctx.intent_history.append(Intent(
+        macro=MacroIntent.AVOIDING_WALL, sub="strafing right",
+        description="", started_at=995.0,
+    ))
+    ctx.problem_history.append(Problem(
+        kind="wall_halt", location=(481.0, 1336.0, -93.0),
+        timestamp=994.0, description="vision score=0.89",
+    ))
+    ctx.current_area_history.extend([299, 259, 285, 304, 325])
+    return ctx
+
+
+def test_build_payload_with_context_includes_intent():
+    p = build_hud_payload(context=_ctx(), map_name="q3dm1")
+    assert "intent" in p
+    assert p["intent"]["macro"] == "TOURING"
+    assert p["intent"]["sub"] == "heading to item_health_mega"
+    assert p["intent"]["target"] == [232.0, 1600.0, -112.0]
+    assert p["intent"]["status"] == "executing"
+    assert "duration_s" in p["intent"]
+
+
+def test_build_payload_intent_history_is_list():
+    p = build_hud_payload(context=_ctx(), map_name="q3dm1")
+    assert isinstance(p["intent_history"], list)
+    assert len(p["intent_history"]) == 1
+    assert p["intent_history"][0]["macro"] == "AVOIDING_WALL"
+
+
+def test_build_payload_problem_history_is_list():
+    p = build_hud_payload(context=_ctx(), map_name="q3dm1")
+    assert isinstance(p["problem_history"], list)
+    assert p["problem_history"][0]["kind"] == "wall_halt"
+    assert p["problem_history"][0]["location"] == [481.0, 1336.0, -93.0]
+
+
+def test_build_payload_area_history_is_list():
+    p = build_hud_payload(context=_ctx(), map_name="q3dm1")
+    assert p["area_history"] == [299, 259, 285, 304, 325]
+
+
+def test_build_payload_path_progress():
+    p = build_hud_payload(context=_ctx(), map_name="q3dm1")
+    assert p["path_progress"] == {"current_step": 5, "total_steps": 13}
+
+
+def test_build_payload_pause_and_threat_flags():
+    p = build_hud_payload(
+        context=_ctx(), map_name="q3dm1",
+        is_paused_for_assess=True, threat_flag=False,
+    )
+    assert p["is_paused_for_assess"] is True
+    assert p["threat_flag"] is False
+
+
+def test_build_payload_is_json_serializable_with_context():
+    """Pitfall 7: deques must be converted to lists BEFORE json.dump."""
+    p = build_hud_payload(context=_ctx(), map_name="q3dm1")
+    blob = json.dumps(p)   # must not raise
+    restored = json.loads(blob)
+    assert restored["intent"]["macro"] == "TOURING"
+    assert restored["area_history"] == [299, 259, 285, 304, 325]
+
+
+def test_build_payload_no_context_still_emits_pause_flags():
+    """Without context, the pause/threat flags still appear (default False)."""
+    p = build_hud_payload(map_name="q3dm1")
+    assert p["is_paused_for_assess"] is False
+    assert p["threat_flag"] is False
+    assert "intent" not in p

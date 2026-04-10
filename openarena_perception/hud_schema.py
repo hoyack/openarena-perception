@@ -42,6 +42,9 @@ def build_hud_payload(
     brain_state: str | None = None,
     nav: Any = None,
     learned_map: Any = None,
+    context: Any = None,
+    is_paused_for_assess: bool = False,
+    threat_flag: bool = False,
     extras: Mapping[str, Any] | None = None,
 ) -> dict:
     """Build the HUD JSON payload as a plain dict.
@@ -75,8 +78,9 @@ def build_hud_payload(
     """
     import time
 
+    now = time.time()
     payload: dict = {
-        "timestamp": time.time(),
+        "timestamp": now,
         "map_name": map_name,
     }
     if brain_state is not None:
@@ -105,6 +109,50 @@ def build_hud_payload(
         # Passed through as-is; the caller is responsible for whatever
         # serialization shape learned_map uses (mirrors current behavior).
         payload["learned_map"] = learned_map
+
+    # Phase 10: intent context (deques converted to lists per Pitfall 7)
+    if context is not None:
+        ci = context.current_intent
+        payload["intent"] = {
+            "macro": str(ci.macro),
+            "sub": ci.sub,
+            "description": ci.description,
+            "started_at": ci.started_at,
+            "duration_s": now - ci.started_at,
+            "target": list(ci.target) if ci.target is not None else None,
+            "target_area": ci.target_area,
+            "status": str(ci.status),
+        }
+        payload["intent_history"] = [
+            {
+                "macro": str(h.macro),
+                "sub": h.sub,
+                "description": h.description,
+                "started_at": h.started_at,
+                "duration_s": now - h.started_at,
+                "ended_at": h.started_at,  # HUD only needs relative ordering
+            }
+            for h in context.intent_history
+        ]
+        payload["problem_history"] = [
+            {
+                "kind": p.kind,
+                "location": list(p.location),
+                "timestamp": p.timestamp,
+                "description": p.description,
+            }
+            for p in context.problem_history
+        ]
+        payload["area_history"] = list(context.current_area_history)
+        cur_step, total_steps = context.path_progress
+        payload["path_progress"] = {
+            "current_step": cur_step,
+            "total_steps": total_steps,
+        }
+        payload["tick_count"] = context.tick_count
+
+    payload["is_paused_for_assess"] = bool(is_paused_for_assess)
+    payload["threat_flag"] = bool(threat_flag)
 
     if extras:
         payload.update(extras)
