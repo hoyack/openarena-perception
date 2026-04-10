@@ -125,3 +125,84 @@ def test_build_scene_oa_dm1_smoke() -> None:
         pytest.skip("no populated area found in oa_dm1")
     scene = be.build_scene(pose, 90.0, max_distance=1024.0, max_areas=20)
     assert len(scene.walls) > 0, "expected non-empty wall list at a real area center"
+
+
+# --- Plan 11-04: face-mesh mode backend tests ---
+
+
+@pytest.mark.skipif(not os.path.exists(OA_DM1_PATH), reason="maps/oa_dm1.aas not present")
+def test_backend_mesh_mode_enabled_for_real_file() -> None:
+    g = parse_aas(OA_DM1_PATH)
+    assert g is not None
+    be = AASDepthBackend(g)
+    # With a real AAS the backend must select the face-mesh path, not AABB.
+    assert be._mesh_mode is True
+    assert be._face_segments_world.shape[0] > 0
+    assert be._face_segments_world.shape[1:] == (2, 3)
+    # Every slice must be monotonic and in-bounds
+    starts = be._face_seg_slices[:, 0]
+    ends = be._face_seg_slices[:, 1]
+    assert (ends >= starts).all()
+    assert ends.max() == be._face_segments_world.shape[0]
+
+
+def test_backend_aabb_fallback_for_synthetic_graph() -> None:
+    """Synthetic graphs have empty mesh arrays → backend must fall back to
+    the Plan 11-03 AABB path so hermetic tests keep working."""
+    g = _synthetic_graph([
+        (0.0, 100.0, 0.0, (-10.0, 90.0, -10.0), (10.0, 110.0, 10.0)),
+    ])
+    be = AASDepthBackend(g, camera_height=0.0)
+    assert be._mesh_mode is False
+    assert be._area_centers.shape == (1, 3)
+
+
+@pytest.mark.skipif(not os.path.exists(OA_DM1_PATH), reason="maps/oa_dm1.aas not present")
+def test_mesh_build_scene_nontrivial_forward_view() -> None:
+    g = parse_aas(OA_DM1_PATH)
+    assert g is not None
+    be = AASDepthBackend(g)
+    # Demo pose from the plan brief — a real corridor in oa_dm1
+    pose = (232.0, 1600.0, -112.0)
+    scene = be.build_scene(pose, 90.0, max_distance=1024.0, max_areas=20)
+    # A real corridor should produce dozens+ of wall segments in forward view
+    assert len(scene.walls) >= 50, f"expected >=50 forward walls, got {len(scene.walls)}"
+    # Confirm the camera put walls in front of the bot (+Z camera), not behind
+    fwd_count = sum(
+        1 for (p1, p2) in scene.walls if p1[2] > 0 and p2[2] > 0
+    )
+    assert fwd_count > 0
+
+
+@pytest.mark.skipif(not os.path.exists(OA_DM1_PATH), reason="maps/oa_dm1.aas not present")
+def test_mesh_build_scene_perf_under_budget() -> None:
+    """Median build_scene call must stay under 5 ms on a real AAS file."""
+    import time
+    import numpy as np
+    g = parse_aas(OA_DM1_PATH)
+    assert g is not None
+    be = AASDepthBackend(g)
+    pose = (232.0, 1600.0, -112.0)
+    times = []
+    # Warmup
+    for _ in range(3):
+        be.build_scene(pose, 90.0, max_distance=1024.0, max_areas=20)
+    for _ in range(30):
+        t0 = time.perf_counter()
+        be.build_scene(pose, 90.0, max_distance=1024.0, max_areas=20)
+        times.append((time.perf_counter() - t0) * 1000)
+    median_ms = float(np.median(times))
+    assert median_ms < 5.0, f"build_scene median {median_ms:.2f} ms exceeds 5 ms budget"
+
+
+@pytest.mark.skipif(not os.path.exists(OA_DM1_PATH), reason="maps/oa_dm1.aas not present")
+def test_mesh_build_scene_yaw_rotation_changes_output() -> None:
+    g = parse_aas(OA_DM1_PATH)
+    assert g is not None
+    be = AASDepthBackend(g)
+    pose = (232.0, 1600.0, -112.0)
+    scene_0 = be.build_scene(pose, 0.0, max_distance=1024.0, max_areas=20)
+    scene_90 = be.build_scene(pose, 90.0, max_distance=1024.0, max_areas=20)
+    scene_180 = be.build_scene(pose, 180.0, max_distance=1024.0, max_areas=20)
+    # Different yaws sweep different faces into view, so at least one pair must differ
+    assert scene_0.walls != scene_90.walls or scene_0.walls != scene_180.walls
