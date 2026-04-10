@@ -21,6 +21,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 7: Competitive Features** - Item timing, sound awareness, and formalized multi-timescale architecture
 - [ ] **Phase 8: Human-Likeness** - Aim humanization, reaction modeling, personality profiles, and adaptive learning
 - [x] **Phase 9: Testing and Documentation** - Comprehensive test suite and full documentation site (completed 2026-04-09)
+- [ ] **Phase 10: Intent System and HUD Companion** - Granular intent tracking, brain context memory, pygame HUD companion, and runtime artifact organization
 
 ## Phase Details
 
@@ -194,3 +195,13 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 | 7. Competitive Features | 0/3 | Planning complete | - |
 | 8. Human-Likeness | 0/5 | Planning complete | - |
 | 9. Testing and Documentation | 5/5 | Complete   | 2026-04-09 |
+
+### Phase 10: Intent System and HUD Companion
+
+**Goal:** Bot tracks granular intent (macro goal + sub-goal), maintains brain context memory visible in a pygame companion HUD, organizes runtime artifacts into tmp/ and logs/ directories, and pauses briefly to assess before macro actions when not under threat
+**Requirements**: TBD
+**Depends on:** Phase 9
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd-plan-phase 10 to break down)

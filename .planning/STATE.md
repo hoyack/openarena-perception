@@ -101,6 +101,10 @@ Progress: [..........] 0%
 
 ## Accumulated Context
 
+### Roadmap Evolution
+
+- Phase 10 added: Intent System and HUD Companion — granular intent tracking, brain context memory, pygame HUD companion, runtime artifact organization (tmp/, logs/)
+
 ### Decisions
 
 Decisions are logged in PROJECT.md Key Decisions table.
