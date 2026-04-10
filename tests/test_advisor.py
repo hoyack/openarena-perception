@@ -110,6 +110,69 @@ class TestDispatchThrottle:
         assert not adv.maybe_dispatch(None)
 
 
+class TestRequestDiagnosis:
+    def test_sets_problem_note(self):
+        adv = _make_advisor()
+        adv._ollama_mod = None  # disabled, so no real dispatch
+        adv.record_trail((100, 100, 50), 0, 1)
+        adv.request_diagnosis(_frame(), "stuck 2x at area 42")
+        assert "stuck 2x at area 42" in adv._last_problem
+
+    def test_bypasses_interval_throttle(self):
+        """Even if we just dispatched, force=True should allow a new dispatch."""
+        import asyncio
+
+        async def run():
+            adv = _make_advisor()
+            # Mock ollama so maybe_dispatch actually spawns a task
+            adv._ollama_mod = MagicMock()
+            mock_client = MagicMock()
+
+            async def fake_chat(**kwargs):
+                return {"message": {"content": '{"narrative":"x","hazards":[],"action_hint":"stop","confidence":0.5}'}}
+
+            mock_client.chat = fake_chat
+            adv._client = mock_client
+            adv.record_trail((100, 100, 50), 0, 1)
+
+            # First dispatch via maybe_dispatch succeeds
+            assert adv.maybe_dispatch(_frame())
+            # Wait for it to finish so the pending-task guard releases
+            await adv._pending_task
+            # Normal maybe_dispatch would be throttled (interval not elapsed)
+            assert not adv.maybe_dispatch(_frame())
+            # But request_diagnosis forces through
+            assert adv.request_diagnosis(_frame(), "stuck test")
+            await adv._pending_task
+            assert adv.thoughts_sent == 2
+
+        asyncio.run(run())
+
+    def test_blocked_by_pending_task(self):
+        """Even forced, a thought in-flight blocks new dispatch."""
+        import asyncio
+
+        async def run():
+            adv = _make_advisor()
+            adv._ollama_mod = MagicMock()
+            mock_client = MagicMock()
+
+            async def slow_chat(**kwargs):
+                await asyncio.sleep(0.2)
+                return {"message": {"content": '{"narrative":"x","hazards":[],"action_hint":"stop","confidence":0.5}'}}
+
+            mock_client.chat = slow_chat
+            adv._client = mock_client
+            adv.record_trail((100, 100, 50), 0, 1)
+
+            assert adv.maybe_dispatch(_frame())
+            # Task is in flight — force should not start another one
+            assert not adv.request_diagnosis(_frame(), "stuck test")
+            await adv._pending_task
+
+        asyncio.run(run())
+
+
 class TestApplyResponse:
     def test_narrative_and_warnings_populated(self):
         adv = _make_advisor()

@@ -184,10 +184,25 @@ class SpatialAdvisor:
         """Record a brief note about the most recent problem (for LLM context)."""
         self._last_problem = text[:120]
 
+    def request_diagnosis(self, frame: np.ndarray, problem: str) -> bool:
+        """Force an immediate targeted thought for problem diagnosis.
+
+        Used when the navigator hits a sticky situation (e.g. stuck_count>=2)
+        and wants the advisor to look at the current frame and suggest a fix.
+        Sets the problem note so it is included in the prompt, then bypasses
+        the dispatch-interval throttle. No-op if a thought is already in flight.
+        """
+        self.note_problem(problem)
+        return self.maybe_dispatch(frame, force=True)
+
     # -- Dispatch ----------------------------------------------------------
 
-    def maybe_dispatch(self, frame: np.ndarray) -> bool:
+    def maybe_dispatch(self, frame: np.ndarray, force: bool = False) -> bool:
         """Spawn a thought if the interval has elapsed and no thought is pending.
+
+        Set ``force=True`` to bypass the dispatch-interval throttle (used by
+        targeted queries like the stuck-diagnosis hook). The single-thought-
+        in-flight guard still applies so we never flood Ollama.
 
         Returns True if a thought was dispatched, False otherwise.
         """
@@ -198,7 +213,7 @@ class SpatialAdvisor:
         if not self._trail:
             return False
         now = time.time()
-        if now - self._last_dispatch_time < self.dispatch_interval:
+        if not force and now - self._last_dispatch_time < self.dispatch_interval:
             return False
 
         try:
