@@ -267,6 +267,14 @@ class ItemTour:
         self.agent.nav._on_area_transition = on_area_transition
         log.info("Learned map loaded: %s", self.learned_map.map_name)
 
+        # Spatial advisor — async LLM loop for hazard detection and guidance
+        from openarena_perception.strategy.advisor import SpatialAdvisor
+        self.advisor = SpatialAdvisor()
+        if self.advisor.enabled:
+            log.info("Spatial advisor enabled (model=%s)", self.advisor.model)
+        else:
+            log.warning("Spatial advisor disabled (ollama unavailable)")
+
         # Subsystems
         use_vision = not args.no_vision
         self.vision = VisionHelper() if use_vision else None
@@ -433,6 +441,25 @@ class ItemTour:
             self.learned_map.update(
                 self.agent.nav.pos, self.agent.nav.yaw,
                 wall_ahead, wall_score, open_dir, in_water)
+
+        # Spatial advisor: record trail + dispatch thoughts
+        if self.agent.nav.pos:
+            self.advisor.record_trail(
+                self.agent.nav.pos, self.agent.nav.yaw,
+                self.agent.nav.current_area)
+        if gs.frame is not None:
+            self.advisor.maybe_dispatch(gs.frame)
+
+        # Check advisor warnings BEFORE committing to forward movement
+        if self.advisor.is_hazard_ahead():
+            warnings = self.advisor.current_warnings()
+            top = warnings[0] if warnings else None
+            hint = self.advisor.get_recommended_action() or "back_away"
+            if top:
+                log.warning("ADVISOR HALT: %s [%s] %s -> %s",
+                            top.kind, top.severity, top.text, hint)
+            self._execute_advisor_action(hint)
+            return  # skip normal movement this tick
 
         current_area = self.agent.nav.current_area
 
@@ -749,6 +776,7 @@ class ItemTour:
         self._item_start_time = time.time()
         log.info("→ [%d/%d] %s at (%.0f,%.0f,%.0f) area=%d",
                  self._route_idx + 1, len(self._route), name, x, y, z, target_area)
+        self.advisor.set_goal(target_area, (x, y, z), name)
 
         if self.agent.nav.path_to_area(target_area):
             return  # path found
@@ -783,8 +811,37 @@ class ItemTour:
         else:
             self._finish_tour()
 
+    def _execute_advisor_action(self, hint: str) -> None:
+        """Translate an advisor action_hint into game commands.
+        Used when the advisor detects a hazard and we must halt forward movement.
+        """
+        self.bridge.move_forward(False)
+        if hint == "back_away":
+            self.bridge.action_start("back")
+            # brief backup; release_all will stop it next tick
+        elif hint == "turn_around":
+            self.bridge.cmd("cl_yawspeed 300")
+            self.bridge.action_start("right")
+        elif hint == "turn_left_90":
+            self.bridge.cmd("cl_yawspeed 250")
+            self.bridge.action_start("left")
+        elif hint == "turn_right_90":
+            self.bridge.cmd("cl_yawspeed 250")
+            self.bridge.action_start("right")
+        elif hint == "strafe_left":
+            self.bridge.action_start("moveleft")
+        elif hint == "strafe_right":
+            self.bridge.action_start("moveright")
+        elif hint == "stop":
+            pass  # already stopped forward motion above
+        # Note: these keys stay held briefly. The next tick's handle_stuck
+        # or release_all will clear them, so we don't over-turn.
+
     def _shutdown(self):
         log.info("Shutting down...")
+        # Advisor shutdown (cancel pending thought, log stats)
+        if hasattr(self, 'advisor'):
+            self.advisor.shutdown()
         # Save learned map before exit
         self.learned_map.save()
         stats = self.learned_map.export_for_hud()
