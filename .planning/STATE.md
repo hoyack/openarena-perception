@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: verifying
-stopped_at: Phase 10 complete (10-03 human-verified live); Phase 11 planned next
-last_updated: "2026-04-10T14:48:00.000Z"
-last_activity: 2026-04-10
+stopped_at: Completed 11-01-PLAN.md
+last_updated: "2026-04-10T20:44:20.511Z"
+last_activity: 2026-04-09
 progress:
   total_phases: 11
   completed_phases: 10
   total_plans: 44
-  completed_plans: 41
-  percent: 93
+  completed_plans: 42
+  percent: 95
 ---
 
 # Project State
@@ -100,6 +100,7 @@ Progress: [..........] 0%
 | Phase 09 P05 | 3min | 1 tasks | 2 files |
 | Phase 10 P01 | 25min | 2 tasks | 8 files |
 | Phase 10 P02 | 40min | 2 tasks | 10 files |
+| Phase 11 P01 | ~5min | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -193,6 +194,8 @@ Recent decisions affecting current work:
 - [Phase 09]: curl examples for every skill action to serve as LLM agent reference
 - [Phase 09]: Documented all 26 BotSettings fields plus 4 subsystem configs with Pi-specific tuning recommendations
 - [Phase 10]: STATE_FILE anchored to PROJECT_ROOT via Path(__file__).parents[1]; strategic_hud.py stays standalone with duplicated path constant
+- [Phase 11]: max_depth kept separate from room_depth so depth-color curve is decoupled from room frame
+- [Phase 11]: project_line clips to NEAR_Z + 1e-6 so clipped endpoints survive project_point's z <= NEAR_Z rejection
 
 ### Pending Todos
 
@@ -205,6 +208,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-10T14:37:26.095Z
-Stopped at: Completed 10-02-PLAN.md
+Last session: 2026-04-10T20:44:20.496Z
+Stopped at: Completed 11-01-PLAN.md
 Resume file: None
