@@ -10,3 +10,9 @@ build/
 .mypy_cache/
 .pytest_cache/
 .ruff_cache/
+
+# Runtime artifacts (Phase 10)
+tmp/*
+logs/*
+!tmp/.gitkeep
+!logs/.gitkeep
