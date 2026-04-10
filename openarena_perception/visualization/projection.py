@@ -60,17 +60,21 @@ def project_line(
 
     if z1 <= NEAR_Z and z2 <= NEAR_Z:
         return None
+    # Clip the behind-camera endpoint to just past NEAR_Z so that the
+    # subsequent projection step (which rejects z <= NEAR_Z) still renders it.
+    # Using NEAR_Z + epsilon keeps the screen position visually at the clip
+    # plane (division by a nearly-identical z) without tripping the boundary.
+    clip_z = NEAR_Z + 1e-6
     if z1 <= NEAR_Z:
-        # Clip p1 onto NEAR_Z along segment
-        t = (NEAR_Z - z1) / (z2 - z1)
+        t = (clip_z - z1) / (z2 - z1)
         x1 = x1 + t * (x2 - x1)
         y1 = y1 + t * (y2 - y1)
-        z1 = NEAR_Z
+        z1 = clip_z
     elif z2 <= NEAR_Z:
-        t = (NEAR_Z - z2) / (z1 - z2)
+        t = (clip_z - z2) / (z1 - z2)
         x2 = x2 + t * (x1 - x2)
         y2 = y2 + t * (y1 - y2)
-        z2 = NEAR_Z
+        z2 = clip_z
 
     sp1 = project_point(x1, y1, z1, cfg)
     sp2 = project_point(x2, y2, z2, cfg)
