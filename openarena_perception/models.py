@@ -10,9 +10,10 @@ import json
 import logging
 import os
 import time
-from dataclasses import dataclass
-from enum import Enum
-from typing import Dict, Optional, Set, Tuple
+from collections import deque
+from dataclasses import dataclass, field
+from enum import Enum, StrEnum
+from typing import Deque, Dict, Optional, Set, Tuple
 
 log = logging.getLogger(__name__)
 
@@ -182,3 +183,83 @@ class SpatialKnowledge:
                 pass
         if self._surveys:
             log.info("Loaded %d room surveys", len(self._surveys))
+
+
+# ── Intent / Problem / BotContext (Phase 10) ─────────────────────────
+
+
+class MacroIntent(StrEnum):
+    """High-level bot intent categories for Phase 10 intent tracking."""
+    IDLE = "IDLE"
+    TOURING = "TOURING"
+    CLIMBING_STAIRS = "CLIMBING_STAIRS"
+    AVOIDING_WALL = "AVOIDING_WALL"
+    RECOVERING_STUCK = "RECOVERING_STUCK"
+    REASSESSING_POSITION = "REASSESSING_POSITION"
+    RESPAWNING = "RESPAWNING"
+    PAUSING_TO_ASSESS = "PAUSING_TO_ASSESS"
+
+
+class IntentStatus(StrEnum):
+    PLANNING = "planning"
+    EXECUTING = "executing"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
+@dataclass(frozen=True, slots=True)
+class Intent:
+    """Immutable snapshot of a single bot intent.
+
+    Use dataclasses.replace() to create modified copies (intent is frozen).
+    """
+    macro: MacroIntent
+    sub: str
+    description: str
+    started_at: float
+    target: Optional[Tuple[float, float, float]] = None
+    target_area: Optional[int] = None
+    status: IntentStatus = IntentStatus.EXECUTING
+
+    def duration(self, now: float) -> float:
+        return now - self.started_at
+
+
+@dataclass(frozen=True, slots=True)
+class Problem:
+    """Immutable record of a bot problem event (stuck, pin, halt, respawn)."""
+    kind: str   # "stuck" | "pin" | "wall_halt" | "advisor_halt" | "respawn"
+    location: Tuple[float, float, float]
+    timestamp: float
+    description: str
+
+
+@dataclass(slots=True)   # NOT frozen -- holds mutable deques (Research Pitfall 2)
+class BotContext:
+    """Mutable container for bot self-awareness state.
+
+    Owned by ItemTour for Phase 10. Designed to be subsystem-neutral so
+    StrategicBrain or other loops can adopt it in later phases without
+    refactoring the data model.
+    """
+    current_intent: Intent
+    tick_count: int = 0
+    path_progress: Tuple[int, int] = (0, 0)
+    intent_history: Deque[Intent] = field(default_factory=lambda: deque(maxlen=5))
+    problem_history: Deque[Problem] = field(default_factory=lambda: deque(maxlen=5))
+    current_area_history: Deque[int] = field(default_factory=lambda: deque(maxlen=10))
+
+    def push_intent(self, new_intent: Intent) -> None:
+        """Push current intent to history and replace with new."""
+        self.intent_history.append(self.current_intent)
+        self.current_intent = new_intent
+
+    def record_problem(self, problem: Problem) -> None:
+        self.problem_history.append(problem)
+
+    def record_area(self, area_id: int) -> None:
+        if area_id <= 0:
+            return
+        if self.current_area_history and self.current_area_history[-1] == area_id:
+            return  # same area, do not duplicate
+        self.current_area_history.append(area_id)

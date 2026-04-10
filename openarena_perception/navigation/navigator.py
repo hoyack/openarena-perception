@@ -93,6 +93,16 @@ class Navigator:
         return self._stuck_count >= self.STUCK_COUNT
 
     @property
+    def is_climbing_stairs(self) -> bool:
+        """True while follow_path is inside a stair-climb commitment window.
+
+        Set by follow_path when a vertical step is detected, cleared when the
+        climb completes. Exposed for Phase 10 intent tracking (ItemTour reads
+        this to fire CLIMBING_STAIRS intent transitions).
+        """
+        return getattr(self, "_stair_climb_active", False)
+
+    @property
     def has_path(self) -> bool:
         return len(self._path) > 0
 

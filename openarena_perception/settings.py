@@ -5,7 +5,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import ClassVar
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict, TomlConfigSettingsSource
 
 
@@ -67,6 +67,29 @@ class BotSettings(BaseSettings):
     api_port: int = 8420
     api_ws_hz: float = 3.0
     api_ws_max_connections: int = 5
+
+    # Intent system (Phase 10)
+    intent_pause_ms: int = Field(
+        default=300,
+        description=(
+            "Pause-to-assess duration in ms before a new macro intent."
+            " Set via OA_INTENT_PAUSE_MS env var. Clamped to [0, 5000]."
+        ),
+    )
+
+    @field_validator("intent_pause_ms", mode="before")
+    @classmethod
+    def _coerce_intent_pause_ms(cls, v):
+        """Coerce and clamp intent_pause_ms; fall back to 300 on bad input."""
+        try:
+            v = int(v)
+        except (TypeError, ValueError):
+            return 300
+        if v < 0:
+            return 0
+        if v > 5000:
+            return 5000
+        return v
 
     @classmethod
     def settings_customise_sources(cls, settings_cls, init_settings,
