@@ -204,12 +204,30 @@ class Navigator:
             dist_start = math.hypot(sx - self.pos[0], sy - self.pos[1])
             dist_end = math.hypot(ex - self.pos[0], ey - self.pos[1])
 
-            # Jump for special travel types or ascending
-            if reach.travel_type in (TRAVEL_JUMP, TRAVEL_JUMPPAD, TRAVEL_BARRIERJUMP,
-                                     TRAVEL_WALKOFFLEDGE, TRAVEL_LADDER):
+            # Stair-climbing: rapid jump-walk for ascending transitions
+            # Single jumps miss multi-step staircases — need continuous jumping
+            height_delta = ez - self.pos[2]
+            is_ascending = height_delta > 16
+
+            if is_ascending:
+                # Rapid jump-walk pattern: centerview + continuous jumping
+                if not hasattr(self, '_stair_climb_active') or not self._stair_climb_active:
+                    self._stair_climb_active = True
+                    self._stair_climb_start = time.time()
+                    self.bridge.cmd("centerview")  # level view for stairs
+                    log.info("Stair-climb started (height delta: %.0f)", height_delta)
+                # Continuous jumping while ascending (every tick)
                 self.bridge.cmd("+moveup")
                 self.bridge.cmd("-moveup")
-            elif ez > self.pos[2] + 16:
+                # Stop stair-climbing after 5s or if we've ascended enough
+                if time.time() - self._stair_climb_start > 5.0:
+                    self._stair_climb_active = False
+            else:
+                self._stair_climb_active = False
+
+            # Jump for special travel types (jumppads, barriers, ladders)
+            if reach.travel_type in (TRAVEL_JUMP, TRAVEL_JUMPPAD, TRAVEL_BARRIERJUMP,
+                                     TRAVEL_WALKOFFLEDGE, TRAVEL_LADDER):
                 self.bridge.cmd("+moveup")
                 self.bridge.cmd("-moveup")
 
