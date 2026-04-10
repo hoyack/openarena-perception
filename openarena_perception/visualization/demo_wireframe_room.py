@@ -222,9 +222,20 @@ def _build_argparser() -> argparse.ArgumentParser:
     p.add_argument("--no-glow", action="store_true")
     p.add_argument("--no-hud", action="store_true")
     p.add_argument("--profile", action="store_true", help="print per-stage timings")
-    p.add_argument("--max-distance", type=float, default=1024.0)
+    p.add_argument("--max-distance", type=float, default=384.0,
+                   help="cull faces farther than this (smaller = less see-through)")
     p.add_argument("--max-areas", type=int, default=20)
     p.add_argument("--fps", type=int, default=30)
+    # Alignment/size overrides — let the user match OpenArena's exact settings
+    p.add_argument("--width", type=int, default=None,
+                   help="render width in px (default 960, or 320 with --live)")
+    p.add_argument("--height", type=int, default=None,
+                   help="render height in px (default 600, or 240 with --live)")
+    p.add_argument("--fov", type=float, default=None,
+                   help="horizontal FOV in degrees (default 90, match game cg_fov)")
+    p.add_argument("--camera-height", type=float, default=None,
+                   help="eye offset above bot origin in Q3 units "
+                        "(default 26 = DEFAULT_VIEWHEIGHT)")
     p.add_argument(
         "--live",
         action="store_true",
@@ -270,17 +281,29 @@ def main(argv: Optional[List[str]] = None) -> int:
     pos = args.pos if args.pos is not None else _default_pos_from_graph(graph)
     _verify_pos_in_walkable_area(graph, pos)
 
+    # Resolve render size. Defaults: 960x600 for static/orbit runs; 320x240
+    # for live runs so the wireframe fits next to the game + HUD windows.
+    default_w = 320 if args.live and args.width is None else (args.width or 960)
+    default_h = 240 if args.live and args.height is None else (args.height or 600)
+    width = args.width if args.width is not None else default_w
+    height = args.height if args.height is not None else default_h
+
     cfg = replace(
         RoomConfig(),
+        width=width,
+        height=height,
         room_width=1024.0,
         room_height=512.0,
         room_depth=2048.0,
         max_depth=2048.0,
         proximity_threshold=64.0,
-        camera_height=40.0,
+        fov_deg=args.fov if args.fov is not None else 90.0,
+        camera_height=args.camera_height if args.camera_height is not None else 26.0,
         glow=(not args.no_glow),
         hud=(not args.no_hud),
     )
+    log.info("Render: %dx%d fov=%.1f camera_height=%.1f max_distance=%.0f",
+             cfg.width, cfg.height, cfg.fov_deg, cfg.camera_height, args.max_distance)
 
     backend = AASDepthBackend(graph, camera_height=cfg.camera_height)
     renderer = WireframeRoomRenderer(cfg)

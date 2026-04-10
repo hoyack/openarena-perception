@@ -60,7 +60,7 @@ class AASDepthBackend:
     backend falls back to the Plan 11-03 AABB path.
     """
 
-    def __init__(self, aas_graph: AASGraph, camera_height: float = 40.0) -> None:
+    def __init__(self, aas_graph: AASGraph, camera_height: float = 26.0) -> None:
         self._graph = aas_graph
         self._camera_height = camera_height
 

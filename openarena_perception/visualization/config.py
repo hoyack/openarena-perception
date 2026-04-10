@@ -27,7 +27,7 @@ class RoomConfig:
     cam_x: float = 0.0
     cam_y: float = 0.0
     cam_z: float = 0.0
-    camera_height: float = 40.0   # Q3 eye height units (see RESEARCH A5)
+    camera_height: float = 26.0   # Q3 DEFAULT_VIEWHEIGHT standing eye offset
 
     # Palette (BGR order — see Pitfall 5)
     bg_color: Tuple[int, int, int] = (0, 0, 0)
