@@ -303,8 +303,9 @@ class Navigator:
 
     def handle_stuck(self, capture_fn=None):
         """
-        Smart stuck recovery with hazard detection and vision-informed dodging:
+        Smart stuck recovery with hazard detection, stair assessment, and vision-informed dodging:
           0. Check for lava/slime — if detected, back away immediately
+          0.5. Check if stuck on stairs — try stair probe-and-climb
           1st attempt: vision-informed dodge (look before moving)
           2nd attempt: scan-and-probe exit finder (~4s)
           3rd+: skip waypoint and blacklist area
@@ -332,6 +333,38 @@ class Navigator:
                 if hazard:
                     self._stuck_count = 0
                     return
+
+        # -- Stair detection: if target is above us, try probe-and-climb --
+        if self._path and self.pos and self.graph and capture_fn:
+            target_area = self._path[0]
+            tc = self.graph.area_center(target_area)
+            height_delta = tc[2] - self.pos[2]
+            if height_delta > 20:
+                try:
+                    frame = capture_fn()
+                    if frame is not None:
+                        from .stair_navigator import StairNavigator
+                        stair_nav = StairNavigator(self.bridge)
+                        if stair_nav.detect_stairs_ahead(frame, self.pos[2], tc[2]):
+                            log.info("Attempting stair probe-and-climb (target %.0f above)", height_delta)
+                            # Find the reach start point for the ascending edge
+                            reach = None
+                            for r in self.graph.areas[self._current_area].reaches:
+                                if r.dest_area == target_area:
+                                    reach = r
+                                    break
+                            target_point = reach.start if reach else (tc[0], tc[1], tc[2])
+                            best_yaw = stair_nav.assess_approach(
+                                self.bridge, self.pos, target_point)
+                            if stair_nav.climb(self.bridge, best_yaw, timeout=6.0):
+                                log.info("Stair climb succeeded!")
+                                self._stuck_count = 0
+                                self._consecutive_stuck = 0
+                                self.update_position()
+                                return
+                            log.info("Stair climb did not gain enough height — falling through to normal recovery")
+                except Exception as e:
+                    log.debug("Stair navigation failed: %s", e)
 
         if self._consecutive_stuck >= 4:
             # Give up on this waypoint and blacklist the area
