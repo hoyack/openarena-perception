@@ -22,7 +22,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 8: Human-Likeness** - Aim humanization, reaction modeling, personality profiles, and adaptive learning
 - [x] **Phase 9: Testing and Documentation** - Comprehensive test suite and full documentation site (completed 2026-04-09)
 - [x] **Phase 10: Intent System and HUD Companion** - Granular intent tracking, brain context memory, pygame HUD companion, and runtime artifact organization (completed 2026-04-10 — first successful full tour, 0 deaths, 20 FPS)
-- [ ] **Phase 11: Wireframe Perception Grid** - Holodeck-style 3D wireframe perception debug view using monocular depth estimation (Depth Anything V2) with obstacle overlay and CRT HUD chrome
+- [x] **Phase 11: Wireframe Perception Grid** - AAS-driven first-person wireframe debug view with face mesh walls, live pose integration, and CRT HUD chrome (completed 2026-04-10 via Version B pivot + Path B face mesh rework)
 
 ## Phase Details
 
