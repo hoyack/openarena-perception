@@ -206,3 +206,74 @@ def test_build_payload_no_context_still_emits_pause_flags():
     assert p["is_paused_for_assess"] is False
     assert p["threat_flag"] is False
     assert "intent" not in p
+
+
+# ── Phase 10-03: end-to-end schema contract test ─────────────────────
+
+
+def test_contract_build_payload_to_strategic_hud_load(tmp_path):
+    """End-to-end contract: build_hud_payload output must be parseable by
+    strategic_hud.HUDState.load into a HUDState with populated intent fields.
+
+    strategic_hud.py is a standalone executable at the repo root -- not part
+    of the openarena_perception package -- so we inject the repo root into
+    sys.path before importing it. pygame needs a dummy SDL video driver for
+    headless test runs (strategic_hud calls pygame.init at HUD construction,
+    not at module import, but we set it defensively).
+    """
+    import os
+    import sys as _sys
+    from pathlib import Path as _Path
+    os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
+
+    repo_root = _Path(__file__).resolve().parents[1]
+    if str(repo_root) not in _sys.path:
+        _sys.path.insert(0, str(repo_root))
+
+    import strategic_hud  # noqa: E402
+
+    ctx = _ctx()
+    payload = build_hud_payload(
+        context=ctx,
+        map_name="q3dm1",
+        is_paused_for_assess=True,
+        threat_flag=False,
+    )
+
+    # Write to a tmp file (this is what item_tour.py does in prod via
+    # hud_schema.write_hud_state).
+    state_file = tmp_path / "hud_state.json"
+    state_file.write_text(json.dumps(payload))
+
+    # Load via the HUD's actual loader. HUDState is a regular class whose
+    # instance-method load(path) mutates self and returns self, so we
+    # construct-then-load.
+    s = strategic_hud.HUDState().load(state_file)
+
+    # Contract assertions: intent block round-tripped correctly
+    assert s.intent, "intent dict should be populated"
+    assert s.intent.get("macro") == "TOURING"
+    assert s.intent.get("sub") == "heading to item_health_mega"
+    assert s.intent.get("status") == "executing"
+    assert s.intent.get("target") == [232.0, 1600.0, -112.0]
+
+    # Intent history is a list (pitfall 7: deque -> list conversion)
+    assert isinstance(s.intent_history, list)
+    assert len(s.intent_history) == 1
+    assert s.intent_history[0].get("macro") == "AVOIDING_WALL"
+
+    # Problem history color-coding relies on the "kind" key
+    assert isinstance(s.problem_history, list)
+    assert s.problem_history[0].get("kind") == "wall_halt"
+
+    # Path progress drives the progress bar
+    assert s.path_progress.get("current_step") == 5
+    assert s.path_progress.get("total_steps") == 13
+
+    # Pause flash border and threat badge flags
+    assert s.is_paused_for_assess is True
+    assert s.threat_flag is False
+
+    # Area history (recent area transitions)
+    assert isinstance(s.area_history, list)
+    assert s.area_history == [299, 259, 285, 304, 325]
