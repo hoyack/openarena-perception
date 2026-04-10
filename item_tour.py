@@ -878,7 +878,16 @@ def release_all():
 
 def main():
     atexit.register(release_all)
-    signal.signal(signal.SIGTERM, lambda *_: (release_all(), sys.exit(0)))
+    # Release keys on any fatal signal — prevents the bot from walking forever
+    # if the process is killed mid-movement.
+    def _cleanup_and_exit(*args):
+        release_all()
+        sys.exit(0)
+    signal.signal(signal.SIGTERM, _cleanup_and_exit)
+    signal.signal(signal.SIGHUP, _cleanup_and_exit)
+    # SIGINT handled by asyncio loop below
+    # Also release on startup to clear any stale state from a crashed predecessor
+    release_all()
 
     parser = argparse.ArgumentParser(description="Item Tour")
     parser.add_argument("--all", action="store_true")
