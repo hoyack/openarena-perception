@@ -291,6 +291,34 @@ class ItemTour:
         self._item_start_time = 0.0       # when we started navigating to current item
         self._item_timeout = 90.0         # skip item after 90 seconds of trying
 
+        # Proactive wall avoidance (Option C): vision streak + learned_map look-ahead
+        self._wall_vision_streak = 0      # consecutive ticks with wall_ahead=True
+        self._proactive_halts = 0         # stat: how many times we halted preemptively
+        self._last_proactive_halt = 0.0   # timestamp; throttle repeated halts
+        # Pin detection: halts clustered in one spot -> bot is wedged, replan
+        self._pin_origin = None           # (x, y) of first clustered halt, or None
+        self._pin_count = 0               # consecutive halts within PIN_RADIUS
+        self._PIN_RADIUS = 64.0           # units; halts within this count as same pin
+        self._PIN_ESCALATE = 3            # after N clustered halts, force replan
+
+        # Fix A: avoidance commitment — hold the strafe/turn action for 0.5s
+        # instead of releasing it next tick. Stops the "wall-slide then
+        # re-engage +forward into the same wall" loop.
+        self._avoidance_until = 0.0       # timestamp; while now<this, skip forward
+        self._avoidance_hint = None       # action hint to keep held during avoidance
+        self._AVOIDANCE_DURATION = 0.5    # seconds
+
+        # Fix B: visual pin detector — detect "walking but screen stays the
+        # same" (bot wedged against geometry the wall_detector can't see, like
+        # corners). Uses a small center-strip frame hash compared tick-to-tick.
+        self._last_frame_hash = None      # downsampled grayscale bytes
+        self._frame_still_streak = 0      # consecutive low-diff ticks
+        self._last_pos_for_vis = None     # last position when we checked visual
+        self._visual_pin_hits = 0         # stat
+        self._VISUAL_PIN_FRAME_THRESH = 3.5  # mean abs pixel diff below this = "still"
+        self._VISUAL_PIN_POS_THRESH = 6.0    # units; position delta below this = "not moving"
+        self._VISUAL_PIN_STREAK = 3       # ticks required to fire
+
         # Vision state
         self._vision_action = None
         self._vision_task = None  # track the single pending async task
@@ -427,11 +455,18 @@ class ItemTour:
             self._window_id = focus_game_window()
             self._last_refocus = now
 
+        # Export HUD state for the strategic_hud.py companion app (every 6 ticks)
+        if self._tick % 6 == 0:
+            self._export_hud(gs)
+
         # Update position
         self.agent.nav.update_position()
         self.agent.nav.check_stuck_cleanup()
 
         # Update learned map with wall detection every tick
+        wall_ahead = False
+        wall_score = 0.0
+        open_dir = 0
         if self.agent.nav.pos and gs.frame is not None:
             from openarena_perception.perception.wall_detector import Perception
             if not hasattr(self, '_wall_detector'):
@@ -441,6 +476,45 @@ class ItemTour:
             self.learned_map.update(
                 self.agent.nav.pos, self.agent.nav.yaw,
                 wall_ahead, wall_score, open_dir, in_water)
+
+        # Vision streak hysteresis (used by proactive wall halt below)
+        if wall_ahead:
+            self._wall_vision_streak += 1
+        else:
+            self._wall_vision_streak = 0
+
+        # Fix B: Visual pin detector — "walking but screen stays the same".
+        # Catches corners/geometry the wall_detector is blind to. Updates
+        # self._frame_still_streak every tick; consumed below.
+        visual_pin = False
+        if gs.frame is not None and self.agent.nav.pos is not None:
+            import cv2 as _cv2
+            h, w = gs.frame.shape[:2]
+            strip = gs.frame[int(h*0.3):int(h*0.7), int(w*0.25):int(w*0.75)]
+            small = _cv2.cvtColor(_cv2.resize(strip, (64, 48)), _cv2.COLOR_BGR2GRAY)
+            if self._last_frame_hash is not None:
+                frame_diff = float(np.abs(
+                    small.astype(np.int16) - self._last_frame_hash.astype(np.int16)
+                ).mean())
+            else:
+                frame_diff = 999.0
+            self._last_frame_hash = small
+
+            if self._last_pos_for_vis is not None:
+                pos_delta = math.hypot(
+                    self.agent.nav.pos[0] - self._last_pos_for_vis[0],
+                    self.agent.nav.pos[1] - self._last_pos_for_vis[1])
+            else:
+                pos_delta = 999.0
+            self._last_pos_for_vis = self.agent.nav.pos
+
+            if (frame_diff < self._VISUAL_PIN_FRAME_THRESH
+                    and pos_delta < self._VISUAL_PIN_POS_THRESH):
+                self._frame_still_streak += 1
+            else:
+                self._frame_still_streak = 0
+            if self._frame_still_streak >= self._VISUAL_PIN_STREAK:
+                visual_pin = True
 
         # Spatial advisor: record trail + dispatch thoughts
         if self.agent.nav.pos:
@@ -460,6 +534,97 @@ class ItemTour:
                             top.kind, top.severity, top.text, hint)
             self._execute_advisor_action(hint)
             return  # skip normal movement this tick
+
+        # Fix A: avoidance commitment — if we're still inside the commitment
+        # window, keep the strafe/turn held and skip forward movement so the
+        # bot actually gains distance from the wall instead of wall-sliding.
+        if now < self._avoidance_until and self._avoidance_hint is not None:
+            self._execute_advisor_action(self._avoidance_hint)
+            return
+
+        # ── PROACTIVE WALL HALT (Option C) ──────────────────────────────────
+        # Combine vision (reactive, 60Hz) + learned_map look-ahead (predictive
+        # in known areas) + visual pin (Fix B — catches corners). Halt forward
+        # movement BEFORE the bot commits 1s of "+forward" into a wall and
+        # waits for stuck detection to catch up.
+        # Throttled to once per 0.5s to avoid flapping during micro-dodges.
+        if (self.agent.nav.pos is not None
+                and now - self._last_proactive_halt > 0.5
+                and not self.agent.nav.is_recovering):
+            halt_reason = self._check_proactive_wall(
+                self.agent.nav.pos, self.agent.nav.yaw,
+                wall_ahead, wall_score, open_dir)
+            # Fix B: visual pin overrides if wall_detector missed it
+            if halt_reason is None and visual_pin:
+                halt_reason = "visual_pin"
+                self._visual_pin_hits += 1
+                self._frame_still_streak = 0  # reset so we don't re-fire immediately
+            if halt_reason is not None:
+                self._last_proactive_halt = now
+                self._proactive_halts += 1
+                pos_xy = (self.agent.nav.pos[0], self.agent.nav.pos[1])
+
+                # Pin detection: are we halting in the same spot repeatedly?
+                if (self._pin_origin is not None
+                        and math.hypot(pos_xy[0] - self._pin_origin[0],
+                                       pos_xy[1] - self._pin_origin[1]) < self._PIN_RADIUS):
+                    self._pin_count += 1
+                else:
+                    self._pin_origin = pos_xy
+                    self._pin_count = 1
+
+                pinned = self._pin_count >= self._PIN_ESCALATE
+
+                # Action picker:
+                #   - Turn clears the vision flag (bot looks elsewhere)
+                #   - Strafe same direction keeps lateral distance from wall
+                #     (splash-damage avoidance + unpredictable pathing)
+                #   - If pinned OR visual_pin, escalate to a harder action
+                #     (open_dir is unreliable in corners where visual_pin fires)
+                if pinned or halt_reason == "visual_pin":
+                    # Turn around AND strafe in a picked direction to break
+                    # out of corners where both sides look similar.
+                    hint = "turn_around"
+                elif open_dir < 0:
+                    hint = "turn_left_and_strafe"
+                elif open_dir > 0:
+                    hint = "turn_right_and_strafe"
+                else:
+                    # Both sides look closed — back away and re-survey
+                    hint = "back_away"
+
+                log.warning("PROACTIVE WALL HALT: %s (score=%.2f streak=%d pin=%d vpin=%d) -> %s",
+                            halt_reason, wall_score, self._wall_vision_streak,
+                            self._pin_count, self._frame_still_streak, hint)
+                self._execute_advisor_action(hint)
+
+                # Fix A: commit to this avoidance action for the next 0.5s so
+                # the bot actually gains distance instead of wall-sliding and
+                # re-engaging +forward on the next tick.
+                self._avoidance_hint = hint
+                self._avoidance_until = now + self._AVOIDANCE_DURATION
+
+                # Escalation: bot is wedged — force a replan from current pos.
+                # This fixes the "routing into walls while trying to reach a
+                # different destination" case: our planned path is wrong for
+                # where we actually are, so recompute it.
+                if (pinned or halt_reason == "visual_pin") and self._route_idx < len(self._route):
+                    log.warning("PIN ESCALATION: replanning from area %d",
+                                self.agent.nav.current_area)
+                    self._pin_count = 0
+                    self._pin_origin = None
+                    self._goto_next()
+                return  # skip normal movement this tick
+        else:
+            # No halt this tick: if we've walked >PIN_RADIUS from the pin spot,
+            # clear the counter (bot broke free on its own).
+            if self._pin_origin is not None and self.agent.nav.pos is not None:
+                dist = math.hypot(
+                    self.agent.nav.pos[0] - self._pin_origin[0],
+                    self.agent.nav.pos[1] - self._pin_origin[1])
+                if dist > self._PIN_RADIUS * 2:
+                    self._pin_origin = None
+                    self._pin_count = 0
 
         current_area = self.agent.nav.current_area
 
@@ -502,6 +667,14 @@ class ItemTour:
 
         if self.agent.nav.is_stuck:
             self._stuck_attempts += 1
+
+            # Edge-trigger advisor diagnosis on 2nd stuck attempt.
+            # Lets the LLM look at the current frame and suggest a targeted
+            # unstuck action (e.g. "turn_around", "strafe_left"). Fires once
+            # per stuck streak; single-thought-in-flight guard prevents spam.
+            if self._stuck_attempts == 2 and gs.frame is not None:
+                problem = f"stuck {self._stuck_attempts}x at area {current_area}, navigator cannot advance"
+                self.advisor.request_diagnosis(gs.frame, problem)
 
             # Use navigator's smart stuck recovery (includes exit finder on 2nd attempt)
             def capture():
@@ -811,6 +984,38 @@ class ItemTour:
         else:
             self._finish_tour()
 
+    def _check_proactive_wall(
+        self, pos, yaw: float,
+        wall_ahead: bool, wall_score: float, open_dir: int,
+    ):
+        """Return a short reason string if a proactive wall halt should fire,
+        else None. Combines vision (hysteresis) with learned_map look-ahead.
+
+        Vision trigger:
+          - single-tick high-confidence (wall_score >= 0.80), OR
+          - 2+ consecutive ticks of wall_ahead=True
+
+        Learned map trigger:
+          - Project pos forward by 72 units (~1 grid cell) along yaw
+          - If that cell is CellState.WALL (known wall from prior mapping), halt
+        """
+        # Vision signal
+        if wall_ahead and (wall_score >= 0.80 or self._wall_vision_streak >= 2):
+            return f"vision"
+
+        # Learned map look-ahead
+        try:
+            from openarena_perception.navigation.learned_map import CellState
+            look_dist = 72.0  # ~1.1 grid cells at 64-unit resolution
+            lx = pos[0] + look_dist * math.cos(math.radians(yaw))
+            ly = pos[1] + look_dist * math.sin(math.radians(yaw))
+            if self.learned_map.cell_state(lx, ly) == int(CellState.WALL):
+                return "learned_map"
+        except Exception:
+            pass  # learned_map optional; never let it crash the tick
+
+        return None
+
     def _execute_advisor_action(self, hint: str) -> None:
         """Translate an advisor action_hint into game commands.
         Used when the advisor detects a hazard and we must halt forward movement.
@@ -832,10 +1037,74 @@ class ItemTour:
             self.bridge.action_start("moveleft")
         elif hint == "strafe_right":
             self.bridge.action_start("moveright")
+        elif hint == "turn_left_and_strafe":
+            # Combined primitive used by proactive wall halt: rotate the view
+            # (clears the wall_ahead flag) and strafe the same way (gain
+            # lateral distance, avoid wall-hugging / splash damage).
+            self.bridge.cmd("cl_yawspeed 250")
+            self.bridge.action_start("left")
+            self.bridge.action_start("moveleft")
+        elif hint == "turn_right_and_strafe":
+            self.bridge.cmd("cl_yawspeed 250")
+            self.bridge.action_start("right")
+            self.bridge.action_start("moveright")
         elif hint == "stop":
             pass  # already stopped forward motion above
         # Note: these keys stay held briefly. The next tick's handle_stuck
         # or release_all will clear them, so we don't over-turn.
+
+    def _export_hud(self, gs):
+        """Write /tmp/oa_hud_state.json for the companion strategic_hud.py.
+
+        Mirrors the schema from StrategicBrain._export_hud so the HUD works
+        unchanged with item_tour. Called every 6 ticks from the tick loop.
+        """
+        try:
+            nav = self.agent.nav
+            pos = nav.pos or (0, 0, 0)
+            # Build route waypoint list compatible with HUD schema
+            items = [[name, x, y, z] for (name, x, y, z) in self._route]
+            state = {
+                "map": getattr(self.agent, "map_name", "oa_dm1"),
+                "x": pos[0], "y": pos[1], "z": pos[2],
+                "yaw": nav.yaw,
+                "health": gs.health if gs.health is not None else 100,
+                "armor": gs.armor if getattr(gs, "armor", None) is not None else 0,
+                "ammo": getattr(gs, "ammo", 0) or 0,
+                "weapon": getattr(gs, "weapon", "machinegun") or "machinegun",
+                "alive": self._was_alive,
+                "stuck": nav.is_stuck,
+                "recovering": nav.is_recovering,
+                "items": items,
+                "deaths": self._deaths,
+                "elapsed": time.time() - (self._item_start_time or time.time()),
+                # Tour-specific progress
+                "brain_state": "TOURING",
+                "disposition": "explore",
+                "armament": "none",
+                "orientation": "open" if not nav.is_stuck else "blocked",
+                "under_attack": False,
+                "anomaly_count": 0,
+                "surveys_total": 0,
+                "current_room_type": f"area_{nav.current_area}",
+                "current_room_exits": [],
+                "nav_target": (self._route[self._route_idx][0]
+                               if self._route_idx < len(self._route) else ""),
+                "state_duration": time.time() - (self._item_start_time or time.time()),
+                "items_collected": self._route_idx,
+                "learned_map": self.learned_map.export_for_hud(),
+                # item_tour extras
+                "route_idx": self._route_idx,
+                "proactive_halts": self._proactive_halts,
+                "visual_pin_hits": self._visual_pin_hits,
+                "advisor_stats": self.advisor.stats() if hasattr(self, "advisor") else {},
+            }
+            tmp = "/tmp/oa_hud_state.json.tmp"
+            with open(tmp, "w") as f:
+                json.dump(state, f)
+            os.replace(tmp, "/tmp/oa_hud_state.json")
+        except Exception as e:
+            log.debug("HUD export failed: %s", e)
 
     def _shutdown(self):
         log.info("Shutting down...")
