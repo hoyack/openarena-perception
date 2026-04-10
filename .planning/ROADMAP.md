@@ -22,6 +22,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 8: Human-Likeness** - Aim humanization, reaction modeling, personality profiles, and adaptive learning
 - [x] **Phase 9: Testing and Documentation** - Comprehensive test suite and full documentation site (completed 2026-04-09)
 - [ ] **Phase 10: Intent System and HUD Companion** - Granular intent tracking, brain context memory, pygame HUD companion, and runtime artifact organization
+- [ ] **Phase 11: Wireframe Perception Grid** - Holodeck-style 3D wireframe perception debug view using monocular depth estimation (Depth Anything V2) with obstacle overlay and CRT HUD chrome
 
 ## Phase Details
 
@@ -205,3 +206,13 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 
 Plans:
 - [ ] TBD (run /gsd-plan-phase 10 to break down)
+
+### Phase 11: Wireframe Perception Grid
+
+**Goal:** Holodeck-style 3D wireframe perception debug view that renders a first-person perspective grid room (floor, ceiling, walls) with detected obstacles overlaid as colored wireframe boxes, driven by monocular depth estimation (Depth Anything V2), exposing what the bot "sees" spatially for debugging and operator observability
+**Requirements**: TBD (PRD provided inline — see 11-PRD.md)
+**Depends on:** Phase 10
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd-plan-phase 11 --prd .planning/phases/11-wireframe-perception-grid/11-PRD.md to break down)
