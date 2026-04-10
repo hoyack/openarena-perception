@@ -20,7 +20,9 @@ import math
 import os
 import struct
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Sequence, Tuple
+
+import numpy as np
 
 log = logging.getLogger(__name__)
 
@@ -65,13 +67,45 @@ class AASArea:
     neighbors: List[int] = field(default_factory=list)
     travel_types: List[int] = field(default_factory=list)
     reaches: List[AASReach] = field(default_factory=list)
+    # Plan 11-04: back-references into the face-mesh lumps. Default to zero so
+    # any caller that still constructs AASArea by hand (property tests, tour
+    # metrics, etc.) keeps working unchanged.
+    numfaces: int = 0
+    firstface: int = 0
 
 
 @dataclass
 class AASGraph:
-    """Parsed AAS nav graph ready for pathfinding."""
+    """Parsed AAS nav graph ready for pathfinding.
+
+    Plan 11-04: optionally carries the decoded face mesh (vertexes/edges/
+    planes/faces/edgeindex/faceindex). All new fields default to empty arrays
+    so upstream code that builds an AASGraph synthetically (see
+    tests/test_property_based.py::_build_test_graph) keeps working.
+    """
     areas: List[AASArea]
     num_areas: int
+    # Face-mesh data (Plan 11-04). Empty arrays when the parser could not
+    # decode the mesh lumps or when the graph is built synthetically.
+    vertexes: np.ndarray = field(
+        default_factory=lambda: np.empty((0, 3), dtype=np.float64)
+    )
+    edges: np.ndarray = field(
+        default_factory=lambda: np.empty((0, 2), dtype=np.int32)
+    )
+    edgeindex: np.ndarray = field(
+        default_factory=lambda: np.empty((0,), dtype=np.int32)
+    )
+    planes: np.ndarray = field(
+        default_factory=lambda: np.empty((0, 4), dtype=np.float64)
+    )
+    # face_data rows: (planenum, faceflags, numedges, firstedge, frontarea, backarea)
+    faces: np.ndarray = field(
+        default_factory=lambda: np.empty((0, 6), dtype=np.int32)
+    )
+    faceindex: np.ndarray = field(
+        default_factory=lambda: np.empty((0,), dtype=np.int32)
+    )
 
     def nearest_area(self, x: float, y: float, z: float) -> int:
         """Find the area closest to a world position.
@@ -135,6 +169,8 @@ def parse_aas(filepath: str) -> Optional[AASGraph]:
     areas = []
     for i in range(num_areas):
         base = ofs_a + i * 48
+        # Layout (aas_area_t): areanum, numfaces, firstface, mins[3], maxs[3], center[3]
+        _, numfaces, firstface = struct.unpack_from('<3i', data, base)
         mins = struct.unpack_from('<3f', data, base + 12)
         maxs = struct.unpack_from('<3f', data, base + 24)
         center = struct.unpack_from('<3f', data, base + 36)
@@ -142,6 +178,7 @@ def parse_aas(filepath: str) -> Optional[AASGraph]:
             idx=i,
             cx=center[0], cy=center[1], cz=center[2],
             mins=mins, maxs=maxs,
+            numfaces=int(numfaces), firstface=int(firstface),
         ))
 
     # Parse area settings: flags (liquid detection) + firstReach
@@ -188,4 +225,89 @@ def parse_aas(filepath: str) -> Optional[AASGraph]:
     total_edges = sum(len(a.neighbors) for a in areas)
     log.info("AAS parsed: %d areas, %d connected, %d edges", num_areas, connected, total_edges)
 
-    return AASGraph(areas=areas, num_areas=num_areas)
+    # --- Plan 11-04: decode the face-mesh lumps (0-6) ---
+    # Defensive: any decode error falls through to empty arrays, preserving
+    # AABB-only fallback behaviour for callers that only need the nav graph.
+    vertexes_arr = np.empty((0, 3), dtype=np.float64)
+    edges_arr = np.empty((0, 2), dtype=np.int32)
+    edgeindex_arr = np.empty((0,), dtype=np.int32)
+    planes_arr = np.empty((0, 4), dtype=np.float64)
+    faces_arr = np.empty((0, 6), dtype=np.int32)
+    faceindex_arr = np.empty((0,), dtype=np.int32)
+    try:
+        # lump 1: vertexes, stride 12 (3 floats)
+        ofs_v, len_v = lump(1)
+        # lump 2: planes, stride 20 (4 floats + 1 int = signbits/type)
+        ofs_p, len_p = lump(2)
+        # lump 3: edges, stride 8 (2 int32)
+        ofs_e, len_e = lump(3)
+        # lump 4: edgeindex, stride 4 (int32)
+        ofs_ei, len_ei = lump(4)
+        # lump 5: faces, stride 24 (6 int32: planenum/flags/numedges/firstedge/front/back)
+        ofs_f, len_f = lump(5)
+        # lump 6: faceindex, stride 4 (int32)
+        ofs_fi, len_fi = lump(6)
+
+        # Bounds sanity — any lump out of file → skip mesh (parser still returns a graph)
+        for off, ln in [
+            (ofs_v, len_v), (ofs_p, len_p), (ofs_e, len_e),
+            (ofs_ei, len_ei), (ofs_f, len_f), (ofs_fi, len_fi),
+        ]:
+            if off < 0 or ln < 0 or off + ln > len(data):
+                raise ValueError("mesh lump out of bounds")
+
+        if len_v % 12 == 0 and len_v > 0:
+            vertexes_arr = np.frombuffer(
+                data, dtype=np.float32, count=(len_v // 4), offset=ofs_v
+            ).reshape(-1, 3).astype(np.float64)
+
+        if len_p % 20 == 0 and len_p > 0:
+            # Parse only the 4 float fields (normal xyz + dist); skip the trailing int.
+            n_planes = len_p // 20
+            raw = np.frombuffer(
+                data, dtype=np.uint8, count=len_p, offset=ofs_p
+            ).reshape(n_planes, 20)
+            floats = np.frombuffer(
+                raw[:, :16].tobytes(), dtype=np.float32
+            ).reshape(n_planes, 4).astype(np.float64)
+            planes_arr = floats
+
+        if len_e % 8 == 0 and len_e > 0:
+            edges_arr = np.frombuffer(
+                data, dtype=np.int32, count=(len_e // 4), offset=ofs_e
+            ).reshape(-1, 2).copy()
+
+        if len_ei % 4 == 0 and len_ei > 0:
+            edgeindex_arr = np.frombuffer(
+                data, dtype=np.int32, count=(len_ei // 4), offset=ofs_ei
+            ).copy()
+
+        if len_f % 24 == 0 and len_f > 0:
+            faces_arr = np.frombuffer(
+                data, dtype=np.int32, count=(len_f // 4), offset=ofs_f
+            ).reshape(-1, 6).copy()
+
+        if len_fi % 4 == 0 and len_fi > 0:
+            faceindex_arr = np.frombuffer(
+                data, dtype=np.int32, count=(len_fi // 4), offset=ofs_fi
+            ).copy()
+
+        log.info(
+            "AAS mesh parsed: %d verts, %d edges, %d planes, %d faces, "
+            "edgeindex=%d, faceindex=%d",
+            len(vertexes_arr), len(edges_arr), len(planes_arr),
+            len(faces_arr), len(edgeindex_arr), len(faceindex_arr),
+        )
+    except Exception as mesh_err:  # noqa: BLE001 — mesh is optional; log and continue
+        log.warning("AAS mesh decode failed, continuing with AABB-only: %s", mesh_err)
+
+    return AASGraph(
+        areas=areas,
+        num_areas=num_areas,
+        vertexes=vertexes_arr,
+        edges=edges_arr,
+        edgeindex=edgeindex_arr,
+        planes=planes_arr,
+        faces=faces_arr,
+        faceindex=faceindex_arr,
+    )
