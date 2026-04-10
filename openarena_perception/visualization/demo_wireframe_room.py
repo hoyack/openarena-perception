@@ -10,6 +10,7 @@ uses the AAS geometry backend (no neural inference).
 from __future__ import annotations
 
 import argparse
+import json
 import logging
 import math
 import os
@@ -28,6 +29,8 @@ from openarena_perception.visualization import (
     RoomConfig,
     WireframeRoomRenderer,
 )
+
+LIVE_STATE_PATH_DEFAULT = "./tmp/oa_hud_state.json"
 
 log = logging.getLogger("wireframe_demo")
 
@@ -103,6 +106,48 @@ def _try_imshow(frame: np.ndarray, warned: List[bool]) -> bool:
         return False
 
 
+class _PygameDisplay:
+    """Pygame-based live display for the wireframe frames.
+
+    Works with opencv-python-headless where cv2.imshow is stripped. Uses
+    the same pygame runtime Phase 10's strategic_hud.py relies on.
+    """
+
+    def __init__(self, width: int, height: int, title: str = "PERCEPTION") -> None:
+        import pygame
+        self._pygame = pygame
+        pygame.init()
+        pygame.display.init()
+        self._screen = pygame.display.set_mode((width, height))
+        pygame.display.set_caption(title)
+        self._running = True
+        self._clock = pygame.time.Clock()
+
+    def show(self, bgr_frame: np.ndarray) -> bool:
+        """Display a BGR numpy frame. Returns False if the window was closed."""
+        if not self._running:
+            return False
+        # Pump events so the window stays responsive and we can detect close
+        for event in self._pygame.event.get():
+            if event.type == self._pygame.QUIT:
+                self._running = False
+                return False
+        # cv2 gives BGR, pygame wants RGB. Also pygame.surfarray expects (W,H,3)
+        rgb = bgr_frame[:, :, ::-1]
+        surface = self._pygame.surfarray.make_surface(rgb.swapaxes(0, 1))
+        self._screen.blit(surface, (0, 0))
+        self._pygame.display.flip()
+        self._clock.tick(30)
+        return True
+
+    def close(self) -> None:
+        try:
+            self._pygame.display.quit()
+            self._pygame.quit()
+        except Exception:
+            pass
+
+
 def _synth_hud_state(frame_idx: int, pos: Point3, yaw: float) -> Dict[str, object]:
     return {
         "MODE": "DEMO",
@@ -110,6 +155,55 @@ def _synth_hud_state(frame_idx: int, pos: Point3, yaw: float) -> Dict[str, objec
         "AMMO": 50,
         "POS": f"({pos[0]:.0f},{pos[1]:.0f},{pos[2]:.0f})",
         "YAW": f"{yaw:.0f}",
+    }
+
+
+def _read_live_state(path: str) -> Optional[Dict[str, object]]:
+    """Read the HUD state file written by item_tour.py every 6 ticks.
+
+    Returns None if the file is missing or malformed. Tolerant of races
+    where item_tour.py is mid-write: errors are swallowed so the demo
+    loop keeps running with the previous frame's pose.
+    """
+    try:
+        with open(path, "r") as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError, OSError):
+        return None
+
+
+def _extract_pose_from_state(state: Dict[str, object]) -> Optional[Tuple[Point3, float]]:
+    """Pull (pos, yaw) from the HUD JSON payload if present."""
+    try:
+        x = float(state.get("x", 0.0))
+        y = float(state.get("y", 0.0))
+        z = float(state.get("z", 0.0))
+        yaw = float(state.get("yaw", 0.0))
+        return ((x, y, z), yaw)
+    except (TypeError, ValueError):
+        return None
+
+
+def _live_hud_extras(state: Dict[str, object]) -> Dict[str, object]:
+    """Build the extra_hud dict from a live HUD state payload.
+
+    Surfaces the most bot-relevant fields so the overlay shows what the
+    bot is thinking in real time alongside what it's seeing.
+    """
+    intent = state.get("intent") or {}
+    target = intent.get("sub") or intent.get("description") or ""
+    macro = intent.get("macro") or ""
+    area = state.get("current_room_type") or ""
+    return {
+        "MODE": str(macro or "LIVE"),
+        "HP": str(state.get("health", "?")),
+        "AMMO": str(state.get("ammo", "?")),
+        "POS": f"({float(state.get('x', 0)):.0f},{float(state.get('y', 0)):.0f},{float(state.get('z', 0)):.0f})",
+        "YAW": f"{float(state.get('yaw', 0)):.0f}",
+        "AREA": str(area),
+        "INTENT": str(target)[:40],
+        "PAUSED": "YES" if state.get("is_paused_for_assess") else "no",
+        "TICK": str(state.get("tick_count", 0)),
     }
 
 
@@ -131,6 +225,30 @@ def _build_argparser() -> argparse.ArgumentParser:
     p.add_argument("--max-distance", type=float, default=1024.0)
     p.add_argument("--max-areas", type=int, default=20)
     p.add_argument("--fps", type=int, default=30)
+    p.add_argument(
+        "--live",
+        action="store_true",
+        help=f"read bot pose from {LIVE_STATE_PATH_DEFAULT} each frame (requires "
+             "item_tour.py running in parallel)",
+    )
+    p.add_argument(
+        "--live-state",
+        default=LIVE_STATE_PATH_DEFAULT,
+        help="path to HUD state JSON (defaults to ./tmp/oa_hud_state.json)",
+    )
+    p.add_argument(
+        "--no-room",
+        action="store_true",
+        help="skip the holodeck room-frame aesthetic chrome; render only the "
+             "AAS world geometry (recommended with --live for a clean first-"
+             "person view of what the bot sees)",
+    )
+    p.add_argument(
+        "--show-pygame",
+        action="store_true",
+        help="display frames in a pygame window (works with "
+             "opencv-python-headless, unlike --show which needs cv2.imshow)",
+    )
     return p
 
 
@@ -174,25 +292,64 @@ def main(argv: Optional[List[str]] = None) -> int:
     }
     imshow_warn = [False]
 
+    # --live mode: read pose + extras from the HUD state file every frame.
+    # Keep the last-good pose if the file vanishes mid-tour so we don't
+    # stutter on momentary write races.
+    live_pos: Point3 = pos
+    live_yaw: float = args.yaw
+    live_extras: Optional[Dict[str, object]] = None
+    draw_room = not args.no_room
+    if args.live:
+        log.info("LIVE mode: polling %s for bot pose", args.live_state)
+        log.info("draw_room_frame=%s (use --no-room to disable)", draw_room)
+
+    # --show-pygame: open a pygame window that displays each frame
+    pg_display: Optional[_PygameDisplay] = None
+    if args.show_pygame:
+        try:
+            pg_display = _PygameDisplay(cfg.width, cfg.height,
+                                        title="Phase 11 — Wireframe Perception")
+            log.info("pygame display opened (%dx%d)", cfg.width, cfg.height)
+        except Exception as e:
+            log.warning("pygame display failed to open: %s", e)
+
     start = time.time()
     frame_idx = 0
     try:
         while True:
             t0 = time.perf_counter()
-            if args.orbit:
-                yaw = (args.yaw + frame_idx * 2.0) % 360.0
+
+            if args.live:
+                state = _read_live_state(args.live_state)
+                if state is not None:
+                    pose = _extract_pose_from_state(state)
+                    if pose is not None:
+                        live_pos, live_yaw = pose
+                    live_extras = _live_hud_extras(state)
+                pos_this_frame = live_pos
+                yaw_this_frame = live_yaw
+                hud_extras = live_extras or _synth_hud_state(frame_idx, live_pos, live_yaw)
+            elif args.orbit:
+                pos_this_frame = pos
+                yaw_this_frame = (args.yaw + frame_idx * 2.0) % 360.0
+                hud_extras = _synth_hud_state(frame_idx, pos_this_frame, yaw_this_frame)
             else:
-                yaw = args.yaw
+                pos_this_frame = pos
+                yaw_this_frame = args.yaw
+                hud_extras = _synth_hud_state(frame_idx, pos_this_frame, yaw_this_frame)
 
             ts = time.perf_counter()
-            scene = backend.build_scene(pos, yaw, args.max_distance, args.max_areas)
+            scene = backend.build_scene(
+                pos_this_frame, yaw_this_frame, args.max_distance, args.max_areas
+            )
             stage_times["build_scene"].append((time.perf_counter() - ts) * 1000)
 
             ts = time.perf_counter()
             frame = renderer.render(
-                pos, yaw, scene,
-                extra_hud=_synth_hud_state(frame_idx, pos, yaw),
+                pos_this_frame, yaw_this_frame, scene,
+                extra_hud=hud_extras,
                 state={"frame": frame_idx, "src_width": cfg.width, "src_height": cfg.height},
+                draw_room_frame=draw_room,
             )
             stage_times["render"].append((time.perf_counter() - ts) * 1000)
 
@@ -202,6 +359,10 @@ def main(argv: Optional[List[str]] = None) -> int:
 
             if args.show:
                 _try_imshow(frame, imshow_warn)
+            if pg_display is not None:
+                if not pg_display.show(frame):
+                    log.info("pygame window closed by user — exiting")
+                    break
 
             stage_times["total"].append((time.perf_counter() - t0) * 1000)
 
@@ -215,6 +376,8 @@ def main(argv: Optional[List[str]] = None) -> int:
                 cv2.destroyAllWindows()
             except cv2.error:
                 pass
+        if pg_display is not None:
+            pg_display.close()
 
     log.info("Wrote %d frames to %s", frame_idx + 1, out_path)
     if args.profile and stage_times["total"]:

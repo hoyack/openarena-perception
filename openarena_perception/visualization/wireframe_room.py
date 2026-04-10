@@ -85,12 +85,17 @@ class WireframeRoomRenderer:
         scene: SceneGeometry,
         extra_hud: Optional[Mapping[str, Any]] = None,
         state: Optional[Mapping[str, Any]] = None,
+        draw_room_frame: bool = True,
     ) -> np.ndarray:
         cfg = self.cfg
         frame = np.full((cfg.height, cfg.width, 3), cfg.bg_color, dtype=np.uint8)
 
-        # 1. Room frame (already camera space)
-        self._draw_segments(frame, self._room_segments, fixed_color=None)
+        # 1. Room frame (already camera space) — optional aesthetic chrome.
+        # When drawing live from the bot's perspective, the static frame
+        # competes visually with the AAS geometry; pass draw_room_frame=False
+        # to render only the world geometry.
+        if draw_room_frame:
+            self._draw_segments(frame, self._room_segments, fixed_color=None)
 
         # 2. Scene walls (camera space — sort back-to-front)
         scene_walls_sorted = sorted(scene.walls, key=_seg_midpoint_z, reverse=True)
