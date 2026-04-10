@@ -32,9 +32,14 @@ from typing import Tuple
 
 # ── Config ──────────────────────────────────────────────────────────
 
-HUD_WIDTH = 600
+HUD_WIDTH = 1000           # Phase 10-03: widened from 600 to fit right-side intent panel
 HUD_HEIGHT = 700
 MINIMAP_SIZE = 400
+MINIMAP_MARGIN = 100       # hard-coded so the minimap stays left-anchored after widening
+                           # (previously derived from (HUD_WIDTH - MINIMAP_SIZE) // 2 which
+                           #  would re-center into the new 1000px window)
+INTENT_PANEL_X = 600       # right-side intent panel starts here
+INTENT_PANEL_PAD = 20      # internal padding for the intent panel
 FPS = 10
 # Phase 10-01: project-root-relative runtime dir. strategic_hud.py lives at
 # the repo root, so Path(__file__).parent IS the project root. This file
@@ -62,6 +67,18 @@ TEXT_COLOR = (200, 200, 200)
 TEXT_DIM = (120, 120, 140)
 ALERT_COLOR = (255, 80, 80)
 OK_COLOR = (80, 255, 80)
+
+# Phase 10-03: intent panel colors
+INTENT_CURRENT = (255, 255, 0)
+INTENT_SUB = (255, 255, 255)
+INTENT_HISTORY = (110, 110, 120)
+INTENT_LABEL = (180, 180, 180)
+PROBLEM_WALL = (255, 60, 60)
+PROBLEM_STUCK = (255, 150, 50)
+PROBLEM_PIN = (200, 80, 255)
+PROBLEM_RESPAWN = (80, 220, 255)
+PROBLEM_ADVISOR = (255, 80, 80)
+PAUSE_BORDER = (80, 150, 255)
 
 
 # ── HUD State ───────────────────────────────────────────────────────
@@ -118,11 +135,33 @@ class HUDState:
         self.map_min_y = 600
         self.map_max_y = 1800
 
-    def load(self):
-        """Load state from shared file."""
+        # Phase 10-03: intent / context fields (safe defaults; HUD tolerates
+        # missing keys and missing files by leaving these empty).
+        self.intent: dict = {}
+        self.intent_history: list = []
+        self.problem_history: list = []
+        self.area_history: list = []
+        self.path_progress: dict = {}
+        self.is_paused_for_assess: bool = False
+        self.threat_flag: bool = False
+        self.advisor_sent: int = 0
+        self.advisor_complete: int = 0
+        self.advisor_failed: int = 0
+        self.proactive_halts: int = 0
+        self.tick_count: int = 0
+
+    def load(self, path=None):
+        """Load state from shared file.
+
+        Phase 10-03: accepts an optional ``path`` so the schema contract test
+        can pass an isolated tmp file. Returns ``self`` for chaining.
+        Pre-existing callers that do ``self.state.load()`` (no arg) keep
+        working unchanged — they fall through to the module-level STATE_FILE.
+        """
+        state_path = path if path is not None else STATE_FILE
         try:
-            if os.path.exists(STATE_FILE):
-                with open(STATE_FILE) as f:
+            if os.path.exists(state_path):
+                with open(state_path) as f:
                     d = json.load(f)
                 self.map_name = d.get("map", self.map_name)
                 self.player_x = d.get("x", self.player_x)
@@ -151,6 +190,24 @@ class HUDState:
                 self.brain_state = d.get("brain_state", "")
                 self.disposition = d.get("disposition", "")
 
+                # Phase 10-03: intent / context fields. Every key uses .get()
+                # with a safe default so missing keys never raise -- this keeps
+                # backward compatibility with pre-10-02 HUD JSON files.
+                self.intent = d.get("intent") or {}
+                self.intent_history = d.get("intent_history") or []
+                self.problem_history = d.get("problem_history") or []
+                self.area_history = d.get("area_history") or []
+                self.path_progress = d.get("path_progress") or {}
+                self.is_paused_for_assess = bool(
+                    d.get("is_paused_for_assess", False)
+                )
+                self.threat_flag = bool(d.get("threat_flag", False))
+                self.advisor_sent = int(d.get("advisor_sent", 0) or 0)
+                self.advisor_complete = int(d.get("advisor_complete", 0) or 0)
+                self.advisor_failed = int(d.get("advisor_failed", 0) or 0)
+                self.proactive_halts = int(d.get("proactive_halts", 0) or 0)
+                self.tick_count = int(d.get("tick_count", 0) or 0)
+
                 # Update trail
                 self.trail.append((self.player_x, self.player_y))
                 if len(self.trail) > 500:
@@ -175,6 +232,7 @@ class HUDState:
 
         except Exception:
             pass
+        return self
 
     def load_surveys(self):
         """Load room survey data."""
@@ -208,6 +266,11 @@ class StrategicHUD:
         self.font = pygame.font.SysFont("monospace", 13)
         self.font_lg = pygame.font.SysFont("monospace", 16, bold=True)
         self.font_sm = pygame.font.SysFont("monospace", 10)
+        # Phase 10-03: intent panel fonts
+        self.font_intent = pygame.font.SysFont("monospace", 22, bold=True)
+        self.font_sub = pygame.font.SysFont("monospace", 14)
+        self.font_history = pygame.font.SysFont("monospace", 12)
+        self.font_label = pygame.font.SysFont("monospace", 11, bold=True)
 
     def world_to_minimap(self, wx: float, wy: float) -> Tuple[int, int]:
         """Convert world coords to minimap pixel coords.
@@ -216,7 +279,10 @@ class StrategicHUD:
         s = self.state
         rx = (wx - s.map_min_x) / max(s.map_max_x - s.map_min_x, 1)
         ry = (wy - s.map_min_y) / max(s.map_max_y - s.map_min_y, 1)
-        margin = (HUD_WIDTH - MINIMAP_SIZE) // 2
+        # Phase 10-03: minimap stays LEFT-anchored at MINIMAP_MARGIN after the
+        # window widened from 600 to 1000px. Using (HUD_WIDTH - MINIMAP_SIZE)//2
+        # here would re-center the minimap into the middle of the new panel.
+        margin = MINIMAP_MARGIN
         mx = margin + int(rx * MINIMAP_SIZE)
         my = 50 + MINIMAP_SIZE - int(ry * MINIMAP_SIZE)  # invert Y
         return (mx, my)
@@ -230,7 +296,8 @@ class StrategicHUD:
         self._text(title, HUD_WIDTH // 2, 10, self.font_lg, TEXT_COLOR, center=True)
 
         # ── Minimap background ──
-        margin = (HUD_WIDTH - MINIMAP_SIZE) // 2
+        # Phase 10-03: left-anchored (see world_to_minimap for rationale).
+        margin = MINIMAP_MARGIN
         map_rect = pygame.Rect(margin, 50, MINIMAP_SIZE, MINIMAP_SIZE)
         pygame.draw.rect(self.screen, (30, 30, 40), map_rect)
         pygame.draw.rect(self.screen, GRID, map_rect, 1)
@@ -445,7 +512,150 @@ class StrategicHUD:
                 self._text(f"{prefix} #{oid}: {label}", 20, panel_y, self.font, color)
                 panel_y += 14
 
+        # ── Phase 10-03: right-side intent panel ──
+        self._draw_intent_panel(x_offset=INTENT_PANEL_X)
+
         pygame.display.flip()
+
+    def _draw_intent_panel(self, x_offset: int = INTENT_PANEL_X) -> None:
+        """Render the Phase 10 right-side intent panel.
+
+        Layout (top-to-bottom):
+          - Header label "INTENT"
+          - Current intent box (with optional 2Hz blue flash during pause-to-assess)
+              macro in bright yellow, sub-intent in white, duration counter
+          - Section label "HISTORY" + 5 intent-history rows (dim gray)
+          - Section label "PROBLEMS" + 5 problem-history rows (color-coded by kind)
+          - Section label "PATH" + progress bar
+          - Section label "STATS" + advisor/halt counters + threat badge
+        """
+        s = self.state
+        pad = INTENT_PANEL_PAD
+        x = x_offset + pad
+        y = 20
+
+        # Vertical separator between left and right panels
+        pygame.draw.line(self.screen, GRID,
+                         (x_offset, 0), (x_offset, HUD_HEIGHT), 1)
+
+        # --- Header ---
+        self._text("INTENT", x, y, self.font_label, INTENT_LABEL)
+        y += 20
+
+        # --- Current intent box ---
+        box_x = x
+        box_y = y
+        box_w = (HUD_WIDTH - x_offset) - 2 * pad
+        box_h = 90
+        pygame.draw.rect(self.screen, (40, 40, 50),
+                         (box_x, box_y, box_w, box_h), border_radius=4)
+
+        # 2Hz flashing blue border during pause-to-assess
+        if s.is_paused_for_assess:
+            flash_on = int(time.time() * 2) % 2 == 0
+            if flash_on:
+                pygame.draw.rect(self.screen, PAUSE_BORDER,
+                                 (box_x, box_y, box_w, box_h),
+                                 width=3, border_radius=4)
+
+        intent = s.intent or {}
+        macro = intent.get("macro", "IDLE")
+        sub = intent.get("sub", "") or ""
+        duration_s = intent.get("duration_s", 0.0) or 0.0
+        desc = intent.get("description", "") or ""
+
+        self._text(str(macro), box_x + 10, box_y + 8,
+                   self.font_intent, INTENT_CURRENT)
+        if sub:
+            self._text(str(sub)[:26], box_x + 10, box_y + 36,
+                       self.font_sub, INTENT_SUB)
+        elif desc:
+            self._text(str(desc)[:26], box_x + 10, box_y + 36,
+                       self.font_sub, INTENT_SUB)
+        self._text(f"{float(duration_s):.1f}s", box_x + 10, box_y + 60,
+                   self.font_sub, INTENT_LABEL)
+
+        y = box_y + box_h + 15
+
+        # --- Intent history ---
+        self._text("HISTORY", x, y, self.font_label, INTENT_LABEL)
+        y += 16
+        hist = list(s.intent_history or [])[-5:]
+        for item in hist:
+            if not isinstance(item, dict):
+                continue
+            m = str(item.get("macro", "?"))
+            sb = str(item.get("sub", "") or "")
+            dur = float(item.get("duration_s", 0.0) or 0.0)
+            line = f"{m[:14]:<14s} {sb[:18]:<18s} {dur:>4.1f}s"
+            self._text(line, x, y, self.font_history, INTENT_HISTORY)
+            y += 14
+        # Pad to 5 rows so PROBLEMS stays at a stable y
+        empty_rows = 5 - min(5, len(hist))
+        y += empty_rows * 14
+        y += 10
+
+        # --- Problem history ---
+        self._text("PROBLEMS", x, y, self.font_label, INTENT_LABEL)
+        y += 16
+        problem_colors = {
+            "wall_halt": PROBLEM_WALL,
+            "stuck": PROBLEM_STUCK,
+            "pin": PROBLEM_PIN,
+            "respawn": PROBLEM_RESPAWN,
+            "advisor_halt": PROBLEM_ADVISOR,
+        }
+        probs = list(s.problem_history or [])[-5:]
+        for prob in probs:
+            if not isinstance(prob, dict):
+                continue
+            kind = str(prob.get("kind", "?"))
+            pdesc = str(prob.get("description", "") or "")
+            color = problem_colors.get(kind, (200, 200, 200))
+            line = f"{kind[:12]:<12s} {pdesc[:24]}"
+            self._text(line, x, y, self.font_history, color)
+            y += 14
+        empty_rows = 5 - min(5, len(probs))
+        y += empty_rows * 14
+        y += 10
+
+        # --- Path progress ---
+        self._text("PATH", x, y, self.font_label, INTENT_LABEL)
+        y += 16
+        pp = s.path_progress or {}
+        cur_step = int(pp.get("current_step", 0) or 0)
+        total_steps = int(pp.get("total_steps", 0) or 0)
+        self._text(f"{cur_step}/{total_steps}", x, y,
+                   self.font_history, INTENT_SUB)
+        bar_y = y + 16
+        bar_w = box_w
+        bar_h = 8
+        pygame.draw.rect(self.screen, (60, 60, 70),
+                         (x, bar_y, bar_w, bar_h), border_radius=2)
+        if total_steps > 0:
+            fill_w = int(bar_w * (cur_step / total_steps))
+            if fill_w > 0:
+                pygame.draw.rect(self.screen, INTENT_CURRENT,
+                                 (x, bar_y, fill_w, bar_h), border_radius=2)
+        y = bar_y + bar_h + 15
+
+        # --- Stats ---
+        self._text("STATS", x, y, self.font_label, INTENT_LABEL)
+        y += 16
+        self._text(
+            f"advisor: {s.advisor_sent}/{s.advisor_complete}"
+            f"  failed: {s.advisor_failed}",
+            x, y, self.font_history, INTENT_SUB,
+        )
+        y += 14
+        self._text(f"halts: {s.proactive_halts}  tick: {s.tick_count}",
+                   x, y, self.font_history, INTENT_SUB)
+        y += 14
+
+        # Threat badge
+        threat_color = PROBLEM_WALL if s.threat_flag else (100, 200, 100)
+        threat_text = "THREAT" if s.threat_flag else "no threat"
+        self._text(threat_text, x, y, self.font_history, threat_color)
 
     def _text(self, text: str, x: int, y: int, font, color, center=False):
         surf = font.render(text, True, color)
