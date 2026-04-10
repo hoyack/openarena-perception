@@ -212,7 +212,7 @@ Plans:
 **Goal:** Holodeck-style 3D wireframe perception debug view that renders a first-person perspective grid room (floor, ceiling, walls) with detected obstacles overlaid as colored wireframe boxes, driven by monocular depth estimation (Depth Anything V2), exposing what the bot "sees" spatially for debugging and operator observability
 **Requirements**: TBD (PRD provided inline — see 11-PRD.md)
 **Depends on:** Phase 10
-**Plans:** 1/3 plans executed
+**Plans:** 2/3 plans executed
 
 Plans:
 - [ ] TBD (run /gsd-plan-phase 11 --prd .planning/phases/11-wireframe-perception-grid/11-PRD.md to break down)
