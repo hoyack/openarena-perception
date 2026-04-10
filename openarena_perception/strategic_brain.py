@@ -20,7 +20,6 @@ LLM is used strategically (not every tick).
 
 from __future__ import annotations
 
-import json
 import logging
 import os
 import time
@@ -30,6 +29,14 @@ from .commander import Commander
 from .damage_tracker import DamageTracker
 from .game_bridge import GameBridge
 from .game_state import GameState
+from .hud_schema import (
+    STATE_FILE as _HUD_STATE_FILE,
+)
+from .hud_schema import (
+    build_hud_payload,
+    ensure_runtime_dirs,
+    write_hud_state,
+)
 from .learned_map import LearnedMap
 from .models import BrainState, SituationalAwareness, SpatialKnowledge
 from .motion_anomaly import MotionAnomalyTracker
@@ -134,7 +141,10 @@ class StrategicBrain:
     Owns the state machine, delegates all behavior to subsystem modules.
     """
 
-    STATE_FILE = "/tmp/oa_hud_state.json"
+    # Back-compat alias for any code that referenced StrategicBrain.STATE_FILE
+    # as a class attribute. New code should import hud_schema.STATE_FILE
+    # directly. (Pitfall 6 from 10-RESEARCH.md.)
+    STATE_FILE = _HUD_STATE_FILE
 
     def __init__(
         self,
@@ -437,8 +447,14 @@ class StrategicBrain:
             pass
 
     def _export_hud(self, sa):
+        """Write the HUD state file via centralized hud_schema (Phase 10-01).
+
+        Every pre-existing key is preserved verbatim via `extras=` so the
+        HUD reader sees the same schema as before.
+        """
         try:
-            state = {
+            ensure_runtime_dirs()
+            legacy_fields = {
                 "map": self.map_name,
                 "x": sa.pos[0] if sa.pos else 0,
                 "y": sa.pos[1] if sa.pos else 0,
@@ -469,9 +485,7 @@ class StrategicBrain:
                 "items_collected": self._items_collected,
                 "learned_map": self.learned_map.export_for_hud(),
             }
-            tmp = self.STATE_FILE + ".tmp"
-            with open(tmp, "w") as f:
-                json.dump(state, f)
-            os.replace(tmp, self.STATE_FILE)
+            payload = build_hud_payload(extras=legacy_fields)
+            write_hud_state(payload)
         except Exception:
             pass

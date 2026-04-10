@@ -33,15 +33,23 @@ import numpy as np
 
 sys.path.insert(0, os.path.dirname(__file__))
 
-from openarena_perception import build_config, PerceptionLoop, GameState
+from openarena_perception import GameState, PerceptionLoop, build_config
+from openarena_perception.aas_parser import (
+    TRAVEL_BARRIERJUMP,
+    TRAVEL_JUMP,
+    TRAVEL_JUMPPAD,
+    TRAVEL_LADDER,
+    TRAVEL_WALKOFFLEDGE,
+)
 from openarena_perception.game_bridge import GameBridge
+from openarena_perception.hud_schema import (
+    build_hud_payload,
+    ensure_runtime_dirs,
+    write_hud_state,
+)
+from openarena_perception.motion_anomaly import MotionAnomalyTracker
 from openarena_perception.reactive_agent import ReactiveAgent
 from openarena_perception.room_surveyor import RoomSurveyor
-from openarena_perception.motion_anomaly import MotionAnomalyTracker
-from openarena_perception.aas_parser import (
-    TRAVEL_JUMP, TRAVEL_JUMPPAD, TRAVEL_BARRIERJUMP,
-    TRAVEL_WALKOFFLEDGE, TRAVEL_LADDER,
-)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -235,6 +243,9 @@ class ItemTour:
 
     def __init__(self, args):
         self.args = args
+        # Ensure ./tmp/ and ./logs/ exist before any HUD export or log file
+        # handler opens (Phase 10-01: project-root runtime dirs).
+        ensure_runtime_dirs()
         self.cfg = build_config(resolution="800x600", enemy_color_mode="red")
 
         self.bridge = GameBridge(rcon_password=args.rcon_password)
@@ -383,8 +394,9 @@ class ItemTour:
 
         # If we spawned in a poorly-connected area (few reachable items),
         # walk around to find a better-connected area before starting the tour
-        from openarena_perception.navigation.aas_parser import parse_aas
         import collections
+
+        from openarena_perception.navigation.aas_parser import parse_aas
         max_relocate = 5
         for relocate in range(max_relocate):
             # Quick connectivity check from current area (no swim)
@@ -1054,17 +1066,19 @@ class ItemTour:
         # or release_all will clear them, so we don't over-turn.
 
     def _export_hud(self, gs):
-        """Write /tmp/oa_hud_state.json for the companion strategic_hud.py.
+        """Write ./tmp/oa_hud_state.json for the companion strategic_hud.py.
 
-        Mirrors the schema from StrategicBrain._export_hud so the HUD works
-        unchanged with item_tour. Called every 6 ticks from the tick loop.
+        Delegates to openarena_perception.hud_schema (Phase 10-01). Every
+        pre-existing key is preserved verbatim via the `extras` dict so the
+        HUD reader sees the same schema as before. Called every 6 ticks
+        from the tick loop.
         """
         try:
             nav = self.agent.nav
             pos = nav.pos or (0, 0, 0)
             # Build route waypoint list compatible with HUD schema
             items = [[name, x, y, z] for (name, x, y, z) in self._route]
-            state = {
+            legacy_fields = {
                 "map": getattr(self.agent, "map_name", "oa_dm1"),
                 "x": pos[0], "y": pos[1], "z": pos[2],
                 "yaw": nav.yaw,
@@ -1099,10 +1113,8 @@ class ItemTour:
                 "visual_pin_hits": self._visual_pin_hits,
                 "advisor_stats": self.advisor.stats() if hasattr(self, "advisor") else {},
             }
-            tmp = "/tmp/oa_hud_state.json.tmp"
-            with open(tmp, "w") as f:
-                json.dump(state, f)
-            os.replace(tmp, "/tmp/oa_hud_state.json")
+            payload = build_hud_payload(extras=legacy_fields)
+            write_hud_state(payload)
         except Exception as e:
             log.debug("HUD export failed: %s", e)
 
