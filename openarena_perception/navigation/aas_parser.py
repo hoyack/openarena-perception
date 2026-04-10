@@ -59,6 +59,8 @@ class AASArea:
     cx: float
     cy: float
     cz: float
+    mins: Tuple[float, float, float] = (0.0, 0.0, 0.0)
+    maxs: Tuple[float, float, float] = (0.0, 0.0, 0.0)
     is_liquid: bool = False
     neighbors: List[int] = field(default_factory=list)
     travel_types: List[int] = field(default_factory=list)
@@ -124,11 +126,23 @@ def parse_aas(filepath: str) -> Optional[AASGraph]:
         return None
 
     # Parse areas
+    # NOTE: this parser reads three lumps (areas=7, areasettings=8, reach=9).
+    # Lumps 0-6 contain bboxes/vertexes/planes/edges/edgeindex/faces/faceindex,
+    # providing the full polyhedral mesh. Decoding them would enable pixel-accurate
+    # wall rendering; currently AASDepthBackend uses the per-area AABB only.
+    # See .planning/phases/11-wireframe-perception-grid/11-RESEARCH.md for the
+    # full lump table and byte offsets.
     areas = []
     for i in range(num_areas):
         base = ofs_a + i * 48
+        mins = struct.unpack_from('<3f', data, base + 12)
+        maxs = struct.unpack_from('<3f', data, base + 24)
         center = struct.unpack_from('<3f', data, base + 36)
-        areas.append(AASArea(idx=i, cx=center[0], cy=center[1], cz=center[2]))
+        areas.append(AASArea(
+            idx=i,
+            cx=center[0], cy=center[1], cz=center[2],
+            mins=mins, maxs=maxs,
+        ))
 
     # Parse area settings: flags (liquid detection) + firstReach
     first_reaches = []
