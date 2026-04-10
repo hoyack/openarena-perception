@@ -1,0 +1,43 @@
+{
+  "version": "1.0",
+  "timestamp": "2026-04-10T11:57:05.725Z",
+  "context": "post-milestone-feature-work",
+  "phase": null,
+  "phase_name": "tour-navigation-improvements",
+  "phase_dir": null,
+  "status": "paused",
+  "session_focus": "Building async LLM spatial advisor for real-time bot navigation. User observed bot walking off lofts into lava, circling rooms hitting walls, failing to find stairs. Solution: background Ollama thread that provides hazard warnings and spatial narrative every 2.5s.",
+  "completed_tasks": [
+    {"id": 1, "name": "Spatial advisor module (strategy/advisor.py) — 405 lines, full implementation", "status": "done", "commit": "b711479"},
+    {"id": 2, "name": "Advisor prompts (strategy/advisor_prompts.py) with trail summary + goal description", "status": "done", "commit": "b711479"},
+    {"id": 3, "name": "item_tour.py integration — init, trail recording, dispatch every tick, is_hazard_ahead halt check, _execute_advisor_action helper, shutdown", "status": "done", "commit": "b711479"},
+    {"id": 4, "name": "19 unit tests for advisor (trail buffer, staleness detection, response application, warning freshness, stats)", "status": "done", "commit": "b711479"},
+    {"id": 5, "name": "Defensive key release in GameBridge.open() — fixes bot walking forever after crashed predecessor", "status": "done", "commit": "57b7bc7"},
+    {"id": 6, "name": "item_tour.py SIGHUP handler + startup release_all()", "status": "done", "commit": "57b7bc7"}
+  ],
+  "remaining_tasks": [
+    {"id": 7, "name": "Live test: run tour with OA_ADVISOR_MODEL=gemma4:31b-cloud, verify ADVISOR HALT fires before ledge walks", "status": "not_started", "priority": "high"},
+    {"id": 8, "name": "Tune prompt based on actual Ollama responses — hazard severity thresholds, action_hint accuracy", "status": "not_started", "priority": "medium"},
+    {"id": 9, "name": "Add navigator→advisor stuck-diagnosis hook (when stuck_count>=2, query advisor for targeted fix)", "status": "not_started", "priority": "medium"},
+    {"id": 10, "name": "Evaluate if 2.5s interval is fast enough for hazard prevention, or if we need a fast-path for lava detection", "status": "not_started", "priority": "medium"},
+    {"id": 11, "name": "Test the mirror portal puzzle area — use portal/door visual detector from wall_detector.py", "status": "not_started", "priority": "low"}
+  ],
+  "blockers": [
+    {"description": "Only gemma4:31b-cloud available in ollama (no local gemma3:4b); cloud model has higher latency (~4s)", "type": "external", "workaround": "Use OA_ADVISOR_MODEL=gemma4:31b-cloud env var; accept higher latency for now"}
+  ],
+  "human_actions_pending": [
+    {"action": "Ensure OpenArena game is running on oa_dm1 with pipe + RCON", "context": "Tour requires live game", "blocking": true},
+    {"action": "Monitor live tour run and report observations (did advisor catch the ledge? did stairs work?)", "context": "Visual observation needed to verify LLM advice quality", "blocking": false}
+  ],
+  "decisions": [
+    {"decision": "Single-thought-in-flight throttle (no queue)", "rationale": "Simpler; thoughts supersede each other via staleness check; prevents Ollama flooding"},
+    {"decision": "200 unit distance staleness threshold", "rationale": "Bot walks ~100-200 units in the 2-4s a thought takes; anything more is a different spatial context"},
+    {"decision": "5 second warning freshness window", "rationale": "Matches dispatch interval + typical thought roundtrip; older warnings are almost certainly obsolete"},
+    {"decision": "Halt only on high-severity ahead hazards (lava/ledge/drop)", "rationale": "Medium/low hazards should not block normal navigation; only prevent definite deaths"},
+    {"decision": "Defensive release_all on GameBridge.open()", "rationale": "Pipe state persists across processes; previous crash can leave keys held indefinitely"},
+    {"decision": "release_all(force=True) sends -action for ALL known keys, not just tracked ones", "rationale": "A new process cannot know what keys a crashed predecessor held; unconditional release is the only safe option"}
+  ],
+  "uncommitted_files": [],
+  "next_action": "Run tour with advisor enabled: OA_ADVISOR_MODEL='gemma4:31b-cloud' DISPLAY=:0 uv run python item_tour.py --no-vision > /tmp/tour.log 2>&1 — watch for ADVISOR HALT messages, check thoughts_sent/complete/stale stats",
+  "context_notes": "Tour navigation is in good shape after multiple fixes this session. The spatial advisor is the new feature: async LLM thinking loop that provides real-time hazard warnings. All code is tested and committed. Live-run verification is the only thing missing. Also committed a defensive key release fix because the bot would keep walking forever after crashes."
+}
