@@ -252,6 +252,21 @@ class ItemTour:
         self.agent.combat_enabled = False
         self.bridge.close()
 
+        # Learned map — tracks walls, edge failures, occupancy grid
+        from openarena_perception.navigation.learned_map import LearnedMap
+        self.learned_map = LearnedMap(map_name=map_name, aas_graph=self.agent.nav.graph)
+        self.learned_map.load()
+        # Wire edge cost penalty into navigator's A*
+        self.agent.nav._edge_cost_fn = self.learned_map.edge_penalty
+        # Wire edge success/failure callbacks
+        def on_area_transition(from_area, to_area, success):
+            if success:
+                self.learned_map.record_edge_success(from_area, to_area)
+            else:
+                self.learned_map.record_edge_failure(from_area, to_area)
+        self.agent.nav._on_area_transition = on_area_transition
+        log.info("Learned map loaded: %s", self.learned_map.map_name)
+
         # Subsystems
         use_vision = not args.no_vision
         self.vision = VisionHelper() if use_vision else None
@@ -407,6 +422,17 @@ class ItemTour:
         # Update position
         self.agent.nav.update_position()
         self.agent.nav.check_stuck_cleanup()
+
+        # Update learned map with wall detection every tick
+        if self.agent.nav.pos and gs.frame is not None:
+            from openarena_perception.perception.wall_detector import Perception
+            if not hasattr(self, '_wall_detector'):
+                self._wall_detector = Perception()
+            wall_ahead, wall_score, open_dir = self._wall_detector.detect_wall_ahead(gs.frame)
+            in_water = self._wall_detector.detect_underwater(gs.frame)
+            self.learned_map.update(
+                self.agent.nav.pos, self.agent.nav.yaw,
+                wall_ahead, wall_score, open_dir, in_water)
 
         current_area = self.agent.nav.current_area
 
@@ -759,6 +785,11 @@ class ItemTour:
 
     def _shutdown(self):
         log.info("Shutting down...")
+        # Save learned map before exit
+        self.learned_map.save()
+        stats = self.learned_map.export_for_hud()
+        log.info("Learned map saved: %d updates, %d edge failures",
+                 stats.get("updates", 0), len(self.learned_map._edge_failures))
         self.agent.shutdown()
         self.bridge.close()
         log.info("Tours: %d | Deaths: %d", self._tours_done, self._deaths)
