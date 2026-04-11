@@ -223,7 +223,7 @@ Plans:
 **Goal:** Deliver a standalone debug/observability app called **Open-Perception** that consolidates the Phase 10 strategic HUD (disposition, intent panel, minimap, problem history) and the Phase 11 wireframe face-mesh view into a single unified window. Verbose bot status details with one canonical display per metric (no duplication across panels). The app reads the same `./tmp/oa_hud_state.json` state file and renders at the same cadence as a Phase 10 HUD, but with the Phase 11 wireframe view embedded as a first-person perspective panel inside the same window.
 **Requirements**: TBD
 **Depends on:** Phase 11
-**Plans:** 1/3 plans executed
+**Plans:** 2/3 plans executed
 
 Plans:
 - [ ] TBD (run /gsd-plan-phase 12 to break down)
