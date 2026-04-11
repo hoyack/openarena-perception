@@ -129,6 +129,21 @@ Requirements for initial release. Each maps to roadmap phases.
 
 Deferred to future release. Tracked but not in current roadmap.
 
+### Open-Perception UI (Phase 12)
+
+- [x] **OP-01**: HUD schema `build_hud_payload` exposes 7 verbose telemetry kwargs (stair_climb_state, swim_edge_state, advisor_last_thought, last_replan_steps, tick_rate_fps, frame_lag_ms, nav_current_step_area) — backward-compatible optional kwargs
+- [x] **OP-02**: Navigator exposes replan hook, swim-edge transition tracking, `current_step_area` property; PerceptionLoop exposes `last_tick_ms`
+- [x] **OP-03**: `item_tour._export_hud` fills all 7 verbose fields from live navigator/advisor/loop state
+- [x] **OP-04**: `openarena_perception.visualization.panels` subpackage with MinimapPanel, WireframePanel, StatsPanel
+- [x] **OP-05**: `render_hud(decoration_only=True)` suppresses numeric overlays while keeping chrome
+- [x] **OP-06**: WireframePanel draws first-person face-mesh decoration-only into a sub-surface (BGR->RGB swap)
+- [x] **OP-07**: StatsPanel renders 6 sub-blocks including 9 verbose telemetry rows with None placeholders
+- [x] **OP-08**: `open_perception.py` app entry point with argparse + pygame main loop at 10 FPS
+- [x] **OP-09**: 1400x700 three-panel layout composed via `screen.subsurface` with vertical separators at x=400 and x=1000
+- [x] **OP-10**: Legacy files `strategic_hud.py` and `openarena_perception/visualization/demo_wireframe_room.py` deleted
+- [x] **OP-11**: Contract test rewritten against `open_perception.HUDState` (no `import strategic_hud` in active code)
+- [x] **OP-12**: Visual human verification of the unified HUD with live bot
+
 ### Advanced
 
 - **ADV-01**: Multi-agent coordination for team game modes
@@ -238,10 +253,22 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DOCS-04 | Phase 9 | Complete |
 | DOCS-05 | Phase 9 | Complete |
 | DOCS-06 | Phase 9 | Complete |
+| OP-01 | Phase 12 | Complete |
+| OP-02 | Phase 12 | Complete |
+| OP-03 | Phase 12 | Complete |
+| OP-04 | Phase 12 | Complete |
+| OP-05 | Phase 12 | Complete |
+| OP-06 | Phase 12 | Complete |
+| OP-07 | Phase 12 | Complete |
+| OP-08 | Phase 12 | Complete |
+| OP-09 | Phase 12 | Complete |
+| OP-10 | Phase 12 | Complete |
+| OP-11 | Phase 12 | Complete |
+| OP-12 | Phase 12 | Complete |
 
 **Coverage:**
-- v1 requirements: 76 total
-- Mapped to phases: 76
+- v1 requirements: 88 total
+- Mapped to phases: 88
 - Unmapped: 0
 
 ---

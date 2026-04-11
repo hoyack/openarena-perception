@@ -23,7 +23,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 9: Testing and Documentation** - Comprehensive test suite and full documentation site (completed 2026-04-09)
 - [x] **Phase 10: Intent System and HUD Companion** - Granular intent tracking, brain context memory, pygame HUD companion, and runtime artifact organization (completed 2026-04-10 — first successful full tour, 0 deaths, 20 FPS)
 - [x] **Phase 11: Wireframe Perception Grid** - AAS-driven first-person wireframe debug view with face mesh walls, live pose integration, and CRT HUD chrome (completed 2026-04-10 via Version B pivot + Path B face mesh rework)
-- [ ] **Phase 12: Open-Perception UI** - Standalone unified debug app consolidating strategic HUD (disposition + intent + minimap) and wireframe grid view with deduplicated metrics and verbose bot status details
+- [x] **Phase 12: Open-Perception UI** - Standalone unified debug app consolidating strategic HUD (disposition + intent + minimap) and wireframe grid view with deduplicated metrics and verbose bot status details (completed 2026-04-11)
 
 ## Phase Details
 
@@ -223,7 +223,7 @@ Plans:
 **Goal:** Deliver a standalone debug/observability app called **Open-Perception** that consolidates the Phase 10 strategic HUD (disposition, intent panel, minimap, problem history) and the Phase 11 wireframe face-mesh view into a single unified window. Verbose bot status details with one canonical display per metric (no duplication across panels). The app reads the same `./tmp/oa_hud_state.json` state file and renders at the same cadence as a Phase 10 HUD, but with the Phase 11 wireframe view embedded as a first-person perspective panel inside the same window.
 **Requirements**: TBD
 **Depends on:** Phase 11
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 
 Plans:
 - [ ] TBD (run /gsd-plan-phase 12 to break down)
