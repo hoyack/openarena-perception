@@ -343,8 +343,15 @@ class ItemTour:
         # 500ms (distance-gain from the wall matters). Learned-map-only halts drop
         # to 150ms so a noisy forward-look-ahead trip nudges the bot instead of
         # rotating 30-60 degrees per fire.
-        self._AVOIDANCE_DURATION_VISION = 0.5   # seconds — vision/visual_pin halts
+        self._AVOIDANCE_DURATION_VISION = 0.2   # 0.2s (was 0.5s) — the re-commit chain fix (quick task 260411-gzi) reduces per-tap rotation; combined with a 1.0s throttle the bot gets real +forward time between halts. See .planning/debug/bot-wall-gazing-regression.md fix path D and quick task 260411-gzi.
         self._AVOIDANCE_DURATION_LM = 0.15      # seconds — learned_map-only halts
+
+        # Quick task 260411-gzi: consecutive-same-hint cap. If the picker keeps
+        # selecting the same turn direction, the turn isn't clearing the wall —
+        # break the feedback loop by escalating to back_away + replan on 3rd fire.
+        self._last_hint_for_halt = None
+        self._consecutive_hint_count = 0
+        self._CONSECUTIVE_HINT_CAP = 3
 
         # Fix B: visual pin detector — detect "walking but screen stays the
         # same" (bot wedged against geometry the wall_detector can't see, like
@@ -748,7 +755,7 @@ class ItemTour:
         # waits for stuck detection to catch up.
         # Throttled to once per 0.5s to avoid flapping during micro-dodges.
         if (self.agent.nav.pos is not None
-                and now - self._last_proactive_halt > 0.5
+                and now - self._last_proactive_halt > 1.0  # 1.0s throttle gives the bot real +forward time between halts so we can observe whether the turn actually cleared the wall before committing to another turn (quick task 260411-gzi).
                 and not self.agent.nav.is_recovering):
             halt_reason = self._check_proactive_wall(
                 self.agent.nav.pos, self.agent.nav.yaw,
@@ -791,6 +798,26 @@ class ItemTour:
                 else:
                     # Both sides look closed — back away and re-survey
                     hint = "back_away"
+
+                # Consecutive-same-hint cap (quick task 260411-gzi): if we picked the
+                # same turn direction N times in a row without forward progress, the
+                # turn isn't clearing the wall. Force back_away + replan.
+                if hint == self._last_hint_for_halt:
+                    self._consecutive_hint_count += 1
+                else:
+                    self._consecutive_hint_count = 1
+                    self._last_hint_for_halt = hint
+
+                if self._consecutive_hint_count >= self._CONSECUTIVE_HINT_CAP:
+                    log.warning(
+                        "HINT ESCALATION: %s fired %d times consecutively -> back_away + replan",
+                        hint, self._consecutive_hint_count,
+                    )
+                    hint = "back_away"
+                    self._consecutive_hint_count = 0
+                    self._last_hint_for_halt = hint
+                    if self._route_idx < len(self._route):
+                        self._goto_next()
 
                 log.warning("PROACTIVE WALL HALT: %s (score=%.2f streak=%d pin=%d vpin=%d) -> %s",
                             halt_reason, wall_score, self._wall_vision_streak,
@@ -849,6 +876,10 @@ class ItemTour:
                 if dist > self._PIN_RADIUS * 2:
                     self._pin_origin = None
                     self._pin_count = 0
+            # Quick task 260411-gzi: reset consecutive-hint tracking on successful
+            # forward movement so a fresh halt chain can't inherit stale counts.
+            self._last_hint_for_halt = None
+            self._consecutive_hint_count = 0
 
         current_area = self.agent.nav.current_area
 
