@@ -20,6 +20,7 @@ import atexit
 import base64
 import json
 import logging
+from collections import deque
 import math
 import os
 import signal
@@ -288,6 +289,14 @@ class ItemTour:
             else:
                 self.learned_map.record_edge_failure(from_area, to_area)
         self.agent.nav._on_area_transition = on_area_transition
+
+        # Phase 12-01: track the last 3 re-plan step counts so the HUD can
+        # show the path volatility trend ("3 -> 4 -> 6"). Installed
+        # post-hoc because Navigator is constructed inside ReactiveAgent
+        # and does not yet accept hook kwargs from this caller.
+        self._recent_replan_steps: deque[int] = deque(maxlen=3)
+        self.agent.nav._on_replan = self._on_replan_tracked
+
         log.info("Learned map loaded: %s", self.learned_map.map_name)
 
         # Spatial advisor — async LLM loop for hazard detection and guidance
@@ -1266,6 +1275,11 @@ class ItemTour:
         # Note: these keys stay held briefly. The next tick's handle_stuck
         # or release_all will clear them, so we don't over-turn.
 
+    def _on_replan_tracked(self, step_count: int) -> None:
+        """Navigator replan callback — appends the new step count to the
+        bounded history used by the HUD verbose telemetry (Phase 12-01)."""
+        self._recent_replan_steps.append(int(step_count))
+
     def _export_hud(self, gs):
         """Write ./tmp/oa_hud_state.json for the companion strategic_hud.py.
 
@@ -1314,10 +1328,35 @@ class ItemTour:
                 "visual_pin_hits": self._visual_pin_hits,
                 "advisor_stats": self.advisor.stats() if hasattr(self, "advisor") else {},
             }
+            # Phase 12-01: verbose telemetry fields for the Open-Perception UI
+            stair_climb_state = (
+                f"climbing target_area={nav.current_step_area}"
+                if nav.is_climbing_stairs and nav.current_step_area is not None
+                else "idle"
+            )
+            swim_edge_state = nav.swim_edge_state_str() or "clear"
+            advisor_thought = None
+            if getattr(self, "advisor", None) is not None:
+                try:
+                    narrative = self.advisor.current_narrative()
+                    advisor_thought = narrative[:80] if narrative else None
+                except Exception:
+                    advisor_thought = None
+            tick_rate = getattr(self.loop, "avg_fps", None) if hasattr(self, "loop") else None
+            frame_lag = getattr(self.loop, "last_tick_ms", None) if hasattr(self, "loop") else None
+            replan_list = list(self._recent_replan_steps) if self._recent_replan_steps else None
+
             payload = build_hud_payload(
                 context=self.context,
                 is_paused_for_assess=(time.time() < self._intent_pause_until),
                 threat_flag=self.threat_flag,
+                stair_climb_state=stair_climb_state,
+                swim_edge_state=swim_edge_state,
+                advisor_last_thought=advisor_thought,
+                last_replan_steps=replan_list,
+                tick_rate_fps=tick_rate,
+                frame_lag_ms=frame_lag,
+                nav_current_step_area=nav.current_step_area,
                 extras=legacy_fields,
             )
             write_hud_state(payload)

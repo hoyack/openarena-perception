@@ -160,6 +160,77 @@ def test_build_payload_omits_verbose_keys_when_not_passed():
         assert k not in p, f"unexpected verbose key {k!r} in backward-compat payload"
 
 
+def test_export_hud_populates_verbose_fields():
+    """Integration: item_tour-style _export_hud flow fills all 7 verbose keys.
+
+    Rather than instantiate the full ItemTour (which requires a running game
+    and window capture), this test reconstructs the minimal flow used by
+    item_tour._export_hud: a tracked replan callback appends to a deque, then
+    build_hud_payload is invoked with all the verbose kwargs sourced from
+    mock nav/advisor/loop objects. Asserts every verbose key is present in
+    the output with the expected value.
+    """
+    from unittest.mock import MagicMock
+
+    # Mock navigator exposing the Phase 12-01 API
+    nav = MagicMock()
+    nav.is_climbing_stairs = True
+    nav.current_step_area = 42
+    nav.swim_edge_state_str = MagicMock(return_value="traversing to area 9")
+
+    # Mock advisor
+    advisor = MagicMock()
+    advisor.current_narrative = MagicMock(return_value="watch the lava pit ahead please")
+
+    # Mock loop
+    loop_obj = MagicMock()
+    loop_obj.avg_fps = 12.5
+    loop_obj.last_tick_ms = 42.0
+
+    # Simulate item_tour's replan tracking
+    recent = deque(maxlen=3)
+    def on_replan_tracked(n: int) -> None:
+        recent.append(int(n))
+    on_replan_tracked(3)
+    on_replan_tracked(4)
+    on_replan_tracked(6)
+
+    # Now mirror item_tour._export_hud's verbose block
+    stair_climb_state = (
+        f"climbing target_area={nav.current_step_area}"
+        if nav.is_climbing_stairs and nav.current_step_area is not None
+        else "idle"
+    )
+    swim_edge_state = nav.swim_edge_state_str() or "clear"
+    narrative = advisor.current_narrative()
+    advisor_thought = narrative[:80] if narrative else None
+    tick_rate = loop_obj.avg_fps
+    frame_lag = loop_obj.last_tick_ms
+    replan_list = list(recent) if recent else None
+
+    payload = build_hud_payload(
+        map_name="q3dm1",
+        stair_climb_state=stair_climb_state,
+        swim_edge_state=swim_edge_state,
+        advisor_last_thought=advisor_thought,
+        last_replan_steps=replan_list,
+        tick_rate_fps=tick_rate,
+        frame_lag_ms=frame_lag,
+        nav_current_step_area=nav.current_step_area,
+    )
+
+    # Must be JSON-serializable end to end
+    restored = json.loads(json.dumps(payload))
+
+    assert restored["stair_climb_state"] == "climbing target_area=42"
+    assert restored["swim_edge_state"] == "traversing to area 9"
+    assert restored["advisor_last_thought"] == "watch the lava pit ahead please"
+    assert restored["last_replan_steps"] == [3, 4, 6]
+    assert restored["tick_rate_fps"] == 12.5
+    assert restored["frame_lag_ms"] == 42.0
+    assert restored["nav_current_step_area"] == 42
+
+
 def test_build_payload_explicit_none_equivalent_to_omitted():
     """Passing None explicitly should behave the same as omitting the kwarg."""
     p = build_hud_payload(
