@@ -680,7 +680,15 @@ class LearnedMap:
         # terminate at inlier extents, which typically undershoot real corners
         # by 10-30u. 32u (CornerDetector default) is fine for hand-crafted
         # walls in unit tests, but too tight for live fitter output.
-        corners = CornerDetector(endpoint_max_dist=64.0).detect(walls)
+        # Plan 13-09: keep 64u (Plan 13-08's 96u was a regression -- see
+        # .planning/phases/13-.../13-VERIFICATION.md GAP-3 Attempt 1). Add
+        # merge_radius=16 to collapse near-duplicate corners at the source.
+        # Floor-1 sparseness is a raycast-data-scarcity problem, not a
+        # proximity-threshold one.
+        corners = CornerDetector(
+            endpoint_max_dist=64.0,
+            merge_radius=16.0,
+        ).detect(walls)
         self._corners_per_floor[floor] = corners
         rooms, partials = RoomInferrer().infer(walls, corners)
         doorways = DoorwayDetector().detect(walls, corners)

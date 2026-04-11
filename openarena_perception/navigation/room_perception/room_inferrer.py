@@ -2,7 +2,7 @@
 
 Given a list of Walls and Corners, find closed polygons (Rooms) and
 leftover wall chains (PartialRooms). Uses a bespoke DFS over the
-corner-adjacency graph -- max cycle length 8, small graphs typical
+corner-adjacency graph -- max cycle length 6, small graphs typical
 (<50 corners), so combinatorial blow-up is not a concern.
 
 Pure-stdlib. No networkx, no shapely, no skimage.
@@ -25,10 +25,12 @@ class RoomInferrer:
     def __init__(
         self,
         *,
-        min_room_area: float = 4096.0,
-        max_cycle_length: int = 8,
+        min_room_area: float = 20000.0,
+        max_room_area: float = 200000.0,
+        max_cycle_length: int = 6,
     ) -> None:
         self.min_room_area = min_room_area
+        self.max_room_area = max_room_area
         self.max_cycle_length = max_cycle_length
 
     def infer(
@@ -47,32 +49,51 @@ class RoomInferrer:
         # Enumerate simple cycles (wall-id lists) up to max_cycle_length
         cycles = self._find_cycles(adj, self.max_cycle_length)
 
-        rooms: List[Room] = []
-        used_wall_sets: Set[Tuple[int, ...]] = set()
-        next_room_id = 1
+        # Plan 13-09: centroid-cell dedup. Bucket every candidate cycle by
+        # (round(cx/16), round(cy/16)) of its polygon centroid, and keep
+        # only the smallest-area cycle per bucket. Robust against upstream
+        # near-duplicate corners (the Plan 13-08 regression mode): operates
+        # on emitted geometry, not corner IDs.
+        CENTROID_CELL = 16.0
+        best_by_cell: Dict[
+            Tuple[int, int],
+            Tuple[List[int], List[Tuple[float, float]], float, Tuple[int, ...]],
+        ] = {}
 
         for cycle in cycles:
-            key = tuple(sorted(cycle))
-            if key in used_wall_sets:
-                continue
             polygon = self._cycle_to_polygon(cycle, corners)
             if len(polygon) < 3:
                 continue
             area = self._polygon_area(polygon)
             if area < self.min_room_area:
-                # Closed but too small -- not a real room. Skip without
-                # marking walls "used" so they can still appear as
-                # partial rooms below.
+                # Closed but too small -- not a real room.
                 continue
-            used_wall_sets.add(key)
-            xs = [p[0] for p in polygon]
-            ys = [p[1] for p in polygon]
-            bounds = (min(xs), min(ys), max(xs), max(ys))
+            if area > self.max_room_area:
+                # Plan 13-09: reject map-spanning cycles. 500k+ sq unit
+                # "rooms" are over-connected-graph artifacts (the visible
+                # symptom of the 13-08 regression), not architecture.
+                continue
+            cx, cy = self._polygon_centroid(polygon)
+            cell = (
+                int(round(cx / CENTROID_CELL)),
+                int(round(cy / CENTROID_CELL)),
+            )
+            cycle_set = set(cycle)
             corner_ids = tuple(
                 c.id
                 for c in corners
-                if c.wall_a_id in cycle and c.wall_b_id in cycle
+                if c.wall_a_id in cycle_set and c.wall_b_id in cycle_set
             )
+            existing = best_by_cell.get(cell)
+            if existing is None or area < existing[2]:
+                best_by_cell[cell] = (cycle, polygon, area, corner_ids)
+
+        rooms: List[Room] = []
+        next_room_id = 1
+        for cell, (cycle, polygon, area, corner_ids) in best_by_cell.items():
+            xs = [p[0] for p in polygon]
+            ys = [p[1] for p in polygon]
+            bounds = (min(xs), min(ys), max(xs), max(ys))
             rooms.append(
                 Room(
                     id=next_room_id,
@@ -193,6 +214,31 @@ class RoomInferrer:
             x2, y2 = polygon[(i + 1) % n]
             s += x1 * y2 - x2 * y1
         return abs(s) / 2.0
+
+    @staticmethod
+    def _polygon_perimeter(polygon: List[Tuple[float, float]]) -> float:
+        """Sum of edge lengths -- tie-breaker for centroid-cell dedup."""
+        n = len(polygon)
+        if n < 2:
+            return 0.0
+        total = 0.0
+        for i in range(n):
+            x1, y1 = polygon[i]
+            x2, y2 = polygon[(i + 1) % n]
+            total += ((x2 - x1) ** 2 + (y2 - y1) ** 2) ** 0.5
+        return total
+
+    @staticmethod
+    def _polygon_centroid(
+        polygon: List[Tuple[float, float]],
+    ) -> Tuple[float, float]:
+        """Vertex mean -- cheap and sufficient for centroid-cell bucketing."""
+        if not polygon:
+            return (0.0, 0.0)
+        sx = sum(p[0] for p in polygon)
+        sy = sum(p[1] for p in polygon)
+        n = len(polygon)
+        return (sx / n, sy / n)
 
     @staticmethod
     def _bfs_component(start: int, adj: Dict[int, Set[int]]) -> List[int]:

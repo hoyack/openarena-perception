@@ -228,6 +228,135 @@ def test_room_from_square():
     assert len(rooms_tiny) == 0
 
 
+# ---- Plan 13-09: regressions that would have caught Plan 13-08 pre-live ----
+
+
+def test_corner_spatial_merge():
+    """Plan 13-09: near-duplicate corners at one logical intersection merge to one."""
+    from openarena_perception.navigation.room_perception import (
+        CornerDetector,
+        Wall,
+    )
+
+    # Four walls forming a pair of near-parallel horizontal + near-parallel
+    # vertical segments so the pair enumeration produces multiple Corner
+    # candidates within a few units of (0, 0). merge_radius=16 should
+    # collapse them; merge_radius=0 should leave them intact.
+    w1 = Wall(1, 0, 0, 100, 0, 0.9, 30, 0.0, 1.0)
+    w2 = Wall(2, 2, 1, 102, 1, 0.9, 30, 0.0, 1.0)   # parallel-ish to w1
+    w3 = Wall(3, 0, 0, 0, 100, 0.9, 30, 0.0, 1.0)
+    w4 = Wall(4, 1, 2, 1, 102, 0.9, 30, 0.0, 1.0)   # parallel-ish to w3
+
+    walls = [w1, w2, w3, w4]
+    raw = CornerDetector(merge_radius=0.0).detect(walls)
+    merged = CornerDetector(merge_radius=16.0).detect(walls)
+    # Sanity: the raw enumeration must actually produce near-duplicates for
+    # this fixture to be meaningful. If the raw pass emits 0 or 1 corner
+    # the fixture is broken.
+    assert len(raw) >= 2, (
+        f"fixture should yield >=2 raw near-duplicates; got {len(raw)}"
+    )
+    assert len(merged) < len(raw), (
+        f"merge should reduce count: raw={len(raw)}, merged={len(merged)}"
+    )
+    # No two merged corners should sit within merge_radius of each other.
+    for i in range(len(merged)):
+        for j in range(i + 1, len(merged)):
+            dx = merged[i].x - merged[j].x
+            dy = merged[i].y - merged[j].y
+            d = (dx * dx + dy * dy) ** 0.5
+            assert d >= 16.0, (
+                f"merged corners {i} and {j} still within merge_radius "
+                f"({d:.2f} < 16.0)"
+            )
+
+
+def test_room_centroid_cell_dedup():
+    """Plan 13-09: cycles whose centroids land in the same 16u cell collapse to one room.
+
+    Note: if the synthetic corner set only yields 1 enumerable cycle the
+    assertion trivially passes — that's correct: the dedup is a safety net
+    against upstream corner noise, not a cycle generator. The non-trivial
+    property we pin is "no two emitted rooms share centroid within 32u".
+    """
+    from openarena_perception.navigation.room_perception import (
+        Corner,
+        RoomInferrer,
+        Wall,
+    )
+
+    # 200x200 square + one diagonal chord so multiple valid cycles exist.
+    w1 = Wall(1, 0, 0, 200, 0, 0.9, 30, 0.0, 1.0)
+    w2 = Wall(2, 200, 0, 200, 200, 0.9, 30, 0.0, 1.0)
+    w3 = Wall(3, 200, 200, 0, 200, 0.9, 30, 0.0, 1.0)
+    w4 = Wall(4, 0, 200, 0, 0, 0.9, 30, 0.0, 1.0)
+    w5 = Wall(5, 0, 0, 200, 200, 0.9, 30, 0.0, 1.0)
+    walls = [w1, w2, w3, w4, w5]
+
+    # Hand-built corners for the intersections.
+    corners = [
+        Corner(1,   0.0,   0.0, 1, 4, 90.0, 0.9),
+        Corner(2, 200.0,   0.0, 1, 2, 90.0, 0.9),
+        Corner(3, 200.0, 200.0, 2, 3, 90.0, 0.9),
+        Corner(4,   0.0, 200.0, 3, 4, 90.0, 0.9),
+        Corner(5,   0.0,   0.0, 4, 5, 45.0, 0.9),
+        Corner(6, 200.0, 200.0, 2, 5, 45.0, 0.9),
+    ]
+
+    rooms, _ = RoomInferrer(
+        min_room_area=1.0,
+        max_room_area=1_000_000.0,
+    ).infer(walls, corners)
+
+    # No two emitted rooms may share centroid within 32u.
+    for i in range(len(rooms)):
+        for j in range(i + 1, len(rooms)):
+            poly_i = rooms[i].polygon_vertices
+            poly_j = rooms[j].polygon_vertices
+            cx_i = sum(p[0] for p in poly_i) / len(poly_i)
+            cy_i = sum(p[1] for p in poly_i) / len(poly_i)
+            cx_j = sum(p[0] for p in poly_j) / len(poly_j)
+            cy_j = sum(p[1] for p in poly_j) / len(poly_j)
+            d = ((cx_i - cx_j) ** 2 + (cy_i - cy_j) ** 2) ** 0.5
+            assert d >= 32.0, (
+                f"rooms {i} and {j} share centroid within 32u ({d:.2f})"
+            )
+
+
+def test_room_max_area_cap():
+    """Plan 13-09: rooms above max_room_area are hard-rejected."""
+    from openarena_perception.navigation.room_perception import (
+        Corner,
+        RoomInferrer,
+        Wall,
+    )
+
+    # 1000x1000 square = area 1_000_000 > default max_room_area 200_000.
+    w1 = Wall(1, 0, 0, 1000, 0, 0.9, 30, 0.0, 1.0)
+    w2 = Wall(2, 1000, 0, 1000, 1000, 0.9, 30, 0.0, 1.0)
+    w3 = Wall(3, 1000, 1000, 0, 1000, 0.9, 30, 0.0, 1.0)
+    w4 = Wall(4, 0, 1000, 0, 0, 0.9, 30, 0.0, 1.0)
+    corners = [
+        Corner(1,    0.0,    0.0, 1, 4, 90.0, 0.9),
+        Corner(2, 1000.0,    0.0, 1, 2, 90.0, 0.9),
+        Corner(3, 1000.0, 1000.0, 2, 3, 90.0, 0.9),
+        Corner(4,    0.0, 1000.0, 3, 4, 90.0, 0.9),
+    ]
+    rooms, _ = RoomInferrer().infer([w1, w2, w3, w4], corners)
+    assert len(rooms) == 0, (
+        f"1M sq unit cycle should be rejected by max_room_area; "
+        f"got {len(rooms)} rooms"
+    )
+
+    # With max_room_area lifted, the same cycle IS a valid room.
+    rooms2, _ = RoomInferrer(max_room_area=2_000_000.0).infer(
+        [w1, w2, w3, w4], corners
+    )
+    assert len(rooms2) == 1, (
+        "with max_room_area lifted, 1M sq cycle is a valid room"
+    )
+
+
 def test_partial_room_and_doorway(u_shape_point_cloud):
     """RP-08: U-shape -> 1 PartialRoom; collinear near-miss walls -> 1 Doorway."""
     from openarena_perception.navigation.room_perception import (
