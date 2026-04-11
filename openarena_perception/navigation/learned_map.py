@@ -21,6 +21,18 @@ from typing import Dict, List, NamedTuple, Optional, Tuple
 
 import numpy as np
 
+from openarena_perception.navigation.room_perception import (
+    Corner,
+    CornerDetector,
+    Doorway,
+    DoorwayDetector,
+    PartialRoom,
+    Room,
+    RoomInferrer,
+    Wall,
+)
+from openarena_perception.navigation.room_perception.line_fitter import LineFitter
+
 log = logging.getLogger(__name__)
 
 
@@ -92,6 +104,29 @@ class LearnedMap:
             [] for _ in range(self.NUM_FLOORS)
         ]
 
+        # Phase 13 Plan 13-05: room perception state per floor.
+        self._line_fitters: List[LineFitter] = [
+            LineFitter(seed=42) for _ in range(self.NUM_FLOORS)
+        ]
+        self._fitted_walls_per_floor: List[List[Wall]] = [
+            [] for _ in range(self.NUM_FLOORS)
+        ]
+        self._corners_per_floor: List[List[Corner]] = [
+            [] for _ in range(self.NUM_FLOORS)
+        ]
+        self._rooms_per_floor: List[List[Room]] = [
+            [] for _ in range(self.NUM_FLOORS)
+        ]
+        self._partial_rooms_per_floor: List[List[PartialRoom]] = [
+            [] for _ in range(self.NUM_FLOORS)
+        ]
+        self._doorways_per_floor: List[List[Doorway]] = [
+            [] for _ in range(self.NUM_FLOORS)
+        ]
+        self._last_current_room_id: Optional[int] = None
+        self._cached_current_room_id: Optional[int] = None
+        self._current_room_cache_valid: bool = False
+
         # Edge failure/success memory
         self._edge_failures: Dict[str, int] = {}
         self._edge_successes: Dict[str, int] = {}
@@ -140,6 +175,26 @@ class LearnedMap:
         if self._prev_pos:
             self._ray_march(self._prev_pos[0], self._prev_pos[1], wx, wy)
         self._prev_pos = (wx, wy)
+
+        # Phase 13 Plan 13-05: invalidate per-tick current_room_id cache
+        # (position changed) and run the visit-count debouncer.
+        self._current_room_cache_valid = False
+        cur_room_id = self.current_room_id()
+        if cur_room_id != self._last_current_room_id:
+            if cur_room_id is not None:
+                import time as _time
+
+                now_ts = _time.time()
+                rooms = self._rooms_per_floor[self._current_floor]
+                for idx, r in enumerate(rooms):
+                    if r.id == cur_room_id:
+                        rooms[idx] = r._replace(
+                            visit_count=r.visit_count + 1,
+                            last_visited_ts=now_ts,
+                            first_seen_ts=r.first_seen_ts or now_ts,
+                        )
+                        break
+            self._last_current_room_id = cur_room_id
 
         # Wall detection -- mark wall cell ahead
         if wall_ahead and wall_score > 0.5:
@@ -233,10 +288,39 @@ class LearnedMap:
                     [list(h) for h in floor_cloud]
                     for floor_cloud in self._raycasts_per_floor
                 ],
-                "fitted_walls": [],   # Plan 13-03 will populate
-                "corners": [],         # Plan 13-04 will populate
-                "rooms": [],           # Plan 13-04 will populate
-                "doorways": [],        # Plan 13-04 will populate
+                "fitted_walls": [
+                    [list(w) for w in floor_walls]
+                    for floor_walls in self._fitted_walls_per_floor
+                ],
+                "corners": [
+                    [list(c) for c in floor_corners]
+                    for floor_corners in self._corners_per_floor
+                ],
+                "rooms": [
+                    [
+                        {
+                            "id": r.id,
+                            "polygon_vertices": [list(v) for v in r.polygon_vertices],
+                            "bounds": list(r.bounds),
+                            "area": r.area,
+                            "wall_ids": list(r.wall_ids),
+                            "corner_ids": list(r.corner_ids),
+                            "doorway_ids": list(r.doorway_ids),
+                            "items_seen": [list(item) for item in r.items_seen],
+                            "visit_count": r.visit_count,
+                            "first_seen_ts": r.first_seen_ts,
+                            "last_seen_ts": r.last_seen_ts,
+                            "last_visited_ts": r.last_visited_ts,
+                            "notes": r.notes,
+                        }
+                        for r in floor_rooms
+                    ]
+                    for floor_rooms in self._rooms_per_floor
+                ],
+                "doorways": [
+                    [list(d) for d in floor_doorways]
+                    for floor_doorways in self._doorways_per_floor
+                ],
             }
             tmp = path + ".tmp"
             with open(tmp, "w") as f:
@@ -294,11 +378,66 @@ class LearnedMap:
                     [RaycastHit(*h) for h in floor_list]
                     for floor_list in raw_floors
                 ]
-                # Plan 13-03/13-04 will replace these raw lists with typed entities.
-                self._fitted_walls_raw = data.get("fitted_walls", [])
-                self._corners_raw = data.get("corners", [])
-                self._rooms_raw = data.get("rooms", [])
-                self._doorways_raw = data.get("doorways", [])
+
+                # Phase 13 Plan 13-05: deserialize typed room-perception entities.
+                fw_raw = data.get("fitted_walls", [])
+                self._fitted_walls_per_floor = [
+                    [Wall(*w) for w in floor_list]
+                    for floor_list in fw_raw
+                ] if fw_raw else [[] for _ in range(self.NUM_FLOORS)]
+                # Pad to NUM_FLOORS if short
+                while len(self._fitted_walls_per_floor) < self.NUM_FLOORS:
+                    self._fitted_walls_per_floor.append([])
+
+                corners_raw = data.get("corners", [])
+                self._corners_per_floor = [
+                    [Corner(*c) for c in floor_list]
+                    for floor_list in corners_raw
+                ] if corners_raw else [[] for _ in range(self.NUM_FLOORS)]
+                while len(self._corners_per_floor) < self.NUM_FLOORS:
+                    self._corners_per_floor.append([])
+
+                rooms_raw = data.get("rooms", [])
+                rooms_loaded: List[List[Room]] = []
+                for floor_list in rooms_raw:
+                    floor_rooms: List[Room] = []
+                    for rd in floor_list:
+                        if isinstance(rd, dict):
+                            floor_rooms.append(
+                                Room(
+                                    id=rd.get("id", 0),
+                                    polygon_vertices=tuple(
+                                        tuple(v) for v in rd.get("polygon_vertices", ())
+                                    ),
+                                    bounds=tuple(rd.get("bounds", (0, 0, 0, 0))),
+                                    area=float(rd.get("area", 0.0)),
+                                    wall_ids=tuple(rd.get("wall_ids", ())),
+                                    corner_ids=tuple(rd.get("corner_ids", ())),
+                                    doorway_ids=tuple(rd.get("doorway_ids", ())),
+                                    items_seen=tuple(
+                                        tuple(item) for item in rd.get("items_seen", ())
+                                    ),
+                                    visit_count=int(rd.get("visit_count", 0)),
+                                    first_seen_ts=float(rd.get("first_seen_ts", 0.0)),
+                                    last_seen_ts=float(rd.get("last_seen_ts", 0.0)),
+                                    last_visited_ts=float(rd.get("last_visited_ts", 0.0)),
+                                    notes=str(rd.get("notes", "")),
+                                )
+                            )
+                    rooms_loaded.append(floor_rooms)
+                self._rooms_per_floor = rooms_loaded if rooms_loaded else [
+                    [] for _ in range(self.NUM_FLOORS)
+                ]
+                while len(self._rooms_per_floor) < self.NUM_FLOORS:
+                    self._rooms_per_floor.append([])
+
+                doorways_raw = data.get("doorways", [])
+                self._doorways_per_floor = [
+                    [Doorway(*d) for d in floor_list]
+                    for floor_list in doorways_raw
+                ] if doorways_raw else [[] for _ in range(self.NUM_FLOORS)]
+                while len(self._doorways_per_floor) < self.NUM_FLOORS:
+                    self._doorways_per_floor.append([])
 
             mapped = sum(int((g > 0).sum()) for g in self._grids)
             log.info("Learned map loaded: %s (%d cells, %d walls, %d failed edges)",
@@ -340,6 +479,30 @@ class LearnedMap:
         total_visited = sum(int((g == CellState.VISITED).sum()) for g in self._grids)
         total_liquid = sum(int((g == CellState.LIQUID).sum()) for g in self._grids)
 
+        # Phase 13 Plan 13-05: room perception export
+        floor = self._current_floor
+        fitted_walls = [list(w) for w in self._fitted_walls_per_floor[floor]]
+        corners_out = [list(c) for c in self._corners_per_floor[floor]]
+        rooms_out = [
+            {
+                "id": r.id,
+                "polygon_vertices": [list(v) for v in r.polygon_vertices],
+                "bounds": list(r.bounds),
+                "area": r.area,
+                "visit_count": r.visit_count,
+                "items_seen": [list(item) for item in r.items_seen],
+            }
+            for r in self._rooms_per_floor[floor]
+        ]
+        doorways_out = [list(d) for d in self._doorways_per_floor[floor]]
+        cur_room = self.current_room_id()
+        cur_items: List[str] = []
+        if cur_room is not None:
+            for r in self._rooms_per_floor[floor]:
+                if r.id == cur_room:
+                    cur_items = [item[0] for item in r.items_seen]
+                    break
+
         return {
             "grid_origin": [self._origin_x, self._origin_y],
             "grid_resolution": self.GRID_RESOLUTION,
@@ -348,6 +511,12 @@ class LearnedMap:
             "grid_cells": cells,
             "wall_segments": [[s[0], s[1], s[2], s[3], s[4]] for s in walls],
             "failed_edges": failed,
+            "fitted_walls": fitted_walls,
+            "corners": corners_out,
+            "rooms": rooms_out,
+            "doorways": doorways_out,
+            "current_room_id": cur_room,
+            "current_room_items": cur_items,
             "stats": {
                 "open_cells": total_open,
                 "wall_cells": total_wall,
@@ -483,6 +652,136 @@ class LearnedMap:
             # — keep the highest-confidence/most-recent tail.
             cloud.sort(key=lambda h: (h.confidence, h.timestamp))
             del cloud[: len(cloud) - self.MAX_RAYCASTS_PER_FLOOR]
+
+    # -- Phase 13 Plan 13-05: room perception orchestration ---------------
+
+    def fit_rooms(self, *, force: bool = False, now: Optional[float] = None) -> None:
+        """Run the full room-perception pipeline for the current floor.
+
+        Cadence-gated via LineFitter unless force=True. Populates
+        fitted_walls / corners / rooms / partial_rooms / doorways per floor.
+        """
+        import time as _time
+
+        if now is None:
+            now = _time.time()
+        floor = self._current_floor
+        cloud = self._raycasts_per_floor[floor]
+        if len(cloud) < 20:
+            return
+        fitter = self._line_fitters[floor]
+        if force:
+            walls = fitter.fit_now(cloud, now=now)
+        else:
+            walls = fitter.fit(cloud, now=now)
+        self._fitted_walls_per_floor[floor] = walls
+        self._current_room_cache_valid = False
+        # Plan 13-05: bump endpoint proximity to 64u because RANSAC fit walls
+        # terminate at inlier extents, which typically undershoot real corners
+        # by 10-30u. 32u (CornerDetector default) is fine for hand-crafted
+        # walls in unit tests, but too tight for live fitter output.
+        corners = CornerDetector(endpoint_max_dist=64.0).detect(walls)
+        self._corners_per_floor[floor] = corners
+        rooms, partials = RoomInferrer().infer(walls, corners)
+        doorways = DoorwayDetector().detect(walls, corners)
+        prev_rooms = self._rooms_per_floor[floor]
+        rooms = self._preserve_room_log(prev_rooms, rooms)
+        self._rooms_per_floor[floor] = rooms
+        self._partial_rooms_per_floor[floor] = partials
+        self._doorways_per_floor[floor] = doorways
+
+    def _preserve_room_log(
+        self, prev: List[Room], new: List[Room]
+    ) -> List[Room]:
+        """Carry items_seen + visit_count forward across refit by centroid match."""
+        if not prev:
+            return new
+        updated: List[Room] = []
+        for r in new:
+            xs = [v[0] for v in r.polygon_vertices]
+            ys = [v[1] for v in r.polygon_vertices]
+            cx = sum(xs) / len(xs)
+            cy = sum(ys) / len(ys)
+            best: Optional[Room] = None
+            best_dist = 128.0
+            for p in prev:
+                pxs = [v[0] for v in p.polygon_vertices]
+                pys = [v[1] for v in p.polygon_vertices]
+                pcx = sum(pxs) / len(pxs)
+                pcy = sum(pys) / len(pys)
+                d = math.hypot(cx - pcx, cy - pcy)
+                if d < best_dist:
+                    best_dist = d
+                    best = p
+            if best is not None:
+                updated.append(
+                    r._replace(
+                        items_seen=best.items_seen,
+                        visit_count=best.visit_count,
+                        first_seen_ts=best.first_seen_ts or r.first_seen_ts,
+                        last_visited_ts=best.last_visited_ts,
+                    )
+                )
+            else:
+                updated.append(r)
+        return updated
+
+    def note_item(self, name: str, x: float, y: float) -> None:
+        """Associate an observed item with the first room whose polygon contains (x, y)."""
+        import time as _time
+
+        try:
+            import cv2
+        except ImportError:
+            return
+        floor = self._current_floor
+        rooms = self._rooms_per_floor[floor]
+        if not rooms:
+            return
+        now = _time.time()
+        for idx, room in enumerate(rooms):
+            poly = np.array(room.polygon_vertices, dtype=np.float32)
+            if cv2.pointPolygonTest(poly, (float(x), float(y)), False) >= 0:
+                existing_names = {entry[0] for entry in room.items_seen if entry}
+                if name not in existing_names:
+                    new_items = tuple(list(room.items_seen) + [(name, now)])
+                    rooms[idx] = room._replace(
+                        items_seen=new_items, last_seen_ts=now
+                    )
+                return
+
+    def current_room_id(self) -> Optional[int]:
+        """Return the room id containing the bot's last known position, or None.
+
+        Per-tick cached: invalidated by update() and fit_rooms(). Subsequent
+        calls within the same tick return the cached value so the per-tick
+        PIP cost stays flat regardless of how many subsystems query it.
+        """
+        if self._current_room_cache_valid:
+            return self._cached_current_room_id
+        if self._prev_pos is None:
+            self._cached_current_room_id = None
+            self._current_room_cache_valid = True
+            return None
+        try:
+            import cv2
+        except ImportError:
+            self._cached_current_room_id = None
+            self._current_room_cache_valid = True
+            return None
+        floor = self._current_floor
+        rooms = self._rooms_per_floor[floor]
+        result: Optional[int] = None
+        px = float(self._prev_pos[0])
+        py = float(self._prev_pos[1])
+        for room in rooms:
+            poly = np.array(room.polygon_vertices, dtype=np.float32)
+            if cv2.pointPolygonTest(poly, (px, py), False) >= 0:
+                result = room.id
+                break
+        self._cached_current_room_id = result
+        self._current_room_cache_valid = True
+        return result
 
     @staticmethod
     def _edge_key(from_area: int, to_area: int) -> str:
