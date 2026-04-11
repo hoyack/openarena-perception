@@ -20,8 +20,11 @@ pygame.init()  # noqa: E402 — explicit init so font subsystem is ready
 from openarena_perception.visualization.panels import (  # noqa: E402
     HUD_WIDTH,
     PANEL_HEIGHT,
+    PANEL_LEFT_W,
+    PANEL_MINIMAP_SIZE,
     PANEL_MINIMAP_W,
     PANEL_STATS_W,
+    PANEL_WIREFRAME_SIZE,
     PANEL_WIREFRAME_W,
     MinimapPanel,
     StatsPanel,
@@ -105,9 +108,14 @@ def _region_nonbg(
 
 
 def test_hud_width_is_derived() -> None:
-    assert HUD_WIDTH == PANEL_MINIMAP_W + PANEL_WIREFRAME_W + PANEL_STATS_W
-    assert HUD_WIDTH == 1400
-    assert PANEL_HEIGHT == 700
+    assert HUD_WIDTH == PANEL_LEFT_W + PANEL_STATS_W
+    assert HUD_WIDTH == 760
+    assert PANEL_HEIGHT == 720
+    assert PANEL_WIREFRAME_SIZE == 360
+    assert PANEL_MINIMAP_SIZE == 360
+    assert PANEL_LEFT_W == 360
+    # Backward-compat aliases still equal the new square edge.
+    assert PANEL_MINIMAP_W == PANEL_WIREFRAME_W == 360
 
 
 # -----------------------------------------------------------------------
@@ -116,8 +124,8 @@ def test_hud_width_is_derived() -> None:
 
 
 def test_minimap_panel_draws_player_marker() -> None:
-    panel = MinimapPanel(PANEL_MINIMAP_W, PANEL_HEIGHT)
-    surface = _surface(PANEL_MINIMAP_W, PANEL_HEIGHT)
+    panel = MinimapPanel(PANEL_MINIMAP_SIZE, PANEL_MINIMAP_SIZE)
+    surface = _surface(PANEL_MINIMAP_SIZE, PANEL_MINIMAP_SIZE)
     # Player at world origin so marker lands near minimap center.
     state = _make_state(player_x=0.0, player_y=0.0, player_yaw=0.0)
     panel.draw(state, surface)
@@ -127,7 +135,7 @@ def test_minimap_panel_draws_player_marker() -> None:
 
 def test_minimap_panel_no_hud_text() -> None:
     """Minimap owns NO HP/POS/YAW/AMMO text (dedup contract)."""
-    panel = MinimapPanel(PANEL_MINIMAP_W, PANEL_HEIGHT)
+    panel = MinimapPanel(PANEL_MINIMAP_SIZE, PANEL_MINIMAP_SIZE)
     src = Path(
         "openarena_perception/visualization/panels/minimap.py"
     ).read_text()
@@ -139,13 +147,13 @@ def test_minimap_panel_no_hud_text() -> None:
     assert "import strategic_hud" not in src
     assert "from strategic_hud" not in src
     # Sanity: panel still runs
-    surface = _surface(PANEL_MINIMAP_W, PANEL_HEIGHT)
+    surface = _surface(PANEL_MINIMAP_SIZE, PANEL_MINIMAP_SIZE)
     panel.draw(_make_state(), surface)
 
 
 def test_minimap_panel_draws_route_waypoints() -> None:
-    panel = MinimapPanel(PANEL_MINIMAP_W, PANEL_HEIGHT)
-    surface = _surface(PANEL_MINIMAP_W, PANEL_HEIGHT)
+    panel = MinimapPanel(PANEL_MINIMAP_SIZE, PANEL_MINIMAP_SIZE)
+    surface = _surface(PANEL_MINIMAP_SIZE, PANEL_MINIMAP_SIZE)
     state = _make_state(
         player_x=0.0,
         player_y=0.0,
@@ -164,8 +172,8 @@ def test_minimap_panel_draws_route_waypoints() -> None:
 
 def test_minimap_panel_latches_bounds(monkeypatch) -> None:
     """Map bounds should latch on first draw (Pitfall 10)."""
-    panel = MinimapPanel(PANEL_MINIMAP_W, PANEL_HEIGHT)
-    surface = _surface(PANEL_MINIMAP_W, PANEL_HEIGHT)
+    panel = MinimapPanel(PANEL_MINIMAP_SIZE, PANEL_MINIMAP_SIZE)
+    surface = _surface(PANEL_MINIMAP_SIZE, PANEL_MINIMAP_SIZE)
     s1 = _make_state(
         map_min_x=-500, map_max_x=500, map_min_y=-500, map_max_y=500
     )
@@ -209,8 +217,10 @@ def _pose_inside_graph(graph) -> tuple[float, float, float, float]:
 
 
 def test_wireframe_panel_renders_non_empty_scene(aas_graph) -> None:
-    panel = WireframePanel(aas_graph, width=PANEL_WIREFRAME_W, height=PANEL_HEIGHT)
-    surface = _surface(PANEL_WIREFRAME_W, PANEL_HEIGHT)
+    panel = WireframePanel(
+        aas_graph, width=PANEL_WIREFRAME_SIZE, height=PANEL_WIREFRAME_SIZE
+    )
+    surface = _surface(PANEL_WIREFRAME_SIZE, PANEL_WIREFRAME_SIZE)
     x, y, z, yaw = _pose_inside_graph(aas_graph)
     state = _make_state(player_x=x, player_y=y, player_z=z, player_yaw=yaw)
     panel.draw(state, surface)
@@ -221,8 +231,10 @@ def test_wireframe_panel_renders_non_empty_scene(aas_graph) -> None:
 
 def test_wireframe_panel_no_numeric_overlay(aas_graph) -> None:
     """Top-left FRAME text region stays bg (Pitfall 5 regression)."""
-    panel = WireframePanel(aas_graph, width=PANEL_WIREFRAME_W, height=PANEL_HEIGHT)
-    surface = _surface(PANEL_WIREFRAME_W, PANEL_HEIGHT)
+    panel = WireframePanel(
+        aas_graph, width=PANEL_WIREFRAME_SIZE, height=PANEL_WIREFRAME_SIZE
+    )
+    surface = _surface(PANEL_WIREFRAME_SIZE, PANEL_WIREFRAME_SIZE)
     x, y, z, yaw = _pose_inside_graph(aas_graph)
     state = _make_state(player_x=x, player_y=y, player_z=z, player_yaw=yaw)
     panel.draw(state, surface)
@@ -242,8 +254,10 @@ def test_wireframe_panel_no_numeric_overlay(aas_graph) -> None:
 
 
 def test_wireframe_panel_decoration_chrome_present(aas_graph) -> None:
-    panel = WireframePanel(aas_graph, width=PANEL_WIREFRAME_W, height=PANEL_HEIGHT)
-    surface = _surface(PANEL_WIREFRAME_W, PANEL_HEIGHT)
+    panel = WireframePanel(
+        aas_graph, width=PANEL_WIREFRAME_SIZE, height=PANEL_WIREFRAME_SIZE
+    )
+    surface = _surface(PANEL_WIREFRAME_SIZE, PANEL_WIREFRAME_SIZE)
     x, y, z, yaw = _pose_inside_graph(aas_graph)
     state = _make_state(player_x=x, player_y=y, player_z=z, player_yaw=yaw)
     panel.draw(state, surface)

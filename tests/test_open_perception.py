@@ -120,16 +120,20 @@ def test_open_perception_hud_state_loads_all_verbose_fields(tmp_path):
 
 
 def test_open_perception_app_init_window_dimensions(fake_graph, tmp_path):
-    """App instantiates with a mock AAS graph; screen is 1400x700."""
+    """App instantiates with a real AAS graph; screen is 760x720 (Phase 12.1)."""
     state_file = _write_payload(tmp_path)
     app = open_perception.OpenPerceptionApp(fake_graph, state_file=state_file)
     try:
         w, h = app.screen.get_size()
-        assert (w, h) == (1400, 700)
-        # Sub-surfaces match the panel widths.
-        assert app.minimap_surf.get_size() == (400, 700)
-        assert app.wireframe_surf.get_size() == (600, 700)
-        assert app.stats_surf.get_size() == (400, 700)
+        assert (w, h) == (760, 720)
+        # Square left column + full-height stats panel.
+        assert app.wireframe_surf.get_size() == (360, 360)
+        assert app.minimap_surf.get_size() == (360, 360)
+        assert app.stats_surf.get_size() == (400, 720)
+        # Absolute origins via get_abs_offset()
+        assert app.wireframe_surf.get_abs_offset() == (0, 0)
+        assert app.minimap_surf.get_abs_offset() == (0, 360)
+        assert app.stats_surf.get_abs_offset() == (360, 0)
     finally:
         pygame.display.quit()
 

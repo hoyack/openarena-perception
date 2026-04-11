@@ -2,11 +2,11 @@
 """open_perception.py — Open-Perception unified HUD app (Phase 12-03).
 
 Single standalone pygame app that composes three sub-surface panels into a
-1400x700 window:
+760x720 window (Phase 12.1 layout):
 
-    LEFT   (  0..400, 700px) — MinimapPanel     (top-down learned map + route)
-    CENTER (400..1000,700px) — WireframePanel   (first-person face-mesh, chrome only)
-    RIGHT  (1000..1400,700px)— StatsPanel       (vital stats + intent + verbose rows)
+    TOP-LEFT    (  0..360,   0..360) — WireframePanel (first-person, square, chrome only)
+    BOTTOM-LEFT (  0..360, 360..720) — MinimapPanel   (top-down learned map + route, square)
+    RIGHT       (360..760,   0..720) — StatsPanel     (vital stats + intent + verbose rows)
 
 Reads `./tmp/oa_hud_state.json` every tick at 10 FPS. Replaces the deleted
 legacy `strategic_hud.py` (Phase 10) and
@@ -39,9 +39,10 @@ from openarena_perception.navigation.aas_parser import parse_aas
 from openarena_perception.visualization.panels import (
     HUD_WIDTH,
     PANEL_HEIGHT,
-    PANEL_MINIMAP_W,
+    PANEL_LEFT_W,
+    PANEL_MINIMAP_SIZE,
     PANEL_STATS_W,
-    PANEL_WIREFRAME_W,
+    PANEL_WIREFRAME_SIZE,
     RGB_ALERT,
     RGB_BG,
     RGB_GRID,
@@ -238,7 +239,7 @@ class HUDState:
 
 def _parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Open-Perception — unified 1400x700 bot observability HUD",
+        description="Open-Perception — unified 760x720 bot observability HUD",
     )
     parser.add_argument(
         "--aas",
@@ -289,7 +290,7 @@ def _resolve_aas_path(
 
 
 class OpenPerceptionApp:
-    """Composes the three panels into the unified 1400x700 window."""
+    """Composes the three panels into the unified 760x720 window (Phase 12.1)."""
 
     def __init__(
         self,
@@ -301,25 +302,21 @@ class OpenPerceptionApp:
         self.screen = pygame.display.set_mode((HUD_WIDTH, PANEL_HEIGHT))
         self.clock = pygame.time.Clock()
 
-        # Sub-surfaces: panels draw (0,0)-relative; parent owns separators.
-        self.minimap_surf = self.screen.subsurface(
-            pygame.Rect(0, 0, PANEL_MINIMAP_W, PANEL_HEIGHT)
-        )
+        # New layout (Phase 12.1): wireframe (top-left square) + minimap
+        # (below it, square) on the left; stats on the right full-height.
         self.wireframe_surf = self.screen.subsurface(
-            pygame.Rect(PANEL_MINIMAP_W, 0, PANEL_WIREFRAME_W, PANEL_HEIGHT)
+            pygame.Rect(0, 0, PANEL_WIREFRAME_SIZE, PANEL_WIREFRAME_SIZE)
+        )
+        self.minimap_surf = self.screen.subsurface(
+            pygame.Rect(0, PANEL_WIREFRAME_SIZE, PANEL_MINIMAP_SIZE, PANEL_MINIMAP_SIZE)
         )
         self.stats_surf = self.screen.subsurface(
-            pygame.Rect(
-                PANEL_MINIMAP_W + PANEL_WIREFRAME_W,
-                0,
-                PANEL_STATS_W,
-                PANEL_HEIGHT,
-            )
+            pygame.Rect(PANEL_LEFT_W, 0, PANEL_STATS_W, PANEL_HEIGHT)
         )
 
-        self.minimap = MinimapPanel(width=PANEL_MINIMAP_W, height=PANEL_HEIGHT)
+        self.minimap = MinimapPanel(width=PANEL_MINIMAP_SIZE, height=PANEL_MINIMAP_SIZE)
         self.wireframe = WireframePanel(
-            aas_graph, width=PANEL_WIREFRAME_W, height=PANEL_HEIGHT
+            aas_graph, width=PANEL_WIREFRAME_SIZE, height=PANEL_WIREFRAME_SIZE
         )
         self.stats = StatsPanel(width=PANEL_STATS_W, height=PANEL_HEIGHT)
 
@@ -337,10 +334,16 @@ class OpenPerceptionApp:
     # ------------------------------------------------------------------
     def _draw_separators(self) -> None:
         # Absolute parent coordinates — Pitfall 1.
-        x1 = PANEL_MINIMAP_W
-        x2 = PANEL_MINIMAP_W + PANEL_WIREFRAME_W
-        pygame.draw.line(self.screen, RGB_GRID, (x1, 0), (x1, PANEL_HEIGHT), 2)
-        pygame.draw.line(self.screen, RGB_GRID, (x2, 0), (x2, PANEL_HEIGHT), 2)
+        # Vertical: between left column and stats panel.
+        x_split = PANEL_LEFT_W
+        pygame.draw.line(
+            self.screen, RGB_GRID, (x_split, 0), (x_split, PANEL_HEIGHT), 2
+        )
+        # Horizontal: between wireframe and minimap (inside left column only).
+        y_split = PANEL_WIREFRAME_SIZE
+        pygame.draw.line(
+            self.screen, RGB_GRID, (0, y_split), (PANEL_LEFT_W, y_split), 2
+        )
 
     def _draw_status_bar(self, waiting: bool) -> None:
         # Parent-surface absolute coords at the bottom 20px strip.
