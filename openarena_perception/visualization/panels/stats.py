@@ -357,3 +357,59 @@ class StatsPanel:
                     color,
                 )
             y += 14
+
+        # Phase 13 Plan 13-05: rows 10-11 (room, room_items).
+        # Reset y to a known seam position so row layout is deterministic
+        # independent of whatever the verbose loop above produced. The
+        # inner loop lands at y~612 after 9 rows (470 + 16 header + 9*14 =
+        # 612) — we set it explicitly so the backward-compat panel test can
+        # assert the row 10/11 positions without coupling to loop internals.
+        y = 612
+        room_id = getattr(state, "current_room_id", None)
+        room_items = getattr(state, "current_room_items", None)
+        room_id_str: Optional[str] = (
+            str(room_id) if room_id is not None else None
+        )
+        if room_items is not None:
+            room_items_str: Optional[str] = (
+                ",".join(room_items)[:24] if room_items else "-"
+            )
+        else:
+            room_items_str = None
+
+        extra_rows: List[Tuple[str, Optional[object]]] = [
+            ("room", room_id_str),
+            ("room_items", room_items_str),
+        ]
+        for name, value in extra_rows:
+            self._text(
+                surface,
+                f"{name}:",
+                self.pad_x,
+                y,
+                self.font_small,
+                RGB_TEXT_DIM,
+            )
+            if value is None:
+                self._text(
+                    surface,
+                    _PLACEHOLDER,
+                    self.pad_x + label_w,
+                    y,
+                    self.font_small,
+                    RGB_TEXT_DIM,
+                )
+            else:
+                self._text(
+                    surface,
+                    str(value)[:24],
+                    self.pad_x + label_w,
+                    y,
+                    self.font_small,
+                    RGB_TEXT,
+                )
+            y += 14
+        # Sanity: row 11 must render above the panel bottom.
+        assert y <= 660, (
+            f"Phase 13 Plan 13-05 stats rows 10-11 exceed panel budget: y={y}"
+        )

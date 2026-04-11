@@ -52,6 +52,8 @@ def build_hud_payload(
     tick_rate_fps: float | None = None,
     frame_lag_ms: float | None = None,
     nav_current_step_area: int | None = None,
+    current_room_id: int | None = None,
+    current_room_items: list[str] | None = None,
     extras: Mapping[str, Any] | None = None,
 ) -> dict:
     """Build the HUD JSON payload as a plain dict.
@@ -179,6 +181,13 @@ def build_hud_payload(
         payload["frame_lag_ms"] = float(frame_lag_ms)
     if nav_current_step_area is not None:
         payload["nav_current_step_area"] = int(nav_current_step_area)
+
+    # Phase 13 Plan 13-05: room perception. Both keys emitted only when the
+    # kwarg is non-None so pre-Phase-13 callers remain byte-identical.
+    if current_room_id is not None:
+        payload["current_room_id"] = int(current_room_id)
+    if current_room_items is not None:
+        payload["current_room_items"] = list(current_room_items)
 
     if extras:
         payload.update(extras)
