@@ -246,10 +246,10 @@ Plans:
 
 **Requirements**: RP-01..RP-12 (new — room perception & wall reconstruction)
 **Depends on:** Phase 12.1
-**Plans:** 6 plans
+**Plans:** 1/6 plans executed
 
 Plans:
-- [ ] 13-01-PLAN.md — Wave 0 test scaffold + Pitfall 6 v3 whitelist fix
+- [x] 13-01-PLAN.md — Wave 0 test scaffold + Pitfall 6 v3 whitelist fix
 - [ ] 13-02-PLAN.md — Raycast capture + decimation + schema v3 save/load
 - [ ] 13-03-PLAN.md — LineFitter (seeded RANSAC) + wall merging + cadence gate
 - [ ] 13-04-PLAN.md — CornerDetector + RoomInferrer + DoorwayDetector

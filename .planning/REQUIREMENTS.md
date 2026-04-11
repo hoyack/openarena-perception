@@ -155,7 +155,7 @@ Deferred to future release. Tracked but not in current roadmap.
 - [ ] **RP-07**: `RoomInferrer` walks corner graph with hand-rolled simple cycle detection (max length 8) and emits `Room` polygons when enclosed area ≥ 64×64 sq units
 - [ ] **RP-08**: `PartialRoom` entities for incomplete 2/3-wall loops (excluded from render); `Doorway` entities where two walls almost-meet with gap < 96 units
 - [ ] **RP-09**: Per-`Room` knowledge log `{id, polygon_vertices, bounds, area, walls, corners, doorways, items_seen, visit_count, first_seen_ts, last_seen_ts, last_visited_ts, notes}`; items ingested via `cv2.pointPolygonTest`
-- [ ] **RP-10**: `learned_map.json` schema v3 with new top-level keys (`raycasts_per_floor`, `fitted_walls`, `corners`, `rooms`, `doorways`); v2 files load gracefully; `wall_segments: []` written for legacy loader compatibility
+- [x] **RP-10**: `learned_map.json` schema v3 with new top-level keys (`raycasts_per_floor`, `fitted_walls`, `corners`, `rooms`, `doorways`); v2 files load gracefully; `wall_segments: []` written for legacy loader compatibility
 - [ ] **RP-11**: `MinimapPanel` removes red-stub render block (lines 192-203) and draws fitted walls (2px green), corners (3px filled), room polygons (20% alpha + outline, current-room brighter); falls back silently when `fitted_walls` empty
 - [ ] **RP-12**: `hud_schema.build_hud_payload` accepts optional `current_room_id` + `current_room_items` kwargs (backward-compat); `StatsPanel` adds rows 10-11 below existing 9 verbose rows
 
