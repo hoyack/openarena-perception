@@ -338,7 +338,13 @@ class ItemTour:
         # re-engage +forward into the same wall" loop.
         self._avoidance_until = 0.0       # timestamp; while now<this, skip forward
         self._avoidance_hint = None       # action hint to keep held during avoidance
-        self._AVOIDANCE_DURATION = 0.5    # seconds
+        # Fix D (.planning/debug/bot-wall-gazing-regression.md):
+        # Halt-reason-aware avoidance hold. Vision-confirmed halts keep the full
+        # 500ms (distance-gain from the wall matters). Learned-map-only halts drop
+        # to 150ms so a noisy forward-look-ahead trip nudges the bot instead of
+        # rotating 30-60 degrees per fire.
+        self._AVOIDANCE_DURATION_VISION = 0.5   # seconds — vision/visual_pin halts
+        self._AVOIDANCE_DURATION_LM = 0.15      # seconds — learned_map-only halts
 
         # Fix B: visual pin detector — detect "walking but screen stays the
         # same" (bot wedged against geometry the wall_detector can't see, like
@@ -785,7 +791,12 @@ class ItemTour:
                 # the bot actually gains distance instead of wall-sliding and
                 # re-engaging +forward on the next tick.
                 self._avoidance_hint = hint
-                self._avoidance_until = now + self._AVOIDANCE_DURATION
+                # Fix D: learned-map-only halts use a shorter hold (nudge, not spin).
+                # Vision-confirmed reasons ("vision", "visual_pin") keep the full duration.
+                if halt_reason == "learned_map":
+                    self._avoidance_until = now + self._AVOIDANCE_DURATION_LM
+                else:
+                    self._avoidance_until = now + self._AVOIDANCE_DURATION_VISION
 
                 # Escalation: bot is wedged — force a replan from current pos.
                 # This fixes the "routing into walls while trying to reach a
