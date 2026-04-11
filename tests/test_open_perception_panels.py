@@ -277,3 +277,133 @@ def test_wireframe_panel_bgr_rgb_swap_correct(aas_graph, monkeypatch) -> None:
     assert pixel.b == 255, (
         f"BGR->RGB channel swap broken: got RGB=({pixel.r},{pixel.g},{pixel.b})"
     )
+
+
+# -----------------------------------------------------------------------
+# StatsPanel tests
+# -----------------------------------------------------------------------
+
+
+def test_stats_panel_renders_vital_stats() -> None:
+    panel = StatsPanel(PANEL_STATS_W, PANEL_HEIGHT)
+    surface = _surface(PANEL_STATS_W, PANEL_HEIGHT)
+    state = _make_state(health=100, armor=50)
+    panel.draw(state, surface)
+    # Vital region occupies y in [0, 120]
+    assert _region_nonbg(surface, 0, 0, PANEL_STATS_W, 120) > 0
+
+
+def test_stats_panel_renders_intent_block() -> None:
+    panel = StatsPanel(PANEL_STATS_W, PANEL_HEIGHT)
+    surface = _surface(PANEL_STATS_W, PANEL_HEIGHT)
+    state = _make_state(
+        intent={"macro": "TOURING", "sub": "heading north", "duration_s": 2.5}
+    )
+    panel.draw(state, surface)
+    # Intent region y in [120, 230]
+    assert _region_nonbg(surface, 0, 120, PANEL_STATS_W, 110) > 0
+
+
+def test_stats_panel_pause_border_flashes(monkeypatch) -> None:
+    panel = StatsPanel(PANEL_STATS_W, PANEL_HEIGHT)
+    surf1 = _surface(PANEL_STATS_W, PANEL_HEIGHT)
+    surf2 = _surface(PANEL_STATS_W, PANEL_HEIGHT)
+    state = _make_state(is_paused_for_assess=True)
+
+    # Frame A — flash ON (even half-second phase)
+    import openarena_perception.visualization.panels.stats as stats_mod
+
+    monkeypatch.setattr(stats_mod.time, "time", lambda: 0.0)
+    panel.draw(state, surf1)
+
+    # Frame B — flash OFF (odd half-second phase)
+    # int(0.5 * 2) % 2 == 1 => flash off
+    monkeypatch.setattr(stats_mod.time, "time", lambda: 0.5)
+    panel.draw(state, surf2)
+
+    # Sample the top border of the intent box (y ~= 121, x in [10, 390])
+    arr1 = pygame.surfarray.array3d(surf1)
+    arr2 = pygame.surfarray.array3d(surf2)
+    border_row_1 = arr1[10:390, 121:124]
+    border_row_2 = arr2[10:390, 121:124]
+    assert not np.array_equal(border_row_1, border_row_2), (
+        "pause border must visibly flash between t=0.0 and t=0.3"
+    )
+
+
+def test_stats_panel_verbose_rows_populated() -> None:
+    panel = StatsPanel(PANEL_STATS_W, PANEL_HEIGHT)
+    surface = _surface(PANEL_STATS_W, PANEL_HEIGHT)
+    state = _make_state(
+        stair_climb_state="climbing target_area=42",
+        swim_edge_state="clear",
+        advisor_last_thought="heading to mega health",
+        last_replan_steps=[3, 4, 6],
+        tick_rate_fps=12.3,
+        frame_lag_ms=45.0,
+        proactive_halts=2,
+        visual_pin_hits=1,
+        nav_current_step_area=17,
+    )
+    panel.draw(state, surface)
+    # Verbose region y in [470, 700]
+    nonbg = _region_nonbg(surface, 0, 470, PANEL_STATS_W, 230)
+    assert nonbg > 100, f"verbose region too empty: {nonbg} non-bg pixels"
+
+
+def test_stats_panel_verbose_rows_none_placeholder() -> None:
+    """Verbose rows with None values still render dim placeholders."""
+    panel = StatsPanel(PANEL_STATS_W, PANEL_HEIGHT)
+    surface = _surface(PANEL_STATS_W, PANEL_HEIGHT)
+    state = _make_state()  # all verbose fields default to None
+    panel.draw(state, surface)
+    # Region still has text because each row renders label + placeholder
+    nonbg = _region_nonbg(surface, 0, 470, PANEL_STATS_W, 230)
+    assert nonbg > 50, (
+        f"verbose rows should still render placeholders when None; "
+        f"got {nonbg} non-bg pixels"
+    )
+
+
+def test_stats_panel_frame_lag_warning_color() -> None:
+    panel = StatsPanel(PANEL_STATS_W, PANEL_HEIGHT)
+    surface = _surface(PANEL_STATS_W, PANEL_HEIGHT)
+    state = _make_state(frame_lag_ms=250.0)
+    panel.draw(state, surface)
+    # Scan the verbose region for red-dominant pixels — RGB_ALERT=(255,80,80).
+    # Font antialiasing means only a handful of pixels will hit the exact
+    # color, so use a loose dominance check.
+    arr = pygame.surfarray.array3d(surface)
+    region = arr[:, 470:700]
+    red_dominant = np.sum(
+        (region[:, :, 0].astype(int) - region[:, :, 1].astype(int) > 40)
+        & (region[:, :, 0].astype(int) - region[:, :, 2].astype(int) > 40)
+    )
+    assert red_dominant > 0, (
+        f"frame_lag>100ms should render in RGB_ALERT red; "
+        f"found {red_dominant} red-dominant pixels"
+    )
+
+    # And: compare against a control panel where lag is low — it must not
+    # produce any red-dominant pixels in the verbose region.
+    panel_ok = StatsPanel(PANEL_STATS_W, PANEL_HEIGHT)
+    surf_ok = _surface(PANEL_STATS_W, PANEL_HEIGHT)
+    panel_ok.draw(_make_state(frame_lag_ms=20.0), surf_ok)
+    arr_ok = pygame.surfarray.array3d(surf_ok)
+    region_ok = arr_ok[:, 470:700]
+    red_ok = np.sum(
+        (region_ok[:, :, 0].astype(int) - region_ok[:, :, 1].astype(int) > 40)
+        & (region_ok[:, :, 0].astype(int) - region_ok[:, :, 2].astype(int) > 40)
+    )
+    assert red_dominant > red_ok, (
+        f"high-lag frame should produce more red pixels than low-lag: "
+        f"{red_dominant} vs {red_ok}"
+    )
+
+
+def test_stats_panel_no_strategic_hud_import() -> None:
+    src = Path(
+        "openarena_perception/visualization/panels/stats.py"
+    ).read_text()
+    assert "import strategic_hud" not in src
+    assert "from strategic_hud" not in src
