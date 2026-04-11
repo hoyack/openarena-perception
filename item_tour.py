@@ -638,6 +638,29 @@ class ItemTour:
                 self.agent.nav.pos, self.agent.nav.yaw,
                 wall_ahead, wall_score, open_dir, in_water)
 
+            # Phase 13 (plan 13-07): run the room-perception pipeline
+            # using the freshly-updated raycast cloud. fit_rooms() is
+            # cadence-gated internally (LineFitter.fit) and early-returns
+            # when the cloud has fewer than 20 samples, so unconditional
+            # per-tick invocation is safe (microseconds on no-op ticks).
+            # Defensive try/except mirrors the _check_proactive_wall
+            # pattern at lines ~1240-1248: learned_map is optional and
+            # must NEVER crash the tick loop.
+            try:
+                self.learned_map.fit_rooms()
+                # Route tour items into newly-fitted rooms.
+                # note_item() has internal name-dedup and early-returns
+                # when the rooms list is empty, so this loop is cheap
+                # before the first successful fit and self-correcting
+                # once rooms appear.
+                for _route_entry in self._route:
+                    _name = _route_entry[0]
+                    _ix = float(_route_entry[1])
+                    _iy = float(_route_entry[2])
+                    self.learned_map.note_item(_name, _ix, _iy)
+            except Exception:
+                pass  # room perception optional; never crash the tick
+
         # Vision streak hysteresis (used by proactive wall halt below)
         if wall_ahead:
             self._wall_vision_streak += 1
