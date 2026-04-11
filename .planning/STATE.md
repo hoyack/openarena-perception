@@ -240,6 +240,7 @@ None yet.
 | Date | Slug | Summary | Commit |
 |------|------|---------|--------|
 | 2026-04-11 | 260411-gaa-lm-halt-shorter-avoid | Halt-reason-aware avoidance hold in item_tour (learned_map 150ms, vision 500ms) — fix path D | 881e508 |
+| 2026-04-11 | 260411-gzi-break-hint-chain | Break turn-hold re-commit chain: commit 0.5s→0.2s, throttle 0.5s→1.0s, consecutive-same-hint cap with back_away escalation | e08ad30 |
 
 ### Blockers/Concerns
 
