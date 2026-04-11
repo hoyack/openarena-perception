@@ -22,7 +22,7 @@ import math
 import random
 import re
 import time
-from typing import Dict, List, Optional, Tuple
+from typing import Callable, Dict, List, Optional, Tuple
 
 from .aas_parser import AASGraph, parse_aas, TRAVEL_JUMP, TRAVEL_JUMPPAD, \
     TRAVEL_LADDER, TRAVEL_WALKOFFLEDGE, TRAVEL_BARRIERJUMP
@@ -40,7 +40,13 @@ class Navigator:
     POS_INTERVAL = 0.2
     YAW_SPEED = 180
 
-    def __init__(self, bridge: GameBridge, aas_path: str = "", bsp_path: str = ""):
+    def __init__(
+        self,
+        bridge: GameBridge,
+        aas_path: str = "",
+        bsp_path: str = "",
+        on_replan: Optional[Callable[[int], None]] = None,
+    ):
         self.bridge = bridge
         self.graph: Optional[AASGraph] = None
         self.pos: Optional[Tuple[float, float, float]] = None
@@ -56,6 +62,12 @@ class Navigator:
         self._edge_cost_fn = None      # callable(from_area, to_area) -> float
         self._on_area_transition = None # callable(from_area, to_area, success)
         self._prev_area_for_learning = 0
+
+        # Phase 12-01: verbose telemetry hooks
+        self._on_replan: Optional[Callable[[int], None]] = on_replan
+        self._in_replan_callback: bool = False
+        self._last_swim_edge_area: Optional[int] = None
+        self._last_swim_edge_time: float = 0.0
 
         if aas_path:
             self.graph = parse_aas(aas_path)
@@ -109,6 +121,33 @@ class Navigator:
     @property
     def current_area(self) -> int:
         return self._current_area
+
+    # -- Phase 12-01: verbose telemetry helpers -----------------------------
+
+    @property
+    def current_step_area(self) -> Optional[int]:
+        """First area on the current path, or None if path empty."""
+        return self._path[0] if self._path else None
+
+    def note_swim_edge(self, target_area: int) -> None:
+        """Record a transition into a swim-edge traversal.
+
+        Only advances `_last_swim_edge_time` on actual area transitions so
+        the timestamp-based decay is meaningful (Pitfall 8 — firing every
+        tick inside the same swim branch would keep the window open forever).
+        """
+        if target_area != self._last_swim_edge_area:
+            self._last_swim_edge_area = target_area
+            self._last_swim_edge_time = time.monotonic()
+
+    def swim_edge_state_str(self, now: Optional[float] = None) -> Optional[str]:
+        """Return a human-readable swim-edge state if within the 2s window."""
+        if self._last_swim_edge_area is None:
+            return None
+        t = now if now is not None else time.monotonic()
+        if t - self._last_swim_edge_time < 2.0:
+            return f"traversing to area {self._last_swim_edge_area}"
+        return None
 
     # -- Pathfinding --------------------------------------------------------
 
@@ -183,6 +222,13 @@ class Navigator:
                     log.info("Re-planned path from area %d: %d -> %d steps",
                              current, old_len, len(self._path))
                     target_area = self._path[0]
+                    # Phase 12-01: fire replan hook, guarded against re-entry.
+                    if self._on_replan is not None and not self._in_replan_callback:
+                        self._in_replan_callback = True
+                        try:
+                            self._on_replan(len(self._path))
+                        finally:
+                            self._in_replan_callback = False
 
         # Find reachability edge from current area to target
         reach = None
@@ -195,6 +241,10 @@ class Navigator:
         if reach:
             # Swim edges: allow if it's the only way
             if reach.travel_type in self.SWIM_TRAVEL:
+                # Phase 12-01: record transition into swim edge (once per
+                # target) so the HUD can show "traversing to area N" with a
+                # 2s decay instead of filling the log every tick.
+                self.note_swim_edge(target_area)
                 log.warning("Traversing swim edge to area %d (may take damage!)", target_area)
                 self.bridge.cmd("+moveup")
                 self.bridge.cmd("-moveup")

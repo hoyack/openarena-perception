@@ -255,6 +255,150 @@ class TestObstacleAvoidance:
 # NAV-06: Respawn navigation
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# Phase 12-01: Navigator verbose telemetry hooks
+# ---------------------------------------------------------------------------
+
+class TestNavigatorReplanHook:
+    """Phase 12-01 NAV verbose telemetry wiring."""
+
+    def _make_nav_with_fake_graph(self, path):
+        """Construct a Navigator with a fake AAS graph wired so follow_path
+        will execute the re-plan branch once."""
+        import math
+        from unittest.mock import MagicMock
+        bridge = MagicMock()
+        bridge.rcon.return_value = ""
+        nav = Navigator(bridge, aas_path="")
+        # Build a fake graph with enough areas to cover the test path ids.
+        # _astar returns a path; we patch it to return a deterministic result.
+        nav.graph = MagicMock()
+        nav.graph.areas = [MagicMock() for _ in range(50)]
+        for i, a in enumerate(nav.graph.areas):
+            a.idx = i
+            a.neighbors = []
+            a.reaches = []
+            a.is_liquid = False
+            a.travel_types = []
+        # area_center must return a 3-tuple (used in the no-reach fallback
+        # branch after re-plan fires)
+        nav.graph.area_center = MagicMock(return_value=(0.0, 0.0, 0.0))
+        return nav
+
+    def test_navigator_accepts_on_replan_kwarg(self):
+        """Navigator.__init__ accepts an `on_replan` kwarg."""
+        bridge = MagicMock()
+        bridge.rcon.return_value = ""
+        calls = []
+        nav = Navigator(bridge, aas_path="", on_replan=lambda n: calls.append(n))
+        assert nav._on_replan is not None
+
+    def test_navigator_on_replan_hook_fires(self):
+        """When follow_path re-plans, the callback fires with the new step count."""
+        calls = []
+        nav = self._make_nav_with_fake_graph([10, 20, 30])
+        nav._on_replan = lambda n: calls.append(n)
+        # Put us in area 99 (not on path), with a path that does not contain 99
+        nav._path = [10, 20, 30]
+        nav._current_area = 5  # not on path, so re-plan branch fires
+        nav.pos = (0.0, 0.0, 0.0)
+        # Patch _astar to return a 5-step route (including start area)
+        nav._astar = MagicMock(return_value=[5, 40, 41, 42, 43, 30])
+        # follow_path re-plan branch fires, then tries to find a reach (none),
+        # then falls through to fallback which just returns 1 or None.
+        nav.follow_path()
+        assert calls == [5], f"expected [5], got {calls}"
+
+    def test_navigator_on_replan_hook_non_reentrant(self):
+        """A callback that calls navigator methods does not trigger infinite recursion."""
+        nav = self._make_nav_with_fake_graph([10, 20, 30])
+        call_count = [0]
+
+        def cb(n):
+            call_count[0] += 1
+            # Reenter follow_path synchronously; guard must prevent loop
+            nav.follow_path()
+
+        nav._on_replan = cb
+        nav._path = [10, 20, 30]
+        nav._current_area = 5  # not on path, so re-plan branch fires
+        nav.pos = (0.0, 0.0, 0.0)
+        nav._astar = MagicMock(return_value=[5, 40, 30])
+        nav.follow_path()
+        # Callback fires at most once per top-level follow_path call; the
+        # re-entry must not re-trigger the hook.
+        assert call_count[0] == 1
+
+    def test_navigator_current_step_area_property(self):
+        """current_step_area returns _path[0] or None."""
+        bridge = MagicMock()
+        bridge.rcon.return_value = ""
+        nav = Navigator(bridge, aas_path="")
+        assert nav.current_step_area is None
+        nav._path = [42, 43, 44]
+        assert nav.current_step_area == 42
+
+    def test_navigator_swim_edge_state_set_on_transition_only(self, monkeypatch):
+        """_last_swim_edge_time must advance only when target area changes."""
+        import openarena_perception.navigation.navigator as nav_mod
+        bridge = MagicMock()
+        bridge.rcon.return_value = ""
+        nav = Navigator(bridge, aas_path="")
+        t = [100.0]
+        monkeypatch.setattr(nav_mod.time, "monotonic", lambda: t[0])
+
+        # First transition
+        nav.note_swim_edge(7)
+        assert nav._last_swim_edge_area == 7
+        assert nav._last_swim_edge_time == 100.0
+
+        # Second call, same area, advanced time -- timestamp must NOT advance
+        t[0] = 101.5
+        nav.note_swim_edge(7)
+        assert nav._last_swim_edge_time == 100.0
+
+        # Transition to a different area -- timestamp updates
+        nav.note_swim_edge(9)
+        assert nav._last_swim_edge_area == 9
+        assert nav._last_swim_edge_time == 101.5
+
+    def test_navigator_swim_edge_state_decays_after_2s(self, monkeypatch):
+        """swim_edge_state_str returns None after the 2s window expires."""
+        import openarena_perception.navigation.navigator as nav_mod
+        bridge = MagicMock()
+        bridge.rcon.return_value = ""
+        nav = Navigator(bridge, aas_path="")
+        t = [100.0]
+        monkeypatch.setattr(nav_mod.time, "monotonic", lambda: t[0])
+        nav.note_swim_edge(5)
+        assert nav.swim_edge_state_str() == "traversing to area 5"
+        t[0] = 103.0
+        assert nav.swim_edge_state_str() is None
+
+    def test_navigator_swim_edge_state_str_none_when_unset(self):
+        bridge = MagicMock()
+        bridge.rcon.return_value = ""
+        nav = Navigator(bridge, aas_path="")
+        assert nav.swim_edge_state_str() is None
+
+
+class TestPerceptionLoopTelemetry:
+    """Phase 12-01 PerceptionLoop verbose telemetry."""
+
+    def test_perception_loop_last_tick_ms_property(self):
+        from openarena_perception.loop import PerceptionLoop
+        from openarena_perception import build_config
+        cfg = build_config(resolution="800x600", enemy_color_mode="red")
+        # Use a mock capture to avoid needing a real display
+        capture = MagicMock()
+        loop = PerceptionLoop(cfg, capture=capture)
+        assert loop.last_tick_ms == 0.0
+        loop._tick_times.append(0.012)
+        assert loop.last_tick_ms == pytest.approx(12.0)
+        loop._tick_times.append(0.025)
+        assert loop.last_tick_ms == pytest.approx(25.0)
+
+
 class TestRespawnNavigation:
     """NAV-06: NavBehavior.on_enter_exploring calls navigator.path_to_random."""
 
