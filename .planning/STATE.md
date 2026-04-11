@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-stopped_at: Completed 12.1-02-PLAN.md
-last_updated: "2026-04-11T12:06:09.777Z"
+status: verifying
+stopped_at: Completed 12.1-03-PLAN.md
+last_updated: "2026-04-11T12:14:36.372Z"
 last_activity: 2026-04-11
 progress:
   total_phases: 13
-  completed_phases: 12
+  completed_phases: 13
   total_plans: 50
-  completed_plans: 49
-  percent: 98
+  completed_plans: 50
+  percent: 100
 ---
 
 # Project State
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-04-08)
 
 Phase: 12.1 (open-perception-ui-polish) — EXECUTING
 Plan: 3 of 3
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-04-11
 
 Progress: [..........] 0%
@@ -108,6 +108,7 @@ Progress: [..........] 0%
 | Phase 12 P3 | 25min | 3 tasks | 5 files |
 | Phase 12.1 P01 | 4min | 1 tasks | 2 files |
 | Phase 12.1 P02 | 5min | 2 tasks | 5 files |
+| Phase 12.1 P03 | 8min | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -214,6 +215,7 @@ Recent decisions affecting current work:
 - [Phase 12]: BGR->RGB boundary crossed exactly once in WireframePanel.draw via frame[:,:,::-1] + swapaxes(0,1)
 - [Phase 12.1]: areas_on_floor helper uses z_tolerance=24.0 (half player hull) and skips dummy area 0
 - [Phase 12.1]: Phase 12.1: HUD shrunk to 760x720 — two 360x360 squares stacked on left (wireframe top, minimap bottom), 400x720 stats on right; PANEL_WIREFRAME_SIZE/PANEL_MINIMAP_SIZE/PANEL_LEFT_W as SSoT with backward-compat aliases
+- [Phase 12.1]: Plan 12.1-03: Minimap shows current-floor AAS overhead + learned-path emphasis (VISITED 6x6 bright green over OPEN 4x4 dim); trail 2px; square 328px view inside 360x360 panel
 
 ### Pending Todos
 
@@ -226,6 +228,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-11T12:05:59.861Z
-Stopped at: Completed 12.1-02-PLAN.md
+Last session: 2026-04-11T12:14:36.357Z
+Stopped at: Completed 12.1-03-PLAN.md
 Resume file: None

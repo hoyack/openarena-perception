@@ -233,9 +233,9 @@ Plans:
 **Goal:** Polish the Phase 12 Open-Perception HUD. Reshape the wireframe panel into a 360x360 square top-left, stack a 360x360 square minimap below it, shrink the window to 760x720, and rework the minimap to prioritize what the bot has learned (VISITED cells emphasized, player trail on top) plus an AAS overhead 2D layer filtered to the bot's current floor (areas whose z-range contains bot_z). All Phase 12 features preserved: 9 verbose stats rows, dedup contract, intent block, pause-border flash, problem history, path progress bar, frame_lag red flash.
 **Requirements**: OP-01..OP-08 (polish pass — no new requirement IDs)
 **Depends on:** Phase 12
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 
 Plans:
 - [x] 12.1-01-PLAN.md — AAS current-floor filter helper (areas_on_floor) + unit tests
 - [x] 12.1-02-PLAN.md — Layout constants + square wireframe + window recomposition (760x720)
-- [ ] 12.1-03-PLAN.md — Minimap rework (square, learned-path emphasis, AAS overhead) + human-verify checkpoint
+- [x] 12.1-03-PLAN.md — Minimap rework (square, learned-path emphasis, AAS overhead) + human-verify checkpoint
