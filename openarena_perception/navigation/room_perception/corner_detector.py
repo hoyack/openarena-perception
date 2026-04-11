@@ -30,7 +30,7 @@ class CornerDetector:
         angle_min: float = 20.0,
         angle_max: float = 160.0,
         endpoint_max_dist: float = 32.0,
-        merge_radius: float = 16.0,
+        merge_radius: float = 8.0,
     ) -> None:
         self.angle_min = angle_min
         self.angle_max = angle_max

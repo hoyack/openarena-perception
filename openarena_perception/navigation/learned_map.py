@@ -682,12 +682,18 @@ class LearnedMap:
         # walls in unit tests, but too tight for live fitter output.
         # Plan 13-09: keep 64u (Plan 13-08's 96u was a regression -- see
         # .planning/phases/13-.../13-VERIFICATION.md GAP-3 Attempt 1). Add
-        # merge_radius=16 to collapse near-duplicate corners at the source.
+        # merge_radius to collapse near-duplicate corners at the source.
         # Floor-1 sparseness is a raycast-data-scarcity problem, not a
         # proximity-threshold one.
+        # Plan 13-09 follow-up: merge_radius 16 -> 8. 16u was over-aggressive
+        # and collapsed legitimately-distinct adjacent corners (RANSAC wall
+        # endpoints undershoot/overshoot by 10-30u, so 16u merged corners
+        # across real architectural intersections). 8u catches the actual
+        # 2-8u near-duplicate range observed in the live 13-08 data without
+        # destroying the corner graph.
         corners = CornerDetector(
             endpoint_max_dist=64.0,
-            merge_radius=16.0,
+            merge_radius=8.0,
         ).detect(walls)
         self._corners_per_floor[floor] = corners
         rooms, partials = RoomInferrer().infer(walls, corners)

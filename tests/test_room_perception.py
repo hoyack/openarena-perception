@@ -271,6 +271,50 @@ def test_corner_spatial_merge():
             )
 
 
+def test_corner_spatial_merge_preserves_distant_corners():
+    """Plan 13-09 follow-up: corners >= merge_radius apart MUST NOT merge.
+
+    Blind spot from the initial 13-09 test: the original merge test only
+    verified that near-duplicates DO collapse, not that legitimate adjacent
+    corners survive. Live tour with merge_radius=16 collapsed 30 corners
+    down to 2 on oa_dm1 because RANSAC wall endpoints undershoot/overshoot
+    the true intersection by 10-30u, landing distinct architectural corners
+    ~15u apart -- within the 16u radius. Dropped merge_radius default to
+    8u as a follow-up tune; this test locks in the invariant.
+    """
+    from openarena_perception.navigation.room_perception import (
+        CornerDetector,
+        Wall,
+    )
+
+    # Four walls arranged as two separate L-shapes 50u apart. Each L
+    # produces one corner; the two corners must stay distinct. We space
+    # the L-shapes far enough that endpoint_max_dist=32u (the class
+    # default) does NOT pick up cross-L wall pairs, so only the intra-L
+    # corners fire. The two corners are then 50 * sqrt(2) ≈ 70.7u apart,
+    # comfortably outside the 8u merge radius.
+    # L1 at origin
+    w1 = Wall(1, 0, 0, 100, 0, 0.9, 30, 0.0, 1.0)
+    w2 = Wall(2, 0, 0, 0, 100, 0.9, 30, 0.0, 1.0)
+    # L2 at (50, 50)
+    w3 = Wall(3, 50, 50, 150, 50, 0.9, 30, 0.0, 1.0)
+    w4 = Wall(4, 50, 50, 50, 150, 0.9, 30, 0.0, 1.0)
+
+    walls = [w1, w2, w3, w4]
+    merged = CornerDetector(merge_radius=8.0).detect(walls)
+
+    # Two corners expected: one per L-shape, ~70u apart.
+    assert len(merged) == 2, (
+        f"expected 2 distinct corners for two separate L-shapes 50u apart, "
+        f"got {len(merged)}: {merged}"
+    )
+    # Spot-check they're actually at the expected positions.
+    xs = sorted(c.x for c in merged)
+    ys = sorted(c.y for c in merged)
+    assert abs(xs[0] - 0) < 1 and abs(xs[1] - 50) < 1, f"x positions: {xs}"
+    assert abs(ys[0] - 0) < 1 and abs(ys[1] - 50) < 1, f"y positions: {ys}"
+
+
 def test_room_centroid_cell_dedup():
     """Plan 13-09: cycles whose centroids land in the same 16u cell collapse to one room.
 
