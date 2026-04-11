@@ -10,6 +10,9 @@ from openarena_perception.navigation.room_perception.corner_detector import (
 from openarena_perception.navigation.room_perception.doorway_detector import (
     DoorwayDetector,
 )
+from openarena_perception.navigation.room_perception.room_inferrer import (
+    RoomInferrer,
+)
 from openarena_perception.navigation.room_perception.types import (
     Corner,
     Doorway,
@@ -26,4 +29,5 @@ __all__ = [
     "Doorway",
     "CornerDetector",
     "DoorwayDetector",
+    "RoomInferrer",
 ]

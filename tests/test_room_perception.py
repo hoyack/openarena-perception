@@ -194,16 +194,71 @@ def test_corner_from_two_walls():
     assert CornerDetector().detect([w5, w6]) == []
 
 
-@pytest.mark.skip(reason="Wave 2 — Plan 13-04 RP-07")
 def test_room_from_square():
-    """RP-07: synthetic 4-corner square graph -> exactly 1 Room; triangle below min-area -> 0 Rooms."""
-    raise NotImplementedError
+    """RP-07: 4-corner square above min-area -> 1 Room; small 30x30 -> 0 Rooms."""
+    from openarena_perception.navigation.room_perception import (
+        CornerDetector,
+        RoomInferrer,
+        Wall,
+    )
+
+    # 200x200 square (area 40000 >> 4096 min)
+    w1 = Wall(1, 0, 0, 200, 0, 0.9, 30, 0.0, 1.0)
+    w2 = Wall(2, 200, 0, 200, 200, 0.9, 30, 0.0, 1.0)
+    w3 = Wall(3, 200, 200, 0, 200, 0.9, 30, 0.0, 1.0)
+    w4 = Wall(4, 0, 200, 0, 0, 0.9, 30, 0.0, 1.0)
+    walls = [w1, w2, w3, w4]
+    corners = CornerDetector().detect(walls)
+    assert len(corners) == 4
+    rooms, partials = RoomInferrer().infer(walls, corners)
+    assert len(rooms) == 1, (
+        f"expected 1 room, got {len(rooms)} rooms and {len(partials)} partials"
+    )
+    assert rooms[0].area == pytest.approx(40000.0, rel=0.01)
+    assert len(rooms[0].polygon_vertices) == 4
+
+    # Tiny 30x30 -- below 4096 min area
+    t1 = Wall(10, 0, 0, 30, 0, 0.9, 30, 0.0, 1.0)
+    t2 = Wall(11, 30, 0, 30, 30, 0.9, 30, 0.0, 1.0)
+    t3 = Wall(12, 30, 30, 0, 30, 0.9, 30, 0.0, 1.0)
+    t4 = Wall(13, 0, 30, 0, 0, 0.9, 30, 0.0, 1.0)
+    tiny = [t1, t2, t3, t4]
+    tiny_corners = CornerDetector().detect(tiny)
+    rooms_tiny, _ = RoomInferrer().infer(tiny, tiny_corners)
+    assert len(rooms_tiny) == 0
 
 
-@pytest.mark.skip(reason="Wave 2 — Plan 13-04 RP-08")
 def test_partial_room_and_doorway(u_shape_point_cloud):
-    """RP-08: 3-wall U -> 1 PartialRoom, 0 rooms rendered; adjacent rooms with <96u gap -> 1 Doorway."""
-    raise NotImplementedError
+    """RP-08: U-shape -> 1 PartialRoom; collinear near-miss walls -> 1 Doorway."""
+    from openarena_perception.navigation.room_perception import (
+        CornerDetector,
+        DoorwayDetector,
+        RoomInferrer,
+        Wall,
+    )
+
+    # U-shape: left, bottom, right (no top)
+    left = Wall(1, 0, 0, 0, 200, 0.9, 30, 0.0, 1.0)
+    bottom = Wall(2, 0, 0, 300, 0, 0.9, 30, 0.0, 1.0)
+    right = Wall(3, 300, 0, 300, 200, 0.9, 30, 0.0, 1.0)
+    walls = [left, bottom, right]
+    corners = CornerDetector().detect(walls)
+    rooms, partials = RoomInferrer().infer(walls, corners)
+    assert len(rooms) == 0
+    assert len(partials) == 1
+    assert len(partials[0].wall_ids) == 3
+
+    # Doorway: two collinear walls with 50-unit gap
+    d1 = Wall(10, 0, 0, 100, 0, 0.9, 30, 0.0, 1.0)
+    d2 = Wall(11, 150, 0, 250, 0, 0.9, 30, 0.0, 1.0)
+    doorways = DoorwayDetector().detect([d1, d2])
+    assert len(doorways) == 1
+    assert 40 < doorways[0].gap_distance < 60
+
+    # Far apart -- 200 unit gap > 96 threshold
+    d3 = Wall(20, 0, 0, 100, 0, 0.9, 30, 0.0, 1.0)
+    d4 = Wall(21, 300, 0, 400, 0, 0.9, 30, 0.0, 1.0)
+    assert DoorwayDetector().detect([d3, d4]) == []
 
 
 # ---- Wave 3: Plan 13-05 Room log + HUD (RP-09) ----
