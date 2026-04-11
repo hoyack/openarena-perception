@@ -17,7 +17,7 @@ import logging
 import math
 import os
 from enum import IntEnum
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, NamedTuple, Optional, Tuple
 
 import numpy as np
 
@@ -32,6 +32,20 @@ class CellState(IntEnum):
     LIQUID = 4
 
 
+class RaycastHit(NamedTuple):
+    """Single wall observation: where the bot looked from + where the ray hit."""
+
+    origin_x: float
+    origin_y: float
+    origin_z: float
+    dir_angle_deg: float
+    hit_x: float
+    hit_y: float
+    hit_z: float
+    confidence: float
+    timestamp: float
+
+
 class LearnedMap:
     """Self-mapping navigation layer. Updated every tick, persisted across sessions."""
 
@@ -39,6 +53,7 @@ class LearnedMap:
     GRID_SIZE = 64          # 64x64 grid = 4096x4096 world units
     MERGE_DISTANCE = 48.0   # wall segments closer than this merge
     MAX_SEGMENTS = 500
+    MAX_RAYCASTS_PER_FLOOR = 5000   # Phase 13: point cloud cap per floor
     SAVE_INTERVAL = 60.0    # seconds between auto-saves
 
     def __init__(self, map_name: str = "unknown", aas_graph=None):
@@ -66,7 +81,16 @@ class LearnedMap:
         self._current_floor = 1
 
         # Wall segments: [(x1, y1, x2, y2, confidence, last_seen)]
+        # Phase 13: legacy stub path retired — kept as empty writable list for
+        # backward compat in save()/load() schemas. New captures go to the
+        # raycast point cloud below.
         self._wall_segments: List[List[float]] = []
+
+        # Phase 13: per-floor raycast point cloud mirroring _grids shape.
+        # Replaces the _record_wall perpendicular-stub architecture.
+        self._raycasts_per_floor: List[List[RaycastHit]] = [
+            [] for _ in range(self.NUM_FLOORS)
+        ]
 
         # Edge failure/success memory
         self._edge_failures: Dict[str, int] = {}
@@ -126,8 +150,10 @@ class LearnedMap:
             if self._grid[wgy, wgx] != CellState.VISITED:
                 self._grid[wgy, wgx] = CellState.WALL
 
-            # Record wall segment
-            self._record_wall(wx, wy, yaw, wall_score)
+            # Phase 13: raycast point cloud capture (replaces _record_wall stubs).
+            # The legacy _record_wall method is kept defined-but-unused so any
+            # incidental callers remain valid; wall_segments stays empty.
+            self._record_raycast(wx, wy, wz, yaw, wall_x, wall_y, wz, wall_score)
 
         # Auto-save
         import time
@@ -399,6 +425,44 @@ class LearnedMap:
         # New segment
         if len(self._wall_segments) < self.MAX_SEGMENTS:
             self._wall_segments.append([x1, y1, x2, y2, 1, now])
+
+    def _record_raycast(
+        self,
+        ox: float,
+        oy: float,
+        oz: float,
+        yaw: float,
+        hx: float,
+        hy: float,
+        hz: float,
+        confidence: float,
+    ) -> None:
+        """Append a RaycastHit to the current floor's cloud; decimate if over cap.
+
+        Phase 13 point-cloud capture. Per-tick cost is a single list append;
+        the sort-based eviction pass only runs when the cloud exceeds
+        MAX_RAYCASTS_PER_FLOOR, so amortized cost stays <1ms on target hardware.
+        """
+        import time
+
+        hit = RaycastHit(
+            origin_x=ox,
+            origin_y=oy,
+            origin_z=oz,
+            dir_angle_deg=yaw,
+            hit_x=hx,
+            hit_y=hy,
+            hit_z=hz,
+            confidence=confidence,
+            timestamp=time.time(),
+        )
+        cloud = self._raycasts_per_floor[self._current_floor]
+        cloud.append(hit)
+        if len(cloud) > self.MAX_RAYCASTS_PER_FLOOR:
+            # Evict oldest-lowest-confidence: ascending by (confidence, timestamp)
+            # — keep the highest-confidence/most-recent tail.
+            cloud.sort(key=lambda h: (h.confidence, h.timestamp))
+            del cloud[: len(cloud) - self.MAX_RAYCASTS_PER_FLOOR]
 
     @staticmethod
     def _edge_key(from_area: int, to_area: int) -> str:

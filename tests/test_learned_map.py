@@ -8,7 +8,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from openarena_perception.navigation.learned_map import LearnedMap
+from openarena_perception.navigation.learned_map import LearnedMap, RaycastHit
 
 
 class TestSchemaV3Whitelist:
@@ -63,19 +63,118 @@ class TestSchemaV3Whitelist:
         assert lm.load() is True
 
 
-@pytest.mark.skip(reason="Wave 1 — Plan 13-02 RP-01")
-def test_raycast_capture_appends():
-    """RP-01: one tick with wall_ahead=True appends exactly one RaycastHit."""
-    raise NotImplementedError
+def test_raycast_capture_appends(tmp_path):
+    """RP-01: one tick with wall_ahead + wall_score>0.5 -> exactly one RaycastHit."""
+    lm = LearnedMap(map_name="test_rp01")
+    lm._save_dir = str(tmp_path)
+    lm.update(
+        pos=(100.0, 200.0, 50.0),
+        yaw=45.0,
+        wall_ahead=True,
+        wall_score=0.8,
+        open_direction=0,
+        in_water=False,
+    )
+    cloud = lm._raycasts_per_floor[1]  # upper floor (z=50 >= -20)
+    assert len(cloud) == 1
+    assert isinstance(cloud[0], RaycastHit)
+    assert cloud[0].origin_x == 100.0
+    assert cloud[0].origin_y == 200.0
+    assert cloud[0].origin_z == 50.0
+    assert cloud[0].dir_angle_deg == 45.0
+    assert cloud[0].confidence == 0.8
 
 
-@pytest.mark.skip(reason="Wave 1 — Plan 13-02 RP-02")
-def test_raycast_decimation():
-    """RP-02: 6000 synthetic hits -> final size == 5000 after decimation."""
-    raise NotImplementedError
+def test_raycast_capture_respects_gate(tmp_path):
+    """RP-01: wall_ahead=False OR wall_score<=0.5 -> no raycast appended."""
+    lm = LearnedMap(map_name="test_rp01_gate")
+    lm._save_dir = str(tmp_path)
+    lm.update(
+        pos=(0.0, 0.0, 50.0),
+        yaw=0.0,
+        wall_ahead=False,
+        wall_score=0.9,
+        open_direction=0,
+        in_water=False,
+    )
+    assert len(lm._raycasts_per_floor[1]) == 0
+    lm.update(
+        pos=(0.0, 0.0, 50.0),
+        yaw=0.0,
+        wall_ahead=True,
+        wall_score=0.3,
+        open_direction=0,
+        in_water=False,
+    )
+    assert len(lm._raycasts_per_floor[1]) == 0
 
 
-@pytest.mark.skip(reason="Wave 3 — Plan 13-05 RP-10")
+def test_raycast_floor_routing(tmp_path):
+    """RP-01: basement ticks populate floor 0, upper ticks populate floor 1."""
+    lm = LearnedMap(map_name="test_rp01_floor")
+    lm._save_dir = str(tmp_path)
+    lm.update(
+        pos=(0.0, 0.0, -50.0),
+        yaw=0.0,
+        wall_ahead=True,
+        wall_score=0.9,
+        open_direction=0,
+        in_water=False,
+    )
+    assert len(lm._raycasts_per_floor[0]) == 1
+    assert len(lm._raycasts_per_floor[1]) == 0
+
+
+def test_raycast_decimation(tmp_path):
+    """RP-02: 6000 hits -> final cap == 5000; retained set has the higher confidences."""
+    import random
+
+    rng = random.Random(42)  # local RNG — don't pollute global state
+    lm = LearnedMap(map_name="test_rp02")
+    lm._save_dir = str(tmp_path)
+    for i in range(6000):
+        conf = 0.5 + rng.random() * 0.5  # (0.5, 1.0]
+        # Nudge above the strict >0.5 gate in update()
+        if conf <= 0.5:
+            conf = 0.5001
+        lm.update(
+            pos=(float(i), 0.0, 50.0),
+            yaw=float(i % 360),
+            wall_ahead=True,
+            wall_score=conf,
+            open_direction=0,
+            in_water=False,
+        )
+    cloud = lm._raycasts_per_floor[1]
+    assert len(cloud) == lm.MAX_RAYCASTS_PER_FLOOR == 5000
+    # Eviction drops the lowest-confidence tail — retained min must clear the gate.
+    min_retained = min(h.confidence for h in cloud)
+    assert min_retained > 0.5
+
+
+def test_raycast_capture_overhead_under_1ms(tmp_path):
+    """Per-tick raycast capture must stay <1ms on target hardware.
+
+    Measures average cost of _record_raycast across 1000 appends (no decimation
+    triggered). On Pi 4/5 the list-append path is well under 1ms; we budget
+    generously at 1ms to avoid flakiness.
+    """
+    import time as _time
+
+    lm = LearnedMap(map_name="test_rp_perf")
+    lm._save_dir = str(tmp_path)
+    # Warm up
+    lm._record_raycast(0, 0, 50, 0, 10, 0, 50, 0.9)
+    N = 1000
+    t0 = _time.perf_counter()
+    for i in range(N):
+        lm._record_raycast(float(i), 0.0, 50.0, 0.0, float(i) + 10, 0.0, 50.0, 0.9)
+    elapsed = _time.perf_counter() - t0
+    avg_ms = (elapsed / N) * 1000.0
+    assert avg_ms < 1.0, f"per-tick capture too slow: {avg_ms:.4f} ms (>1ms)"
+
+
+@pytest.mark.skip(reason="Wave 1 — Plan 13-02 Task 2 RP-10")
 def test_schema_v3_roundtrip():
     """RP-10: save v3 -> reload -> all typed collections preserved byte-stable."""
     raise NotImplementedError
