@@ -24,6 +24,7 @@ from typing import Any, Optional, Tuple
 
 import pygame
 
+from openarena_perception.navigation.aas_parser import areas_on_floor
 from openarena_perception.visualization.panels import (
     RGB_BG,
     RGB_GRID,
@@ -44,22 +45,54 @@ from openarena_perception.visualization.panels import (
 class MinimapPanel:
     """Top-down minimap renderer for the Open-Perception left column."""
 
-    def __init__(self, width: int = 400, height: int = 700) -> None:
+    def __init__(
+        self,
+        aas_graph: Any = None,
+        width: int = 360,
+        height: int = 360,
+    ) -> None:
         self.width = width
         self.height = height
+        self._aas_graph = aas_graph
         # Pitfall 3: font constructed here, not at module import.
         self.font = pygame.font.SysFont("couriernew", 12)
         self.font_sm = pygame.font.SysFont("couriernew", 10)
         # Latched bounds (Pitfall 10). None until first successful populate.
         self._bounds: Optional[Tuple[float, float, float, float]] = None
-        # Layout — the minimap view fills most of the panel with a small
-        # margin for the area label at the top.
-        self._map_margin = 20
-        self._map_top = 40  # leaves room for the area label
+        # Square layout (Phase 12.1): tight margins, one-line area label at top.
+        self._map_margin = 8
+        self._map_top = 24  # 12px label + 12px gap
         self._map_size = min(
             width - 2 * self._map_margin,
-            height - self._map_top - self._map_margin - 20,
+            height - self._map_top - self._map_margin,
         )
+
+    # ------------------------------------------------------------------
+    def _draw_aas_overhead(self, state: Any, surface: pygame.Surface) -> None:
+        """Dim fill of AAS areas whose z-range contains bot_z (Plan 12.1-01)."""
+        if self._aas_graph is None:
+            return
+        bot_z = float(getattr(state, "player_z", 0.0) or 0.0)
+        try:
+            floor_ids = areas_on_floor(self._aas_graph, bot_z, z_tolerance=24.0)
+        except Exception:
+            return
+        fill_color = (35, 45, 60)
+        outline_color = RGB_GRID
+        areas = self._aas_graph.areas
+        for aid in floor_ids:
+            if aid <= 0 or aid >= len(areas):
+                continue
+            a = areas[aid]
+            x0, y0 = self._world_to_minimap(a.mins[0], a.mins[1])
+            x1, y1 = self._world_to_minimap(a.maxs[0], a.maxs[1])
+            rx = min(x0, x1)
+            ry = min(y0, y1)
+            rw = max(1, abs(x1 - x0))
+            rh = max(1, abs(y1 - y0))
+            rect = pygame.Rect(rx, ry, rw, rh)
+            pygame.draw.rect(surface, fill_color, rect)
+            pygame.draw.rect(surface, outline_color, rect, 1)
 
     # ------------------------------------------------------------------
     def _latch_bounds(self, state: Any) -> None:
@@ -126,30 +159,35 @@ class MinimapPanel:
                 (self._map_margin + self._map_size, gy),
             )
 
-        # --- Learned map: occupancy grid ---
+        # --- AAS overhead (dim current-floor polygons, under learned cells) ---
+        self._draw_aas_overhead(state, surface)
+
+        # --- Learned map: occupancy grid (learned-path emphasis) ---
         lm = getattr(state, "learned_map", None) or {}
         if lm.get("grid_cells"):
             origin = lm.get("grid_origin", [0, 0])
             res = lm.get("grid_resolution", 64)
+            # (color, brush_size, alpha) — VISITED is brighter+larger than OPEN.
             cell_colors = {
-                1: (30, 80, 30),   # OPEN
-                2: (180, 40, 40),  # WALL
-                3: (40, 70, 40),   # VISITED
-                4: (40, 40, 180),  # LIQUID
+                1: ((30, 80, 30), 4, 80),    # OPEN    — dim small
+                2: ((180, 40, 40), 4, 120),  # WALL
+                3: ((60, 180, 60), 6, 220),  # VISITED — brighter + larger
+                4: ((40, 40, 180), 4, 100),  # LIQUID
             }
             for cell in lm["grid_cells"]:
                 if len(cell) < 3:
                     continue
                 gx_c, gy_c, cell_state = cell[0], cell[1], cell[2]
-                color = cell_colors.get(cell_state)
-                if not color:
+                entry = cell_colors.get(cell_state)
+                if not entry:
                     continue
+                color, size, alpha = entry
                 wx = origin[0] + (gx_c + 0.5) * res
                 wy = origin[1] + (gy_c + 0.5) * res
                 sx, sy = self._world_to_minimap(wx, wy)
-                cell_surf = pygame.Surface((4, 4), pygame.SRCALPHA)
-                cell_surf.fill((*color, 80))
-                surface.blit(cell_surf, (sx - 2, sy - 2))
+                cell_surf = pygame.Surface((size, size), pygame.SRCALPHA)
+                cell_surf.fill((*color, alpha))
+                surface.blit(cell_surf, (sx - size // 2, sy - size // 2))
 
         # --- Learned map: wall segments ---
         if lm.get("wall_segments"):
@@ -225,7 +263,7 @@ class MinimapPanel:
             trail_pts = [self._world_to_minimap(x, y) for x, y in trail[-100:]]
             if len(trail_pts) > 2:
                 pygame.draw.lines(
-                    surface, RGB_PLAYER_TRAIL, False, trail_pts, 1
+                    surface, RGB_PLAYER_TRAIL, False, trail_pts, 2
                 )
 
         # --- Player + yaw arrow ---
@@ -246,4 +284,4 @@ class MinimapPanel:
             area_id = getattr(state, "current_area", None)
         label_txt = f"area {area_id}" if area_id is not None else "area ---"
         label_surf = self.font.render(label_txt, True, RGB_PLAYER)
-        surface.blit(label_surf, (self._map_margin, 10))
+        surface.blit(label_surf, (self._map_margin, 6))

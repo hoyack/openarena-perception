@@ -314,7 +314,11 @@ class OpenPerceptionApp:
             pygame.Rect(PANEL_LEFT_W, 0, PANEL_STATS_W, PANEL_HEIGHT)
         )
 
-        self.minimap = MinimapPanel(width=PANEL_MINIMAP_SIZE, height=PANEL_MINIMAP_SIZE)
+        self.minimap = MinimapPanel(
+            aas_graph=aas_graph,
+            width=PANEL_MINIMAP_SIZE,
+            height=PANEL_MINIMAP_SIZE,
+        )
         self.wireframe = WireframePanel(
             aas_graph, width=PANEL_WIREFRAME_SIZE, height=PANEL_WIREFRAME_SIZE
         )
