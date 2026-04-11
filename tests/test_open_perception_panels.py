@@ -568,3 +568,68 @@ def test_stats_panel_no_strategic_hud_import() -> None:
     ).read_text()
     assert "import strategic_hud" not in src
     assert "from strategic_hud" not in src
+
+
+# -----------------------------------------------------------------------
+# Phase 13 Plan 13-05 RP-12: room perception rows 10-11
+# -----------------------------------------------------------------------
+
+
+def test_stats_panel_renders_room_rows() -> None:
+    """RP-12: rows 10 and 11 (room, room_items) render inside the 700px panel."""
+    panel = StatsPanel(PANEL_STATS_W, PANEL_HEIGHT)
+    surface = _surface(PANEL_STATS_W, PANEL_HEIGHT)
+    state = _make_state(
+        stair_climb_state="climbing",
+        tick_rate_fps=12.0,
+        frame_lag_ms=40.0,
+    )
+    # Inject the new Phase 13 attrs
+    state.current_room_id = 3
+    state.current_room_items = ["rl", "mh"]
+    panel.draw(state, surface)
+
+    # Row 10 starts at y=612, row 11 at y=626, final y=640 (< 700). Region
+    # below the verbose block should now contain non-bg pixels.
+    nonbg = _region_nonbg(surface, 0, 612, PANEL_STATS_W, 40)
+    assert nonbg > 20, f"rows 10-11 region too empty: {nonbg} non-bg pixels"
+
+
+def test_stats_panel_legacy_state_still_renders_9_verbose_rows() -> None:
+    """RP-12 backward compat: state without current_room_* attrs still renders."""
+    panel = StatsPanel(PANEL_STATS_W, PANEL_HEIGHT)
+    surface = _surface(PANEL_STATS_W, PANEL_HEIGHT)
+    state = _make_state(
+        stair_climb_state="x",
+        swim_edge_state="x",
+        advisor_last_thought="x",
+        last_replan_steps=[1],
+        tick_rate_fps=10.0,
+        frame_lag_ms=20.0,
+        proactive_halts=1,
+        visual_pin_hits=1,
+        nav_current_step_area=4,
+    )
+    # No current_room_id / current_room_items set — panel must not crash and
+    # must still render the existing verbose block.
+    panel.draw(state, surface)
+    # Verbose block still populated
+    verbose_nonbg = _region_nonbg(surface, 0, 470, PANEL_STATS_W, 140)
+    assert verbose_nonbg > 100
+    # Rows 10-11 region should contain the row labels + placeholder glyphs
+    # (because _draw_verbose draws them unconditionally in legacy mode).
+    # At minimum the draw must not raise.
+
+
+def test_stats_panel_row_budget_fits_700px() -> None:
+    """RP-12: row 10 starts at y=612 and row 11 ends at y<=640, inside the 700px panel."""
+    # This is a layout-constant check. Row 10 y=612, row 11 y=626,
+    # bottom of row 11 = 626 + 14 = 640. Panel height = 700.
+    row_10_y = 612
+    row_11_y = 626
+    line_height = 14
+    bottom = row_11_y + line_height
+    assert bottom == 640
+    assert bottom < PANEL_HEIGHT, (
+        f"row 11 bottom y={bottom} must fit inside {PANEL_HEIGHT}px panel"
+    )

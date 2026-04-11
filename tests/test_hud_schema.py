@@ -450,3 +450,57 @@ def test_contract_build_payload_to_open_perception_load(tmp_path):
     assert s.tick_rate_fps == 12.5
     assert s.frame_lag_ms == 42.0
     assert s.nav_current_step_area == 42
+
+
+# ---- Phase 13 Plan 13-05 RP-12: room perception kwargs ----
+
+
+def test_current_room_kwargs_backward_compat():
+    """RP-12: build_hud_payload without new kwargs is byte-identical to Phase 12.1.
+
+    Two calls with identical inputs produce dicts equal (minus timestamp),
+    and the new keys are absent.
+    """
+    p = build_hud_payload(map_name="test")
+    assert "current_room_id" not in p
+    assert "current_room_items" not in p
+
+    # Byte-stable for identical inputs (strip timestamps which are time.time()).
+    p1 = build_hud_payload(
+        map_name="test",
+        brain_state="NAVIGATING",
+        stair_climb_state="climbing",
+        tick_rate_fps=12.0,
+    )
+    p2 = build_hud_payload(
+        map_name="test",
+        brain_state="NAVIGATING",
+        stair_climb_state="climbing",
+        tick_rate_fps=12.0,
+    )
+    # Strip the one inherently-varying key:
+    p1.pop("timestamp", None)
+    p2.pop("timestamp", None)
+    assert p1 == p2
+    assert "current_room_id" not in p1
+    assert "current_room_items" not in p1
+
+
+def test_current_room_kwargs_emitted():
+    """RP-12: new kwargs, when provided, emit top-level keys."""
+    p = build_hud_payload(
+        map_name="test",
+        current_room_id=7,
+        current_room_items=["rl", "mh", "ya"],
+    )
+    assert p["current_room_id"] == 7
+    assert p["current_room_items"] == ["rl", "mh", "ya"]
+
+
+def test_current_room_kwargs_none_values_absent():
+    """RP-12: explicitly passing None for both kwargs still omits the keys."""
+    p = build_hud_payload(
+        map_name="test", current_room_id=None, current_room_items=None
+    )
+    assert "current_room_id" not in p
+    assert "current_room_items" not in p
