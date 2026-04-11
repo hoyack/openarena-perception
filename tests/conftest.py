@@ -10,6 +10,50 @@ import pytest
 from openarena_perception.models import SituationalAwareness
 
 
+# ---- Phase 13 room perception fixtures ----
+
+@pytest.fixture
+def rect_point_cloud() -> np.ndarray:
+    """4-wall axis-aligned rectangle at (0,0)-(512,384) with 10% outliers.
+    Returns Nx2 float array of (x, y) samples. Deterministic seed.
+    """
+    rng = np.random.default_rng(42)
+    pts = []
+    # Bottom wall y=0, x in [0, 512]
+    pts.append(np.column_stack([rng.uniform(0, 512, 80), rng.normal(0, 1.5, 80)]))
+    # Top wall y=384
+    pts.append(np.column_stack([rng.uniform(0, 512, 80), 384 + rng.normal(0, 1.5, 80)]))
+    # Left wall x=0
+    pts.append(np.column_stack([rng.normal(0, 1.5, 60), rng.uniform(0, 384, 60)]))
+    # Right wall x=512
+    pts.append(np.column_stack([512 + rng.normal(0, 1.5, 60), rng.uniform(0, 384, 60)]))
+    cloud = np.vstack(pts)
+    # 10% outliers scattered in bounding box
+    n_out = int(0.1 * len(cloud))
+    outliers = np.column_stack(
+        [rng.uniform(-50, 562, n_out), rng.uniform(-50, 434, n_out)]
+    )
+    return np.vstack([cloud, outliers]).astype(np.float64)
+
+
+@pytest.fixture
+def u_shape_point_cloud() -> np.ndarray:
+    """3-wall U (left, bottom, right) — should produce PartialRoom, no Room."""
+    rng = np.random.default_rng(123)
+    pts = []
+    pts.append(np.column_stack([rng.uniform(0, 300, 60), rng.normal(0, 1.0, 60)]))
+    pts.append(np.column_stack([rng.normal(0, 1.0, 50), rng.uniform(0, 200, 50)]))
+    pts.append(np.column_stack([300 + rng.normal(0, 1.0, 50), rng.uniform(0, 200, 50)]))
+    return np.vstack(pts).astype(np.float64)
+
+
+@pytest.fixture
+def noisy_point_cloud() -> np.ndarray:
+    """Pure noise — line fitter must return 0 walls."""
+    rng = np.random.default_rng(7)
+    return rng.uniform(-500, 500, size=(400, 2)).astype(np.float64)
+
+
 @pytest.fixture
 def synthetic_frame():
     """A simple 480x640 BGR numpy array for perception tests."""
