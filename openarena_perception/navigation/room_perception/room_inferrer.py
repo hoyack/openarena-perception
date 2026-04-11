@@ -2,16 +2,10 @@
 
 Given a list of Walls and Corners, find closed polygons (Rooms) and
 leftover wall chains (PartialRooms). Uses a bespoke DFS over the
-corner-adjacency graph -- max cycle length 6, small graphs typical
+corner-adjacency graph -- max cycle length 8, small graphs typical
 (<50 corners), so combinatorial blow-up is not a concern.
 
 Pure-stdlib. No networkx, no shapely, no skimage.
-
-Plan 13-08: spatial dedup by sorted corner-ID tuple (replaces the older
-wall-ID-tuple dedup, which missed spatial duplicates when the same
-physical room could be reached via different wall subsets). On
-collision the shortest-perimeter cycle wins. Area filter runs AFTER
-dedup, so the winning cycle gets the threshold check.
 """
 from __future__ import annotations
 
@@ -31,8 +25,8 @@ class RoomInferrer:
     def __init__(
         self,
         *,
-        min_room_area: float = 20000.0,
-        max_cycle_length: int = 6,
+        min_room_area: float = 4096.0,
+        max_cycle_length: int = 8,
     ) -> None:
         self.min_room_area = min_room_area
         self.max_cycle_length = max_cycle_length
@@ -54,51 +48,31 @@ class RoomInferrer:
         cycles = self._find_cycles(adj, self.max_cycle_length)
 
         rooms: List[Room] = []
-        # Plan 13-08: spatial dedup keyed on sorted participating corner IDs.
-        # Value: (cycle, polygon, selected_corners, perimeter). Shortest-
-        # perimeter cycle wins on collision.
-        best_by_corner_key: Dict[
-            Tuple[int, ...],
-            Tuple[List[int], List[Tuple[float, float]], List[Corner], float],
-        ] = {}
+        used_wall_sets: Set[Tuple[int, ...]] = set()
+        next_room_id = 1
 
         for cycle in cycles:
+            key = tuple(sorted(cycle))
+            if key in used_wall_sets:
+                continue
             polygon = self._cycle_to_polygon(cycle, corners)
             if len(polygon) < 3:
                 continue
-            # Select the Corner objects participating in this cycle.
-            selected_corners = [
-                c
-                for c in corners
-                if c.wall_a_id in cycle and c.wall_b_id in cycle
-            ]
-            if not selected_corners:
-                continue
-            corner_key = tuple(sorted(c.id for c in selected_corners))
-            perimeter = self._polygon_perimeter(polygon)
-            existing = best_by_corner_key.get(corner_key)
-            if existing is None or perimeter < existing[3]:
-                best_by_corner_key[corner_key] = (
-                    list(cycle),
-                    polygon,
-                    selected_corners,
-                    perimeter,
-                )
-
-        # Emit rooms: apply area filter AFTER shortest-perimeter selection.
-        next_room_id = 1
-        for _corner_key, (
-            cycle,
-            polygon,
-            selected_corners,
-            _perim,
-        ) in best_by_corner_key.items():
             area = self._polygon_area(polygon)
             if area < self.min_room_area:
+                # Closed but too small -- not a real room. Skip without
+                # marking walls "used" so they can still appear as
+                # partial rooms below.
                 continue
+            used_wall_sets.add(key)
             xs = [p[0] for p in polygon]
             ys = [p[1] for p in polygon]
             bounds = (min(xs), min(ys), max(xs), max(ys))
+            corner_ids = tuple(
+                c.id
+                for c in corners
+                if c.wall_a_id in cycle and c.wall_b_id in cycle
+            )
             rooms.append(
                 Room(
                     id=next_room_id,
@@ -108,7 +82,7 @@ class RoomInferrer:
                     bounds=tuple(float(v) for v in bounds),
                     area=float(area),
                     wall_ids=tuple(sorted(cycle)),
-                    corner_ids=tuple(c.id for c in selected_corners),
+                    corner_ids=corner_ids,
                     doorway_ids=tuple(),
                     items_seen=tuple(),
                     visit_count=0,
@@ -219,24 +193,6 @@ class RoomInferrer:
             x2, y2 = polygon[(i + 1) % n]
             s += x1 * y2 - x2 * y1
         return abs(s) / 2.0
-
-    @staticmethod
-    def _polygon_perimeter(polygon: List[Tuple[float, float]]) -> float:
-        """Sum of consecutive vertex distances (closed polygon).
-
-        Plan 13-08: used to break spatial-dedup ties — when two cycles
-        share the same corner set, the one with the smallest perimeter
-        wins (tighter fit to real architecture).
-        """
-        n = len(polygon)
-        if n < 2:
-            return 0.0
-        total = 0.0
-        for i in range(n):
-            x1, y1 = polygon[i]
-            x2, y2 = polygon[(i + 1) % n]
-            total += ((x2 - x1) ** 2 + (y2 - y1) ** 2) ** 0.5
-        return total
 
     @staticmethod
     def _bfs_component(start: int, adj: Dict[int, Set[int]]) -> List[int]:

@@ -680,10 +680,7 @@ class LearnedMap:
         # terminate at inlier extents, which typically undershoot real corners
         # by 10-30u. 32u (CornerDetector default) is fine for hand-crafted
         # walls in unit tests, but too tight for live fitter output.
-        # Plan 13-08: widen further 64u -> 96u. On oa_dm1 floor 1, 11 fitted
-        # walls produce 0 corners at 64u; 96u lets sparse-floor walls intersect
-        # so floor 1 can produce rooms. Class default (32u) is unchanged.
-        corners = CornerDetector(endpoint_max_dist=96.0).detect(walls)
+        corners = CornerDetector(endpoint_max_dist=64.0).detect(walls)
         self._corners_per_floor[floor] = corners
         rooms, partials = RoomInferrer().infer(walls, corners)
         doorways = DoorwayDetector().detect(walls, corners)
