@@ -41,12 +41,18 @@ RGB_PROBLEM_ADVISOR = (255, 80, 80)
 RGB_PAUSE_BORDER = (80, 150, 255)
 
 # --- Derived layout constants (never hardcode HUD_WIDTH — see Pitfall 4)
-PANEL_MINIMAP_W = 400
-PANEL_WIREFRAME_W = 600
-PANEL_STATS_W = 400
-PANEL_HEIGHT = 700
-HUD_WIDTH = PANEL_MINIMAP_W + PANEL_WIREFRAME_W + PANEL_STATS_W  # 1400
+# Phase 12.1: square wireframe + square minimap stacked in a left column,
+# stats panel on the right. Window footprint: 760x720.
+PANEL_WIREFRAME_SIZE = 360          # square wireframe edge
+PANEL_MINIMAP_SIZE = 360            # square minimap edge
+PANEL_LEFT_W = PANEL_WIREFRAME_SIZE  # left column width = square edge
+PANEL_STATS_W = 400                  # right stats column (unchanged)
+PANEL_HEIGHT = PANEL_WIREFRAME_SIZE + PANEL_MINIMAP_SIZE  # 720
+HUD_WIDTH = PANEL_LEFT_W + PANEL_STATS_W                   # 760
 HUD_HEIGHT = PANEL_HEIGHT
+# Backward-compat aliases for Phase 12 imports
+PANEL_MINIMAP_W = PANEL_MINIMAP_SIZE     # 360
+PANEL_WIREFRAME_W = PANEL_WIREFRAME_SIZE  # 360
 
 from openarena_perception.visualization.panels.minimap import MinimapPanel  # noqa: E402
 from openarena_perception.visualization.panels.wireframe import WireframePanel  # noqa: E402
@@ -84,6 +90,9 @@ __all__ = [
     "RGB_PAUSE_BORDER",
     "PANEL_MINIMAP_W",
     "PANEL_WIREFRAME_W",
+    "PANEL_WIREFRAME_SIZE",
+    "PANEL_MINIMAP_SIZE",
+    "PANEL_LEFT_W",
     "PANEL_STATS_W",
     "PANEL_HEIGHT",
     "HUD_WIDTH",

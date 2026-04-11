@@ -28,7 +28,7 @@ from openarena_perception.visualization.wireframe_room import WireframeRoomRende
 class WireframePanel:
     """First-person face-mesh wireframe panel."""
 
-    def __init__(self, aas_graph: Any, width: int = 600, height: int = 700) -> None:
+    def __init__(self, aas_graph: Any, width: int = 360, height: int = 360) -> None:
         cfg = replace(
             RoomConfig(),
             width=width,
