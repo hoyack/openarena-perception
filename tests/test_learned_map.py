@@ -174,7 +174,58 @@ def test_raycast_capture_overhead_under_1ms(tmp_path):
     assert avg_ms < 1.0, f"per-tick capture too slow: {avg_ms:.4f} ms (>1ms)"
 
 
-@pytest.mark.skip(reason="Wave 1 — Plan 13-02 Task 2 RP-10")
-def test_schema_v3_roundtrip():
-    """RP-10: save v3 -> reload -> all typed collections preserved byte-stable."""
-    raise NotImplementedError
+def test_schema_v3_roundtrip(tmp_path):
+    """RP-10: v3 save -> reload preserves RaycastHit collection byte-stable."""
+    lm = LearnedMap(map_name="test_rp10")
+    lm._save_dir = str(tmp_path)
+    for i in range(10):
+        lm.update(
+            pos=(float(i * 10), 100.0, 50.0),
+            yaw=float(i * 30),
+            wall_ahead=True,
+            wall_score=0.7 + i * 0.01,
+            open_direction=0,
+            in_water=False,
+        )
+    lm.save()
+    path = Path(tmp_path) / "test_rp10.json"
+    data = json.loads(path.read_text())
+    assert data["version"] == 3
+    assert len(data["raycasts_per_floor"][1]) == 10
+    assert data["wall_segments"] == []
+    assert "fitted_walls" in data
+    assert "corners" in data
+    assert "rooms" in data
+    assert "doorways" in data
+
+    lm2 = LearnedMap(map_name="test_rp10")
+    lm2._save_dir = str(tmp_path)
+    assert lm2.load() is True
+    assert len(lm2._raycasts_per_floor[1]) == 10
+    assert all(isinstance(h, RaycastHit) for h in lm2._raycasts_per_floor[1])
+    # Values preserved
+    assert lm2._raycasts_per_floor[1][0].origin_x == 0.0
+    assert lm2._raycasts_per_floor[1][9].origin_x == 90.0
+
+
+def test_v2_file_loads_with_empty_raycasts(tmp_path):
+    """RP-10 regression: loading a v2 file produces empty raycast collections."""
+    lm = LearnedMap(map_name="test_v2compat")
+    lm._save_dir = str(tmp_path)
+    blank = np.zeros((64, 64), dtype=np.uint8)
+    payload = {
+        "map_name": "test_v2compat",
+        "version": 2,
+        "grid_resolution": 64,
+        "grid_size": 64,
+        "num_floors": 2,
+        "floor_z_threshold": -20.0,
+        "grid_origin": [-1024.0, -512.0],
+        "grids": [base64.b64encode(blank.tobytes()).decode() for _ in range(2)],
+        "wall_segments": [],
+        "edge_failures": {},
+        "edge_successes": {},
+    }
+    (tmp_path / "test_v2compat.json").write_text(json.dumps(payload))
+    assert lm.load() is True
+    assert lm._raycasts_per_floor == [[], []]

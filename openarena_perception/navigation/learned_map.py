@@ -152,7 +152,8 @@ class LearnedMap:
 
             # Phase 13: raycast point cloud capture (replaces _record_wall stubs).
             # The legacy _record_wall method is kept defined-but-unused so any
-            # incidental callers remain valid; wall_segments stays empty.
+            # incidental callers remain valid; wall_segments stays empty and
+            # serializes as [] in schema v3.
             self._record_raycast(wx, wy, wz, yaw, wall_x, wall_y, wz, wall_score)
 
         # Auto-save
@@ -212,9 +213,12 @@ class LearnedMap:
         path = os.path.join(self._save_dir, f"{self.map_name}.json")
         try:
             grids_b64 = [base64.b64encode(g.tobytes()).decode() for g in self._grids]
+            # Phase 13: legacy _record_wall path is retired — force wall_segments
+            # to an empty list so v3 saves never leak stubs to disk.
+            self._wall_segments = []
             data = {
                 "map_name": self.map_name,
-                "version": 2,
+                "version": 3,
                 "grid_resolution": self.GRID_RESOLUTION,
                 "grid_size": self.GRID_SIZE,
                 "num_floors": self.NUM_FLOORS,
@@ -224,6 +228,15 @@ class LearnedMap:
                 "wall_segments": self._wall_segments,
                 "edge_failures": self._edge_failures,
                 "edge_successes": self._edge_successes,
+                # Phase 13 — room perception schema v3
+                "raycasts_per_floor": [
+                    [list(h) for h in floor_cloud]
+                    for floor_cloud in self._raycasts_per_floor
+                ],
+                "fitted_walls": [],   # Plan 13-03 will populate
+                "corners": [],         # Plan 13-04 will populate
+                "rooms": [],           # Plan 13-04 will populate
+                "doorways": [],        # Plan 13-04 will populate
             }
             tmp = path + ".tmp"
             with open(tmp, "w") as f:
@@ -268,13 +281,20 @@ class LearnedMap:
             self._edge_failures = data.get("edge_failures", {})
             self._edge_successes = data.get("edge_successes", {})
 
-            # Phase 13 schema v3 — Plan 02 extends this with real deserialization.
-            # Wave 0 stub: accept v3 files by reading keys with empty defaults
-            # so cross-session reload works even before Plan 02 ships.
+            # Phase 13 schema v3 — real deserialization of raycast point cloud.
+            # Older (v1/v2) files have no raycasts; keep the empty lists that
+            # __init__ created. Wall_segments from old files are intentionally
+            # NOT round-tripped into raycasts (see CONTEXT.md — user already
+            # reset oa_dm1 data for this transition).
             if version >= 3:
-                self._raycasts_per_floor_raw = data.get(
+                raw_floors = data.get(
                     "raycasts_per_floor", [[] for _ in range(self.NUM_FLOORS)]
                 )
+                self._raycasts_per_floor = [
+                    [RaycastHit(*h) for h in floor_list]
+                    for floor_list in raw_floors
+                ]
+                # Plan 13-03/13-04 will replace these raw lists with typed entities.
                 self._fitted_walls_raw = data.get("fitted_walls", [])
                 self._corners_raw = data.get("corners", [])
                 self._rooms_raw = data.get("rooms", [])
