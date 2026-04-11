@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 13-02-PLAN.md
-last_updated: "2026-04-11T15:12:07.563Z"
+stopped_at: Completed 13-03-PLAN.md
+last_updated: "2026-04-11T15:19:26.321Z"
 last_activity: 2026-04-11
 progress:
   total_phases: 14
   completed_phases: 13
   total_plans: 56
-  completed_plans: 52
-  percent: 93
+  completed_plans: 53
+  percent: 95
 ---
 
 # Project State
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-04-08)
 ## Current Position
 
 Phase: 13 (room-perception-and-wall-reconstruction) — EXECUTING
-Plan: 2 of 6
+Plan: 3 of 6
 Status: Ready to execute
 Last activity: 2026-04-11
 
@@ -111,6 +111,7 @@ Progress: [..........] 0%
 | Phase 12.1 P02 | 5min | 2 tasks | 5 files |
 | Phase 12.1 P03 | 8min | 3 tasks | 3 files |
 | Phase 13 P02 | 12min | 2 tasks | 2 files |
+| Phase 13 P03 | ~8min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -220,6 +221,9 @@ Recent decisions affecting current work:
 - [Phase 12.1]: Plan 12.1-03: Minimap shows current-floor AAS overhead + learned-path emphasis (VISITED 6x6 bright green over OPEN 4x4 dim); trail 2px; square 328px view inside 360x360 panel
 - [Phase 13]: Plan 13-02: RaycastHit NamedTuple (9 fields) replaces _record_wall stub path; per-floor cloud capped at 5000 with sort-evict on overflow
 - [Phase 13]: Plan 13-02: schema v3 reserves fitted_walls/corners/rooms/doorways keys for downstream waves; v1/v2 wall_segments NOT round-tripped into raycasts
+- [Phase 13]: Plan 13-03: RANSAC chosen over Hough for line fitting — handles non-uniform raycast density, support_count comes free, pure numpy
+- [Phase 13]: Plan 13-03: Local np.random.default_rng(seed) re-seeded per fit_now() so repeat fits are bit-identical — never touches global RNG state
+- [Phase 13]: Plan 13-03: Wall merge via angle<10deg + both-endpoints perp<inlier_threshold; sums support_count, preserves existing id so double-fit yields N walls not 2N
 
 ### Pending Todos
 
@@ -232,6 +236,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-11T15:11:55.680Z
-Stopped at: Completed 13-02-PLAN.md
+Last session: 2026-04-11T15:19:26.309Z
+Stopped at: Completed 13-03-PLAN.md
 Resume file: None

@@ -148,9 +148,9 @@ Deferred to future release. Tracked but not in current roadmap.
 
 - [x] **RP-01**: `learned_map.py` captures per-tick raycast hits from perception forward-scan (`wall_ahead` + `wall_score`) and stores them in a per-floor point cloud `_raycasts_per_floor`
 - [x] **RP-02**: Per-floor raycast point cloud is capped (default 5000) with a decimation strategy that keeps most-recent / highest-confidence hits
-- [ ] **RP-03**: `LineFitter` module runs deterministic seeded RANSAC over the raycast cloud and emits `Wall` entities `(x1,y1,x2,y2,confidence,support_count,first_seen,last_seen)`
-- [ ] **RP-04**: Line fitting runs at slower-than-tick cadence — every N seconds (default 3s) OR on explicit `fit_now()` — never per tick
-- [ ] **RP-05**: New walls merge with existing walls across fit passes via collinearity + endpoint-overlap; `support_count` accumulates
+- [x] **RP-03**: `LineFitter` module runs deterministic seeded RANSAC over the raycast cloud and emits `Wall` entities `(x1,y1,x2,y2,confidence,support_count,first_seen,last_seen)`
+- [x] **RP-04**: Line fitting runs at slower-than-tick cadence — every N seconds (default 3s) OR on explicit `fit_now()` — never per tick
+- [x] **RP-05**: New walls merge with existing walls across fit passes via collinearity + endpoint-overlap; `support_count` accumulates
 - [ ] **RP-06**: `CornerDetector` emits `Corner` entities where two walls meet at 20°<θ<160° AND nearest endpoints within 32 units
 - [ ] **RP-07**: `RoomInferrer` walks corner graph with hand-rolled simple cycle detection (max length 8) and emits `Room` polygons when enclosed area ≥ 64×64 sq units
 - [ ] **RP-08**: `PartialRoom` entities for incomplete 2/3-wall loops (excluded from render); `Doorway` entities where two walls almost-meet with gap < 96 units
