@@ -2,7 +2,7 @@
 phase: 13
 slug: room-perception-and-wall-reconstruction
 status: draft
-nyquist_compliant: false
+nyquist_compliant: true
 wave_0_complete: false
 created: 2026-04-11
 ---
@@ -92,4 +92,4 @@ Live bot visual verification is expected as a human-verify checkpoint in the fin
 - [ ] Feedback latency < 5s per task commit, < 40s per wave
 - [ ] `nyquist_compliant: true` set in frontmatter after planner verification
 
-**Approval:** pending (planner to verify and flip `nyquist_compliant: true`)
+**Approval:** APPROVED (planner iteration 2, 2026-04-11) — every implementation task has an `<automated>` verify, ruff/mypy gate added to Plan 13-06, perf benchmark added to Plan 13-05, OR'd cadence trigger test added to Plan 13-03.

@@ -579,31 +579,38 @@ The learned-map file lives under `~/.openarena/learned_maps/` — local, user-ow
 
 **If this table is non-empty:** the assumptions above should be confirmed at `/gsd-discuss-phase` time OR mitigated by the planner picking conservative defaults (e.g., start cadence at 5 seconds not 3, benchmark during Wave 0).
 
-## Open Questions
+## Open Questions (RESOLVED)
+
+> All 5 questions resolved during planning iteration 2 (2026-04-11). Choices locked into the Phase 13 plans.
 
 1. **Should the raycast point cloud store Z coordinates even though fitting is 2D?**
    - What we know: CONTEXT.md locks "within a floor, rooms are 2D" and the floor filter is already in Phase 12.1
    - What's unclear: whether preserving Z is worth the storage cost for future 3D extension
    - Recommendation: **YES, preserve Z in the NamedTuple** (`origin_z`, `hit_z`) at negligible cost — future 3D work will thank us. Fitter ignores Z.
+   - **RESOLVED: YES** — store as `origin_z` / `hit_z` on RaycastHit (Plan 13-02), ignored during 2D RANSAC fit (Plan 13-03).
 
 2. **Does wall merging run incrementally (every fit pass) or batch (only on `fit_now()`)?**
    - What we know: "Walls must merge across fitting passes" is locked
    - What's unclear: whether a single fit pass produces walls and a separate merge phase combines them with prior walls, or if fit takes prior walls as input
    - Recommendation: **Two-phase**. Phase 1: `ransac_lines(points) → new_walls`. Phase 2: `merge_walls(prior_walls, new_walls) → merged_walls`. Separates testing concerns.
+   - **RESOLVED: two-phase** — `_ransac_lines()` produces raw walls, `_merge_wall()` runs as a separate pass per candidate, both methods independently testable (Plan 13-03 LineFitter).
 
 3. **Where does `current_room_id` actually get computed?**
    - What we know: It's exported via HUD; item_tour and strategic_brain are the payload builders
    - What's unclear: whether `LearnedMap` computes it on each HUD export OR whether the caller computes it
    - Recommendation: `LearnedMap.export_for_hud()` computes it once using cached polygon contours, returns in the dict, caller passes to `build_hud_payload(current_room_id=...)`. Keeps the PIP cost in one place and off the hot path.
+   - **RESOLVED: `LearnedMap.current_room_id()` method**, called from both `update()` (debounced visit-count) and `export_for_hud()` (HUD payload). Per-tick cached in `self._cached_current_room_id` so multiple consumers per tick incur a single PIP scan (Plan 13-05). Cache invalidated by `update()` and `fit_rooms()`.
 
 4. **Do we need to preserve `wall_segments` field at all in schema v3?**
    - What we know: CONTEXT.md says "keep `wall_segments: []` empty in new saves so older loaders don't crash"
    - What's unclear: whether ANY active code reads this field. Grep confirms `minimap.py:192-203` does (which is being removed), and `export_for_hud` populates it.
    - Recommendation: **Yes, keep as `[]`** for a few phases, then schedule removal in Phase 14+ once all live installations have migrated.
+   - **RESOLVED: YES** — write empty list for legacy loader compatibility, schedule removal in Phase 14+ once installations migrate.
 
 5. **Cadence: time-based or event-based?**
    - What we know: CONTEXT allows either or an explicit API
    - Recommendation: **Both, OR'd.** Fit runs if `monotonic() - last_fit > 3.0` OR `points_added_since_last_fit > 500` OR `fit_now()` called. Event-based avoids stalled-bot syndrome; time-based avoids thrashing.
+   - **RESOLVED: OR'd trigger** — `LineFitter.fit()` returns cached walls unless ANY of: `(now - last_fit_ts) >= fit_interval_s` (3s default), `(cloud_size - last_fit_point_count) >= point_count_trigger` (500 default), or caller invokes `fit_now()` directly. Implemented in Plan 13-03 with `test_fit_triggered_by_point_count` covering the point-count gate.
 
 ## Sources
 
