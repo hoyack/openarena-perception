@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: verifying
-stopped_at: Completed 12-03-PLAN.md
-last_updated: "2026-04-11T11:31:36.659Z"
+status: executing
+stopped_at: Completed 12.1-01-PLAN.md
+last_updated: "2026-04-11T12:00:50.568Z"
 last_activity: 2026-04-11
 progress:
-  total_phases: 12
+  total_phases: 13
   completed_phases: 12
-  total_plans: 47
-  completed_plans: 47
-  percent: 100
+  total_plans: 50
+  completed_plans: 48
+  percent: 96
 ---
 
 # Project State
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-08)
 
 **Core value:** The bot must be a competitive deathmatch player -- able to perceive enemies, navigate maps, select weapons, aim accurately, and make strategic decisions in real-time on constrained Pi hardware.
-**Current focus:** Phase 12 — open-perception-ui
+**Current focus:** Phase 12.1 — open-perception-ui-polish
 
 ## Current Position
 
-Phase: 12
-Plan: Not started
-Status: Phase complete — ready for verification
+Phase: 12.1 (open-perception-ui-polish) — EXECUTING
+Plan: 2 of 3
+Status: Ready to execute
 Last activity: 2026-04-11
 
 Progress: [..........] 0%
@@ -106,12 +106,14 @@ Progress: [..........] 0%
 | Phase 12 P01 | 18min | 3 tasks | 6 files |
 | Phase 12 P02 | ~12min | 3 tasks | 8 files |
 | Phase 12 P3 | 25min | 3 tasks | 5 files |
+| Phase 12.1 P01 | 4min | 1 tasks | 2 files |
 
 ## Accumulated Context
 
 ### Roadmap Evolution
 
 - Phase 10 added: Intent System and HUD Companion — granular intent tracking, brain context memory, pygame HUD companion, runtime artifact organization (tmp/, logs/)
+- Phase 12.1 inserted after Phase 12: Open-Perception UI Polish — square wireframe, minimap reflowed below wireframe as square, shrink window, minimap shows learned paths + AAS overhead filtered to current floor. Pure visualization/layout work. Room learning deferred to Phase 13+. (INSERTED, after milestone v1.0 complete)
 
 ### Decisions
 
@@ -209,6 +211,7 @@ Recent decisions affecting current work:
 - [Phase 12]: panels/__init__.py imports all three panel classes; full stats.py committed in Task 2 alongside minimap/wireframe for clean package import
 - [Phase 12]: WireframePanel takes pre-parsed AASGraph (not file path) so tests share a session-scoped fixture and the app owns AAS loading
 - [Phase 12]: BGR->RGB boundary crossed exactly once in WireframePanel.draw via frame[:,:,::-1] + swapaxes(0,1)
+- [Phase 12.1]: areas_on_floor helper uses z_tolerance=24.0 (half player hull) and skips dummy area 0
 
 ### Pending Todos
 
@@ -221,6 +224,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-11T10:53:50.755Z
-Stopped at: Completed 12-03-PLAN.md
+Last session: 2026-04-11T12:00:50.553Z
+Stopped at: Completed 12.1-01-PLAN.md
 Resume file: None
