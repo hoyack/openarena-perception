@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: verifying
-stopped_at: Completed 12.1-03-PLAN.md
-last_updated: "2026-04-11T13:07:22.993Z"
+status: executing
+stopped_at: Completed 13-02-PLAN.md
+last_updated: "2026-04-11T15:12:07.563Z"
 last_activity: 2026-04-11
 progress:
   total_phases: 14
   completed_phases: 13
-  total_plans: 50
-  completed_plans: 50
-  percent: 100
+  total_plans: 56
+  completed_plans: 52
+  percent: 93
 ---
 
 # Project State
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-08)
 
 **Core value:** The bot must be a competitive deathmatch player -- able to perceive enemies, navigate maps, select weapons, aim accurately, and make strategic decisions in real-time on constrained Pi hardware.
-**Current focus:** Phase 12.1 — open-perception-ui-polish
+**Current focus:** Phase 13 — room-perception-and-wall-reconstruction
 
 ## Current Position
 
-Phase: 12.1
-Plan: Not started
-Status: Phase complete — ready for verification
+Phase: 13 (room-perception-and-wall-reconstruction) — EXECUTING
+Plan: 2 of 6
+Status: Ready to execute
 Last activity: 2026-04-11
 
 Progress: [..........] 0%
@@ -110,6 +110,7 @@ Progress: [..........] 0%
 | Phase 12.1 P01 | 4min | 1 tasks | 2 files |
 | Phase 12.1 P02 | 5min | 2 tasks | 5 files |
 | Phase 12.1 P03 | 8min | 3 tasks | 3 files |
+| Phase 13 P02 | 12min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -217,6 +218,8 @@ Recent decisions affecting current work:
 - [Phase 12.1]: areas_on_floor helper uses z_tolerance=24.0 (half player hull) and skips dummy area 0
 - [Phase 12.1]: Phase 12.1: HUD shrunk to 760x720 — two 360x360 squares stacked on left (wireframe top, minimap bottom), 400x720 stats on right; PANEL_WIREFRAME_SIZE/PANEL_MINIMAP_SIZE/PANEL_LEFT_W as SSoT with backward-compat aliases
 - [Phase 12.1]: Plan 12.1-03: Minimap shows current-floor AAS overhead + learned-path emphasis (VISITED 6x6 bright green over OPEN 4x4 dim); trail 2px; square 328px view inside 360x360 panel
+- [Phase 13]: Plan 13-02: RaycastHit NamedTuple (9 fields) replaces _record_wall stub path; per-floor cloud capped at 5000 with sort-evict on overflow
+- [Phase 13]: Plan 13-02: schema v3 reserves fitted_walls/corners/rooms/doorways keys for downstream waves; v1/v2 wall_segments NOT round-tripped into raycasts
 
 ### Pending Todos
 
@@ -229,6 +232,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-11T12:14:36.357Z
-Stopped at: Completed 12.1-03-PLAN.md
+Last session: 2026-04-11T15:11:55.680Z
+Stopped at: Completed 13-02-PLAN.md
 Resume file: None

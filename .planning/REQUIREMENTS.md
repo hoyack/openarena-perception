@@ -146,8 +146,8 @@ Deferred to future release. Tracked but not in current roadmap.
 
 ### Room Perception (Phase 13)
 
-- [ ] **RP-01**: `learned_map.py` captures per-tick raycast hits from perception forward-scan (`wall_ahead` + `wall_score`) and stores them in a per-floor point cloud `_raycasts_per_floor`
-- [ ] **RP-02**: Per-floor raycast point cloud is capped (default 5000) with a decimation strategy that keeps most-recent / highest-confidence hits
+- [x] **RP-01**: `learned_map.py` captures per-tick raycast hits from perception forward-scan (`wall_ahead` + `wall_score`) and stores them in a per-floor point cloud `_raycasts_per_floor`
+- [x] **RP-02**: Per-floor raycast point cloud is capped (default 5000) with a decimation strategy that keeps most-recent / highest-confidence hits
 - [ ] **RP-03**: `LineFitter` module runs deterministic seeded RANSAC over the raycast cloud and emits `Wall` entities `(x1,y1,x2,y2,confidence,support_count,first_seen,last_seen)`
 - [ ] **RP-04**: Line fitting runs at slower-than-tick cadence — every N seconds (default 3s) OR on explicit `fit_now()` — never per tick
 - [ ] **RP-05**: New walls merge with existing walls across fit passes via collinearity + endpoint-overlap; `support_count` accumulates
