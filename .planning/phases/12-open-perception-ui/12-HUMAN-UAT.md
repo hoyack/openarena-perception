@@ -1,5 +1,5 @@
 ---
-status: partial
+status: resolved
 phase: 12-open-perception-ui
 source: [12-VERIFICATION.md]
 started: 2026-04-11T00:00:00Z
@@ -26,14 +26,14 @@ expected: |
   - Every metric appears EXACTLY ONCE across the three panels
   - Wireframe + minimap update simultaneously with bot movement
   - Closing the window with the X button exits cleanly (no traceback)
-result: [pending]
+result: passed — user ran item_tour.py --no-vision + open_perception.py live on 2026-04-11 and confirmed the three-panel layout works
 
 ## Summary
 
 total: 1
-passed: 0
+passed: 1
 issues: 0
-pending: 1
+pending: 0
 skipped: 0
 blocked: 0
 
