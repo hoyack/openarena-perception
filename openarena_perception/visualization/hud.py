@@ -63,8 +63,16 @@ def render_hud(
     cfg: RoomConfig,
     state: Optional[Mapping[str, Any]] = None,
     extra_hud: Optional[Mapping[str, Any]] = None,
+    decoration_only: bool = False,
 ) -> np.ndarray:
-    """Draw PRD §6.1 HUD overlay onto frame in place. Returns the same frame."""
+    """Draw PRD §6.1 HUD overlay onto frame in place. Returns the same frame.
+
+    When ``decoration_only`` is True, the FRAME/ROOM/FOV/MODE/OBJECTS text
+    block and any ``extra_hud`` rows are skipped. Crosshair, corner
+    brackets, bottom-left status bar, and bottom-right SRC label are still
+    drawn so downstream consumers keep the TRON decoration chrome (Phase 12
+    Open-Perception wireframe panel dedup contract).
+    """
     if not cfg.hud:
         return frame
     state = state or {}
@@ -75,40 +83,41 @@ def render_hud(
     y = 16
     txt_color = cfg.grid_color
 
-    _put(frame, f"FRAME {int(state.get('frame', 0)):06d}", (x0, y), txt_color)
-    y += LINE_H
-    _put(
-        frame,
-        f"ROOM {cfg.room_width:g}x{cfg.room_height:g}x{cfg.room_depth:g}",
-        (x0, y),
-        txt_color,
-    )
-    y += LINE_H
-    _put(
-        frame,
-        f"FOV {cfg.fov_deg:g} GRID {cfg.grid_lines_x}x{cfg.grid_lines_y}x{cfg.grid_lines_z}",
-        (x0, y),
-        txt_color,
-    )
-    y += LINE_H
-    _put(frame, f"MODE: {state.get('mode', 'DEMO')}", (x0, y), cfg.accent_color)
-    y += LINE_H
-    _put(
-        frame,
-        f"OBJECTS: {int(state.get('object_count', 0))}",
-        (x0, y),
-        txt_color,
-    )
-    y += LINE_H
+    if not decoration_only:
+        _put(frame, f"FRAME {int(state.get('frame', 0)):06d}", (x0, y), txt_color)
+        y += LINE_H
+        _put(
+            frame,
+            f"ROOM {cfg.room_width:g}x{cfg.room_height:g}x{cfg.room_depth:g}",
+            (x0, y),
+            txt_color,
+        )
+        y += LINE_H
+        _put(
+            frame,
+            f"FOV {cfg.fov_deg:g} GRID {cfg.grid_lines_x}x{cfg.grid_lines_y}x{cfg.grid_lines_z}",
+            (x0, y),
+            txt_color,
+        )
+        y += LINE_H
+        _put(frame, f"MODE: {state.get('mode', 'DEMO')}", (x0, y), cfg.accent_color)
+        y += LINE_H
+        _put(
+            frame,
+            f"OBJECTS: {int(state.get('object_count', 0))}",
+            (x0, y),
+            txt_color,
+        )
+        y += LINE_H
 
-    # Extra HUD fields (bot state integration point)
-    if extra_hud:
-        y += 4
-        for i, (k, v) in enumerate(extra_hud.items()):
-            if i >= 10:
-                break
-            _put(frame, f"{k}: {v}", (x0, y), cfg.accent_color)
-            y += LINE_H
+        # Extra HUD fields (bot state integration point)
+        if extra_hud:
+            y += 4
+            for i, (k, v) in enumerate(extra_hud.items()):
+                if i >= 10:
+                    break
+                _put(frame, f"{k}: {v}", (x0, y), cfg.accent_color)
+                y += LINE_H
 
     # Crosshair
     _draw_crosshair(frame, cfg)

@@ -86,6 +86,7 @@ class WireframeRoomRenderer:
         extra_hud: Optional[Mapping[str, Any]] = None,
         state: Optional[Mapping[str, Any]] = None,
         draw_room_frame: bool = True,
+        decoration_only: bool = False,
     ) -> np.ndarray:
         cfg = self.cfg
         frame = np.full((cfg.height, cfg.width, 3), cfg.bg_color, dtype=np.uint8)
@@ -123,7 +124,9 @@ class WireframeRoomRenderer:
             )
             merged_state.setdefault("pos", tuple(bot_pos))
             merged_state.setdefault("yaw", bot_yaw)
-            render_hud(frame, cfg, merged_state, extra_hud)
+            render_hud(
+                frame, cfg, merged_state, extra_hud, decoration_only=decoration_only
+            )
 
         self._frame_counter += 1
         return frame

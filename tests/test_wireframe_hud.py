@@ -77,3 +77,84 @@ def test_hud_uses_hershey_font_only() -> None:
 def test_hud_module_reachable_from_package() -> None:
     # Sanity — the package exposes RoomConfig so the test above can use it.
     assert vis_pkg.RoomConfig is RoomConfig
+
+
+# --- Phase 12-02: decoration_only mode ----------------------------------
+
+
+def _small_blank() -> np.ndarray:
+    # 300x400 (h,w) — matches the region assertions in the plan.
+    return np.zeros((300, 400, 3), dtype=np.uint8)
+
+
+def _small_cfg() -> RoomConfig:
+    return replace(RoomConfig(), width=400, height=300)
+
+
+def test_render_hud_default_draws_numeric_text() -> None:
+    frame = _small_blank()
+    render_hud(frame, _small_cfg(), state={"frame": 42, "mode": "DEMO"})
+    # FRAME text region: roughly x in [10, 200], y in [10, 35]
+    assert frame[10:35, 10:200].sum() > 0, "default mode should draw FRAME text"
+
+
+def test_render_hud_decoration_only_suppresses_numeric_text() -> None:
+    frame = _small_blank()
+    render_hud(
+        frame,
+        _small_cfg(),
+        state={"frame": 42, "mode": "DEMO"},
+        decoration_only=True,
+    )
+    # FRAME text region must be untouched (bg only)
+    assert frame[10:35, 10:200].sum() == 0, (
+        "decoration_only=True must not draw FRAME/ROOM/FOV/MODE/OBJECTS text"
+    )
+    # But corner brackets must still exist
+    assert frame[0:30, 0:30].sum() > 0, (
+        "decoration_only=True must still draw top-left corner bracket"
+    )
+
+
+def test_render_hud_decoration_only_suppresses_extra_hud() -> None:
+    frame = _small_blank()
+    render_hud(
+        frame,
+        _small_cfg(),
+        state={"frame": 1},
+        extra_hud={"HP": 100, "AMMO": 50},
+        decoration_only=True,
+    )
+    # Top-left text column should be clean (bg only); extras normally live
+    # below the fixed block. Clamp region to avoid the center crosshair.
+    assert frame[10:140, 10:180].sum() == 0, (
+        "decoration_only=True must not draw extra_hud rows"
+    )
+
+
+def test_wireframe_renderer_forwards_decoration_only() -> None:
+    from openarena_perception.visualization.scene import SceneGeometry
+    from openarena_perception.visualization.wireframe_room import (
+        WireframeRoomRenderer,
+    )
+
+    cfg = replace(RoomConfig(), width=400, height=300, glow=False, scanlines=False)
+    renderer = WireframeRoomRenderer(cfg)
+    empty_scene = SceneGeometry(walls=[], boxes=[])
+    frame = renderer.render(
+        (0.0, 0.0, 0.0),
+        0.0,
+        empty_scene,
+        extra_hud=None,
+        state={"frame": 0, "mode": "DEMO"},
+        draw_room_frame=False,
+        decoration_only=True,
+    )
+    # No FRAME text in top-left region
+    assert frame[10:35, 10:200].sum() == 0, (
+        "WireframeRoomRenderer.render(decoration_only=True) must suppress FRAME text"
+    )
+    # Corner bracket still present
+    assert frame[0:30, 0:30].sum() > 0, (
+        "WireframeRoomRenderer.render(decoration_only=True) must keep corner brackets"
+    )
