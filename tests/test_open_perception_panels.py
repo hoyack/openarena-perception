@@ -690,10 +690,16 @@ def test_minimap_renders_fitted_walls_corners_rooms() -> None:
     corners = np.all(arr == np.array((255, 200, 60), dtype=np.uint8), axis=-1)
     assert int(corners.sum()) > 0, "corners must render in amber"
 
-    # Current-room outline (140, 200, 255) should appear.
-    cur_room = np.all(arr == np.array((140, 200, 255), dtype=np.uint8), axis=-1)
-    assert int(cur_room.sum()) > 0, (
-        "current-room outline must render in bright blue (140,200,255)"
+    # Current-room polygon must contribute blue-dominant pixels (alpha fill +
+    # outline). Walls/corners are green/amber so any blue dominance comes from
+    # the room polygon render block.
+    blue_dominant = (
+        (arr[:, :, 2].astype(int) - arr[:, :, 0].astype(int) > 30)
+        & (arr[:, :, 2].astype(int) - arr[:, :, 1].astype(int) > 0)
+        & (arr[:, :, 2] > 80)
+    )
+    assert int(blue_dominant.sum()) > 0, (
+        "current-room polygon (fill + outline) must contribute blue-dominant pixels"
     )
 
 

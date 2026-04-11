@@ -27,6 +27,8 @@ import pygame
 from openarena_perception.navigation.aas_parser import areas_on_floor
 from openarena_perception.visualization.panels import (
     RGB_BG,
+    RGB_CORNER,
+    RGB_FITTED_WALL,
     RGB_GRID,
     RGB_ITEM_ARMOR,
     RGB_ITEM_HEALTH,
@@ -34,6 +36,8 @@ from openarena_perception.visualization.panels import (
     RGB_ITEM_WEAPON,
     RGB_PLAYER,
     RGB_PLAYER_TRAIL,
+    RGB_ROOM_OUTLINE,
+    RGB_ROOM_OUTLINE_CUR,
     RGB_ROOM_SURVEYED,
     RGB_TEXT_DIM,
     RGB_WAYPOINT_DONE,
@@ -189,18 +193,65 @@ class MinimapPanel:
                 cell_surf.fill((*color, alpha))
                 surface.blit(cell_surf, (sx - size // 2, sy - size // 2))
 
-        # --- Learned map: wall segments ---
-        if lm.get("wall_segments"):
-            for seg in lm["wall_segments"]:
-                if len(seg) < 5:
-                    continue
-                sx1, sy1 = self._world_to_minimap(seg[0], seg[1])
-                sx2, sy2 = self._world_to_minimap(seg[2], seg[3])
-                conf = seg[4]
-                thickness = min(3, 1 + int(conf) // 3)
-                pygame.draw.line(
-                    surface, (255, 60, 60), (sx1, sy1), (sx2, sy2), thickness
-                )
+        # --- Phase 13: room polygons (alpha fill + outline) ---
+        rooms = lm.get("rooms", []) if lm else []
+        current_room_id = lm.get("current_room_id") if lm else None
+        for room in rooms:
+            verts = room.get("polygon_vertices", [])
+            if len(verts) < 3:
+                continue
+            screen_verts = [
+                self._world_to_minimap(float(v[0]), float(v[1]))
+                for v in verts
+            ]
+            is_current = room.get("id") == current_room_id
+            outline_color = RGB_ROOM_OUTLINE_CUR if is_current else RGB_ROOM_OUTLINE
+            fill_alpha = 80 if is_current else 50
+            # Alpha fill via SRCALPHA temp surface, blitted at the polygon AABB.
+            min_x = min(p[0] for p in screen_verts)
+            min_y = min(p[1] for p in screen_verts)
+            max_x = max(p[0] for p in screen_verts)
+            max_y = max(p[1] for p in screen_verts)
+            w = max(1, max_x - min_x + 2)
+            h = max(1, max_y - min_y + 2)
+            poly_surf = pygame.Surface((w, h), pygame.SRCALPHA)
+            local_verts = [
+                (p[0] - min_x + 1, p[1] - min_y + 1) for p in screen_verts
+            ]
+            pygame.draw.polygon(
+                poly_surf, (*outline_color, fill_alpha), local_verts
+            )
+            surface.blit(poly_surf, (min_x - 1, min_y - 1))
+            # Outline on main surface — current room gets a 2px stroke.
+            pygame.draw.polygon(
+                surface,
+                outline_color,
+                screen_verts,
+                width=2 if is_current else 1,
+            )
+
+        # --- Phase 13: fitted walls (bright green, 2px) ---
+        # Schema: [id, x1, y1, x2, y2, confidence, support_count, first_seen, last_seen]
+        fitted_walls = lm.get("fitted_walls", []) if lm else []
+        for fw in fitted_walls:
+            if len(fw) < 5:
+                continue
+            x1, y1, x2, y2 = float(fw[1]), float(fw[2]), float(fw[3]), float(fw[4])
+            sx1, sy1 = self._world_to_minimap(x1, y1)
+            sx2, sy2 = self._world_to_minimap(x2, y2)
+            pygame.draw.line(
+                surface, RGB_FITTED_WALL, (sx1, sy1), (sx2, sy2), 2
+            )
+
+        # --- Phase 13: corners (amber filled circles) ---
+        # Schema: [id, x, y, wall_a_id, wall_b_id, angle_deg, confidence]
+        corners = lm.get("corners", []) if lm else []
+        for c in corners:
+            if len(c) < 3:
+                continue
+            cx, cy = float(c[1]), float(c[2])
+            scx, scy = self._world_to_minimap(cx, cy)
+            pygame.draw.circle(surface, RGB_CORNER, (scx, scy), 3)
 
         # --- Surveyed rooms ---
         surveys = getattr(state, "surveys", {}) or {}
