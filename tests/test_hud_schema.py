@@ -367,18 +367,18 @@ def test_build_payload_no_context_still_emits_pause_flags():
     assert "intent" not in p
 
 
-# ── Phase 10-03: end-to-end schema contract test ─────────────────────
+# ── Phase 12-03: end-to-end schema contract test ─────────────────────
 
 
-def test_contract_build_payload_to_strategic_hud_load(tmp_path):
+def test_contract_build_payload_to_open_perception_load(tmp_path):
     """End-to-end contract: build_hud_payload output must be parseable by
-    strategic_hud.HUDState.load into a HUDState with populated intent fields.
+    open_perception.HUDState.load into a HUDState with populated intent
+    fields AND the 7 Phase 12-01 verbose telemetry fields.
 
-    strategic_hud.py is a standalone executable at the repo root -- not part
-    of the openarena_perception package -- so we inject the repo root into
-    sys.path before importing it. pygame needs a dummy SDL video driver for
-    headless test runs (strategic_hud calls pygame.init at HUD construction,
-    not at module import, but we set it defensively).
+    open_perception.py is a standalone app at the repo root — not part of
+    the openarena_perception package — so we inject the repo root into
+    sys.path before importing it. SDL_VIDEODRIVER=dummy keeps pygame
+    headless since open_perception imports pygame at module level.
     """
     import os
     import sys as _sys
@@ -389,7 +389,7 @@ def test_contract_build_payload_to_strategic_hud_load(tmp_path):
     if str(repo_root) not in _sys.path:
         _sys.path.insert(0, str(repo_root))
 
-    import strategic_hud  # noqa: E402
+    import open_perception  # noqa: E402
 
     ctx = _ctx()
     payload = build_hud_payload(
@@ -397,17 +397,22 @@ def test_contract_build_payload_to_strategic_hud_load(tmp_path):
         map_name="q3dm1",
         is_paused_for_assess=True,
         threat_flag=False,
+        stair_climb_state="climbing target_area=42",
+        swim_edge_state="traversing to area 9",
+        advisor_last_thought="watch the lava pit ahead",
+        last_replan_steps=[3, 4, 6],
+        tick_rate_fps=12.5,
+        frame_lag_ms=42.0,
+        nav_current_step_area=42,
     )
 
-    # Write to a tmp file (this is what item_tour.py does in prod via
-    # hud_schema.write_hud_state).
+    # Write to a tmp file (item_tour.py does this via hud_schema.write_hud_state).
     state_file = tmp_path / "hud_state.json"
     state_file.write_text(json.dumps(payload))
 
-    # Load via the HUD's actual loader. HUDState is a regular class whose
-    # instance-method load(path) mutates self and returns self, so we
-    # construct-then-load.
-    s = strategic_hud.HUDState().load(state_file)
+    # Load via the new Open-Perception HUDState — same construct-then-load
+    # pattern as the legacy strategic_hud.HUDState.
+    s = open_perception.HUDState().load(state_file)
 
     # Contract assertions: intent block round-tripped correctly
     assert s.intent, "intent dict should be populated"
@@ -416,7 +421,7 @@ def test_contract_build_payload_to_strategic_hud_load(tmp_path):
     assert s.intent.get("status") == "executing"
     assert s.intent.get("target") == [232.0, 1600.0, -112.0]
 
-    # Intent history is a list (pitfall 7: deque -> list conversion)
+    # Intent history is a list (Pitfall 7: deque -> list conversion)
     assert isinstance(s.intent_history, list)
     assert len(s.intent_history) == 1
     assert s.intent_history[0].get("macro") == "AVOIDING_WALL"
@@ -436,3 +441,12 @@ def test_contract_build_payload_to_strategic_hud_load(tmp_path):
     # Area history (recent area transitions)
     assert isinstance(s.area_history, list)
     assert s.area_history == [299, 259, 285, 304, 325]
+
+    # Phase 12-01 verbose telemetry fields round-trip through HUDState
+    assert s.stair_climb_state == "climbing target_area=42"
+    assert s.swim_edge_state == "traversing to area 9"
+    assert s.advisor_last_thought == "watch the lava pit ahead"
+    assert s.last_replan_steps == [3, 4, 6]
+    assert s.tick_rate_fps == 12.5
+    assert s.frame_lag_ms == 42.0
+    assert s.nav_current_step_area == 42

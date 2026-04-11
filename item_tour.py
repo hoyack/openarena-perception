@@ -610,7 +610,7 @@ class ItemTour:
             self._window_id = focus_game_window()
             self._last_refocus = now
 
-        # Export HUD state for the strategic_hud.py companion app (every 6 ticks)
+        # Export HUD state for the open_perception.py companion app (every 6 ticks)
         if self._tick % 6 == 0:
             self._export_hud(gs)
 
@@ -1281,7 +1281,7 @@ class ItemTour:
         self._recent_replan_steps.append(int(step_count))
 
     def _export_hud(self, gs):
-        """Write ./tmp/oa_hud_state.json for the companion strategic_hud.py.
+        """Write ./tmp/oa_hud_state.json for the companion open_perception.py.
 
         Delegates to openarena_perception.hud_schema (Phase 10-01). Every
         pre-existing key is preserved verbatim via the `extras` dict so the

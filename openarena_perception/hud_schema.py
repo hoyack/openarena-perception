@@ -1,6 +1,6 @@
 """Centralized HUD JSON schema and atomic writer for OpenArena Perception.
 
-One-way contract: tour / strategic_brain -> HUD file -> strategic_hud.py reader.
+One-way contract: tour / strategic_brain -> HUD file -> open_perception.py reader.
 The HUD reader never deserializes back into typed objects -- it treats the JSON
 as a plain dict with .get() lookups. Do not rely on tuple identity surviving
 the round-trip (see Pitfall 8 in 10-RESEARCH.md).
