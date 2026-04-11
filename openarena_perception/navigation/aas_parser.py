@@ -311,3 +311,35 @@ def parse_aas(filepath: str) -> Optional[AASGraph]:
         faces=faces_arr,
         faceindex=faceindex_arr,
     )
+
+
+def areas_on_floor(
+    graph: "AASGraph",
+    bot_z: float,
+    z_tolerance: float = 24.0,
+) -> List[int]:
+    """Return area indices whose z-range contains bot_z (± tolerance).
+
+    Skips area 0 (dummy), matching the convention used by
+    ``AASGraph.nearest_area``. ``z_tolerance`` absorbs quantization noise so
+    the bot's current area survives narrow z-bands. Default 24.0 ≈ half a
+    Q3 player hull height.
+
+    Used by the minimap overhead overlay (Plan 12.1-03) to draw only the
+    AAS areas belonging to the bot's current floor on multi-story maps
+    like ``oa_dm1``.
+    """
+    out: List[int] = []
+    lo = bot_z - z_tolerance
+    hi = bot_z + z_tolerance
+    for i, a in enumerate(graph.areas):
+        if i == 0:
+            continue
+        amin = a.mins[2]
+        amax = a.maxs[2]
+        if amax < lo:
+            continue
+        if amin > hi:
+            continue
+        out.append(i)
+    return out
