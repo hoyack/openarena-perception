@@ -263,7 +263,178 @@ def test_partial_room_and_doorway(u_shape_point_cloud):
 
 # ---- Wave 3: Plan 13-05 Room log + HUD (RP-09) ----
 
-@pytest.mark.skip(reason="Wave 3 — Plan 13-05 RP-09")
-def test_item_ingestion_pip():
-    """RP-09: observing a weapon inside room R's polygon appends to R.items_seen via cv2.pointPolygonTest; visit_count increments once per entry, not per tick."""
-    raise NotImplementedError
+
+def test_fit_rooms_end_to_end(rect_point_cloud):
+    """RP-09 plumbing: full pipeline wired into LearnedMap."""
+    import time
+
+    from openarena_perception.navigation.learned_map import LearnedMap, RaycastHit
+
+    lm = LearnedMap(map_name="test_rp09_e2e")
+    now = time.time()
+    lm._raycasts_per_floor[1] = [
+        RaycastHit(0, 0, 50, 0, float(p[0]), float(p[1]), 50, 0.9, now)
+        for p in rect_point_cloud
+    ]
+    lm._current_floor = 1
+    lm.fit_rooms(force=True, now=now)
+    assert len(lm._fitted_walls_per_floor[1]) == 4
+    assert len(lm._corners_per_floor[1]) == 4
+    assert len(lm._rooms_per_floor[1]) == 1
+
+
+def test_item_ingestion_pip(rect_point_cloud):
+    """RP-09: item inside room polygon -> appended via cv2.pointPolygonTest."""
+    import time
+
+    from openarena_perception.navigation.learned_map import LearnedMap, RaycastHit
+
+    lm = LearnedMap(map_name="test_rp09_pip")
+    now = time.time()
+    lm._raycasts_per_floor[1] = [
+        RaycastHit(0, 0, 50, 0, float(p[0]), float(p[1]), 50, 0.9, now)
+        for p in rect_point_cloud
+    ]
+    lm._current_floor = 1
+    lm.fit_rooms(force=True, now=now)
+
+    lm.note_item("weapon_rocketlauncher", 256.0, 192.0)
+    room = lm._rooms_per_floor[1][0]
+    assert any(item[0] == "weapon_rocketlauncher" for item in room.items_seen)
+
+    items_before = list(lm._rooms_per_floor[1][0].items_seen)
+    lm.note_item("weapon_plasma", -200.0, -200.0)
+    room_after = lm._rooms_per_floor[1][0]
+    assert len(room_after.items_seen) == len(items_before)
+
+
+def test_visit_count_debouncer(rect_point_cloud):
+    """RP-09: visit_count increments once per entry, not per tick."""
+    import time
+
+    from openarena_perception.navigation.learned_map import LearnedMap, RaycastHit
+
+    lm = LearnedMap(map_name="test_rp09_visit")
+    now = time.time()
+    lm._raycasts_per_floor[1] = [
+        RaycastHit(0, 0, 50, 0, float(p[0]), float(p[1]), 50, 0.9, now)
+        for p in rect_point_cloud
+    ]
+    lm._current_floor = 1
+    lm.fit_rooms(force=True, now=now)
+
+    lm._prev_pos = (-100.0, -100.0)
+    lm._last_current_room_id = None
+
+    def drive(px, py):
+        lm._prev_pos = (px, py)
+        lm._current_room_cache_valid = False
+        cur = lm.current_room_id()
+        if cur != lm._last_current_room_id:
+            if cur is not None:
+                rooms = lm._rooms_per_floor[lm._current_floor]
+                for idx, r in enumerate(rooms):
+                    if r.id == cur:
+                        rooms[idx] = r._replace(visit_count=r.visit_count + 1)
+                        break
+            lm._last_current_room_id = cur
+
+    drive(256.0, 192.0)
+    drive(260.0, 190.0)
+    drive(270.0, 195.0)
+    drive(-100.0, -100.0)
+    drive(256.0, 192.0)
+
+    room = lm._rooms_per_floor[1][0]
+    assert room.visit_count == 2, f"expected 2 entries, got {room.visit_count}"
+
+
+def test_current_room_id_and_export_for_hud(rect_point_cloud):
+    """RP-09: current_room_id + export_for_hud surface fitted walls / rooms."""
+    import time
+
+    from openarena_perception.navigation.learned_map import LearnedMap, RaycastHit
+
+    lm = LearnedMap(map_name="test_rp09_export")
+    now = time.time()
+    lm._raycasts_per_floor[1] = [
+        RaycastHit(0, 0, 50, 0, float(p[0]), float(p[1]), 50, 0.9, now)
+        for p in rect_point_cloud
+    ]
+    lm._current_floor = 1
+    lm.fit_rooms(force=True, now=now)
+
+    # Inside
+    lm._prev_pos = (256.0, 192.0)
+    lm._current_room_cache_valid = False
+    cur = lm.current_room_id()
+    assert cur is not None
+
+    # Outside
+    lm._prev_pos = (-500.0, -500.0)
+    lm._current_room_cache_valid = False
+    assert lm.current_room_id() is None
+
+    # Export includes the new keys
+    lm._prev_pos = (256.0, 192.0)
+    lm._current_room_cache_valid = False
+    payload = lm.export_for_hud()
+    for key in (
+        "fitted_walls",
+        "corners",
+        "rooms",
+        "doorways",
+        "current_room_id",
+        "current_room_items",
+    ):
+        assert key in payload, f"missing key {key!r} in export_for_hud"
+    assert payload["current_room_id"] == cur
+    assert len(payload["rooms"]) == 1
+    assert len(payload["fitted_walls"]) == 4
+
+
+def test_update_with_10_rooms_under_1ms(rect_point_cloud):
+    """RP-09 perf: current_room_id() with 10 rooms stays < 1ms per call."""
+    import time
+
+    from openarena_perception.navigation.learned_map import LearnedMap, RaycastHit
+
+    lm = LearnedMap(map_name="test_rp09_perf")
+    now = time.time()
+    lm._raycasts_per_floor[1] = [
+        RaycastHit(0, 0, 50, 0, float(p[0]), float(p[1]), 50, 0.9, now)
+        for p in rect_point_cloud
+    ]
+    lm._current_floor = 1
+    lm.fit_rooms(force=True, now=now)
+    assert len(lm._rooms_per_floor[1]) >= 1
+    base_room = lm._rooms_per_floor[1][0]
+    synthetic_rooms = [base_room]
+    for i in range(1, 10):
+        shift = i * 1000.0
+        shifted_vertices = tuple(
+            (v[0] + shift, v[1] + shift) for v in base_room.polygon_vertices
+        )
+        shifted_bounds = (
+            base_room.bounds[0] + shift,
+            base_room.bounds[1] + shift,
+            base_room.bounds[2] + shift,
+            base_room.bounds[3] + shift,
+        )
+        synthetic_rooms.append(
+            base_room._replace(
+                id=base_room.id + i,
+                polygon_vertices=shifted_vertices,
+                bounds=shifted_bounds,
+            )
+        )
+    lm._rooms_per_floor[1] = synthetic_rooms
+
+    t0 = time.perf_counter()
+    for i in range(100):
+        lm._current_room_cache_valid = False
+        lm._prev_pos = (256.0 + (i % 3), 192.0 + (i % 3))
+        lm.current_room_id()
+    elapsed = time.perf_counter() - t0
+    avg_ms = (elapsed / 100) * 1000.0
+    assert avg_ms < 1.0, f"per-tick avg {avg_ms:.3f}ms exceeds 1ms budget"
