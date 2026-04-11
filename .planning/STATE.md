@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: verifying
-stopped_at: Phase 11 complete; Phase 12 Open-Perception planned next
-last_updated: "2026-04-10T22:45:00.000Z"
-last_activity: 2026-04-10
+status: executing
+stopped_at: Completed 12-01-PLAN.md
+last_updated: "2026-04-11T10:30:56.792Z"
+last_activity: 2026-04-11
 progress:
   total_phases: 12
   completed_phases: 11
-  total_plans: 44
-  completed_plans: 44
-  percent: 100
+  total_plans: 47
+  completed_plans: 45
+  percent: 96
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-08)
 
 **Core value:** The bot must be a competitive deathmatch player -- able to perceive enemies, navigate maps, select weapons, aim accurately, and make strategic decisions in real-time on constrained Pi hardware.
-**Current focus:** Phase 09 — Testing and Documentation
+**Current focus:** Phase 12 — open-perception-ui
 
 ## Current Position
 
-Phase: 09
-Plan: Not started
-Status: Phase complete — ready for verification
-Last activity: 2026-04-09
+Phase: 12 (open-perception-ui) — EXECUTING
+Plan: 2 of 3
+Status: Ready to execute
+Last activity: 2026-04-11
 
 Progress: [..........] 0%
 
@@ -102,6 +102,7 @@ Progress: [..........] 0%
 | Phase 10 P02 | 40min | 2 tasks | 10 files |
 | Phase 11 P01 | ~5min | 3 tasks | 6 files |
 | Phase 11 P02 | 10m | 4 tasks | 7 files |
+| Phase 12 P01 | 18min | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -199,6 +200,9 @@ Recent decisions affecting current work:
 - [Phase 11]: project_line clips to NEAR_Z + 1e-6 so clipped endpoints survive project_point's z <= NEAR_Z rejection
 - [Phase 11]: Room frame precomputed in renderer __init__ and sorted back-to-front; fixed in camera space, never recomputed
 - [Phase 11]: Renderer does not call world_to_camera; scene walls must arrive in camera space (11-03 backend owns transform)
+- [Phase 12]: Navigator replan hook installed post-hoc via attribute assignment (mirrors _on_area_transition)
+- [Phase 12]: note_swim_edge is a public method so tests drive transition-only behaviour without follow_path's reach machinery
+- [Phase 12]: build_hud_payload normalizes last_replan_steps deque to list internally (Pitfall 7)
 
 ### Pending Todos
 
@@ -211,6 +215,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-10T20:51:47.593Z
-Stopped at: Completed 11-02-PLAN.md
+Last session: 2026-04-11T10:30:47.631Z
+Stopped at: Completed 12-01-PLAN.md
 Resume file: None
