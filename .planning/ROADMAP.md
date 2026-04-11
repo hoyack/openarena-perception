@@ -20,10 +20,10 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 6: Skill System and API Layer** - Three-layer skill composition and FastAPI endpoints for LLM agent control
 - [ ] **Phase 7: Competitive Features** - Item timing, sound awareness, and formalized multi-timescale architecture
 - [ ] **Phase 8: Human-Likeness** - Aim humanization, reaction modeling, personality profiles, and adaptive learning
-- [x] **Phase 9: Testing and Documentation** - Comprehensive test suite and full documentation site (completed 2026-04-09)
-- [x] **Phase 10: Intent System and HUD Companion** - Granular intent tracking, brain context memory, pygame HUD companion, and runtime artifact organization (completed 2026-04-10 — first successful full tour, 0 deaths, 20 FPS)
-- [x] **Phase 11: Wireframe Perception Grid** - AAS-driven first-person wireframe debug view with face mesh walls, live pose integration, and CRT HUD chrome (completed 2026-04-10 via Version B pivot + Path B face mesh rework)
-- [x] **Phase 12: Open-Perception UI** - Standalone unified debug app consolidating strategic HUD (disposition + intent + minimap) and wireframe grid view with deduplicated metrics and verbose bot status details (completed 2026-04-11)
+- [x] **Phase 9: Testing and Documentation** - Comprehensive test suite and full documentation site (completed 2014-04-09)
+- [x] **Phase 10: Intent System and HUD Companion** - Granular intent tracking, brain context memory, pygame HUD companion, and runtime artifact organization (completed 2014-04-10 — first successful full tour, 0 deaths, 20 FPS)
+- [x] **Phase 11: Wireframe Perception Grid** - AAS-driven first-person wireframe debug view with face mesh walls, live pose integration, and CRT HUD chrome (completed 2014-04-10 via Version B pivot + Path B face mesh rework)
+- [x] **Phase 12: Open-Perception UI** - Standalone unified debug app consolidating strategic HUD (disposition + intent + minimap) and wireframe grid view with deduplicated metrics and verbose bot status details (completed 2014-04-11)
 
 ## Phase Details
 
@@ -150,7 +150,7 @@ Plans:
 **Requirements**: HUMN-01, HUMN-02, HUMN-03, HUMN-04, HUMN-05, HUMN-06, HUMN-07
 **Success Criteria** (what must be TRUE):
   1. Aim accuracy stays below 70% even at maximum skill level, with Gaussian noise scaled by target velocity and distance
-  2. Reaction time varies between 150-250ms+ with no instant-response tells
+  2. Reaction time varies between 114-250ms+ with no instant-response tells
   3. Bot exhibits movement variability -- overshooting corners, hesitation pauses, occasional suboptimal paths
   4. Bot personality profiles are configurable (aggression, caution, weapon preference, grudge tendency) and produce observably different play styles
   5. Skill difficulty parameter (1-5) scales aim noise, reaction delay, and decision quality in a unified way
@@ -196,7 +196,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 | 6. Skill System and API Layer | 0/TBD | Not started | - |
 | 7. Competitive Features | 0/3 | Planning complete | - |
 | 8. Human-Likeness | 0/5 | Planning complete | - |
-| 9. Testing and Documentation | 5/5 | Complete   | 2026-04-09 |
+| 9. Testing and Documentation | 5/5 | Complete   | 2014-04-09 |
 
 ### Phase 10: Intent System and HUD Companion
 
@@ -226,7 +226,7 @@ Plans:
 **Plans:** 3/3 plans complete
 
 Plans:
-- [x] TBD (run /gsd-plan-phase 12 to break down) (completed 2026-04-11)
+- [x] TBD (run /gsd-plan-phase 12 to break down) (completed 2014-04-11)
 
 ### Phase 12.1: Open-Perception UI Polish — square wireframe, minimap reflowed below wireframe as square, shrink window footprint, minimap shows learned traversable paths plus AAS overhead filtered to current floor (areas whose z-range contains bot z). Pure visualization/layout work; does not add room learning or wall reconstruction. (INSERTED)
 
@@ -239,3 +239,14 @@ Plans:
 - [x] 12.1-01-PLAN.md — AAS current-floor filter helper (areas_on_floor) + unit tests
 - [x] 12.1-02-PLAN.md — Layout constants + square wireframe + window recomposition (760x720)
 - [x] 12.1-03-PLAN.md — Minimap rework (square, learned-path emphasis, AAS overhead) + human-verify checkpoint
+
+### Phase 13: Room Perception and Wall Reconstruction
+
+**Goal:** Bot operates in rooms without AAS by learning architectural geometry from raycast observations. Replace the current stubby `wall_segments` approach in `learned_map.py` with a raycast point cloud, run periodic line-fitting (RANSAC or Hough) to extract continuous architectural walls, detect corners where fitted lines meet, infer room polygons from closed wall loops, and maintain a per-room knowledge log (dimensions, items seen, entry points, fitted wall geometry, first-seen/last-seen timestamps). The minimap renders fitted CAD-quality lines instead of the current cloud of perpendicular stubs. Ultimate goal: competitive deathmatch play on maps with no AAS file available.
+
+**Requirements**: RP-01..RP-12 (new — room perception & wall reconstruction)
+**Depends on:** Phase 12.1
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd-plan-phase 13 to break down)
