@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 12.1-01-PLAN.md
-last_updated: "2026-04-11T12:00:50.568Z"
+stopped_at: Completed 12.1-02-PLAN.md
+last_updated: "2026-04-11T12:06:09.777Z"
 last_activity: 2026-04-11
 progress:
   total_phases: 13
   completed_phases: 12
   total_plans: 50
-  completed_plans: 48
-  percent: 96
+  completed_plans: 49
+  percent: 98
 ---
 
 # Project State
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-04-08)
 ## Current Position
 
 Phase: 12.1 (open-perception-ui-polish) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 Status: Ready to execute
 Last activity: 2026-04-11
 
@@ -107,6 +107,7 @@ Progress: [..........] 0%
 | Phase 12 P02 | ~12min | 3 tasks | 8 files |
 | Phase 12 P3 | 25min | 3 tasks | 5 files |
 | Phase 12.1 P01 | 4min | 1 tasks | 2 files |
+| Phase 12.1 P02 | 5min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -212,6 +213,7 @@ Recent decisions affecting current work:
 - [Phase 12]: WireframePanel takes pre-parsed AASGraph (not file path) so tests share a session-scoped fixture and the app owns AAS loading
 - [Phase 12]: BGR->RGB boundary crossed exactly once in WireframePanel.draw via frame[:,:,::-1] + swapaxes(0,1)
 - [Phase 12.1]: areas_on_floor helper uses z_tolerance=24.0 (half player hull) and skips dummy area 0
+- [Phase 12.1]: Phase 12.1: HUD shrunk to 760x720 — two 360x360 squares stacked on left (wireframe top, minimap bottom), 400x720 stats on right; PANEL_WIREFRAME_SIZE/PANEL_MINIMAP_SIZE/PANEL_LEFT_W as SSoT with backward-compat aliases
 
 ### Pending Todos
 
@@ -224,6 +226,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-11T12:00:50.553Z
-Stopped at: Completed 12.1-01-PLAN.md
+Last session: 2026-04-11T12:05:59.861Z
+Stopped at: Completed 12.1-02-PLAN.md
 Resume file: None
