@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 13-03-PLAN.md
-last_updated: "2026-04-11T15:19:26.321Z"
+stopped_at: Completed 13-04-PLAN.md
+last_updated: "2026-04-11T15:26:49.162Z"
 last_activity: 2026-04-11
 progress:
   total_phases: 14
   completed_phases: 13
   total_plans: 56
-  completed_plans: 53
-  percent: 95
+  completed_plans: 54
+  percent: 96
 ---
 
 # Project State
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-04-08)
 ## Current Position
 
 Phase: 13 (room-perception-and-wall-reconstruction) — EXECUTING
-Plan: 3 of 6
+Plan: 4 of 6
 Status: Ready to execute
 Last activity: 2026-04-11
 
@@ -112,6 +112,7 @@ Progress: [..........] 0%
 | Phase 12.1 P03 | 8min | 3 tasks | 3 files |
 | Phase 13 P02 | 12min | 2 tasks | 2 files |
 | Phase 13 P03 | ~8min | 2 tasks | 4 files |
+| Phase 13 P04 | 5min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -224,6 +225,8 @@ Recent decisions affecting current work:
 - [Phase 13]: Plan 13-03: RANSAC chosen over Hough for line fitting — handles non-uniform raycast density, support_count comes free, pure numpy
 - [Phase 13]: Plan 13-03: Local np.random.default_rng(seed) re-seeded per fit_now() so repeat fits are bit-identical — never touches global RNG state
 - [Phase 13]: Plan 13-03: Wall merge via angle<10deg + both-endpoints perp<inlier_threshold; sums support_count, preserves existing id so double-fit yields N walls not 2N
+- [Phase 13]: Plan 13-04: Hand-rolled simple-cycle DFS over corner graph (no networkx); max cycle len 8, canonical min-id start + sorted-tuple dedup
+- [Phase 13]: Plan 13-04: Corner rule = (20 < angle < 160) AND nearest-endpoint-dist <= 32u; Doorway rule = gap in (4, 96) AND collinear-ish (angle <= 20 or >= 160); min_room_area = 4096 sq units
 
 ### Pending Todos
 
@@ -236,6 +239,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-11T15:19:26.309Z
-Stopped at: Completed 13-03-PLAN.md
+Last session: 2026-04-11T15:26:49.153Z
+Stopped at: Completed 13-04-PLAN.md
 Resume file: None

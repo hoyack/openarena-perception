@@ -151,9 +151,9 @@ Deferred to future release. Tracked but not in current roadmap.
 - [x] **RP-03**: `LineFitter` module runs deterministic seeded RANSAC over the raycast cloud and emits `Wall` entities `(x1,y1,x2,y2,confidence,support_count,first_seen,last_seen)`
 - [x] **RP-04**: Line fitting runs at slower-than-tick cadence — every N seconds (default 3s) OR on explicit `fit_now()` — never per tick
 - [x] **RP-05**: New walls merge with existing walls across fit passes via collinearity + endpoint-overlap; `support_count` accumulates
-- [ ] **RP-06**: `CornerDetector` emits `Corner` entities where two walls meet at 20°<θ<160° AND nearest endpoints within 32 units
-- [ ] **RP-07**: `RoomInferrer` walks corner graph with hand-rolled simple cycle detection (max length 8) and emits `Room` polygons when enclosed area ≥ 64×64 sq units
-- [ ] **RP-08**: `PartialRoom` entities for incomplete 2/3-wall loops (excluded from render); `Doorway` entities where two walls almost-meet with gap < 96 units
+- [x] **RP-06**: `CornerDetector` emits `Corner` entities where two walls meet at 20°<θ<160° AND nearest endpoints within 32 units
+- [x] **RP-07**: `RoomInferrer` walks corner graph with hand-rolled simple cycle detection (max length 8) and emits `Room` polygons when enclosed area ≥ 64×64 sq units
+- [x] **RP-08**: `PartialRoom` entities for incomplete 2/3-wall loops (excluded from render); `Doorway` entities where two walls almost-meet with gap < 96 units
 - [ ] **RP-09**: Per-`Room` knowledge log `{id, polygon_vertices, bounds, area, walls, corners, doorways, items_seen, visit_count, first_seen_ts, last_seen_ts, last_visited_ts, notes}`; items ingested via `cv2.pointPolygonTest`
 - [x] **RP-10**: `learned_map.json` schema v3 with new top-level keys (`raycasts_per_floor`, `fitted_walls`, `corners`, `rooms`, `doorways`); v2 files load gracefully; `wall_segments: []` written for legacy loader compatibility
 - [ ] **RP-11**: `MinimapPanel` removes red-stub render block (lines 192-203) and draws fitted walls (2px green), corners (3px filled), room polygons (20% alpha + outline, current-room brighter); falls back silently when `fitted_walls` empty

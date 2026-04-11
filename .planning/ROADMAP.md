@@ -246,12 +246,12 @@ Plans:
 
 **Requirements**: RP-01..RP-12 (new — room perception & wall reconstruction)
 **Depends on:** Phase 12.1
-**Plans:** 3/6 plans executed
+**Plans:** 4/6 plans executed
 
 Plans:
 - [x] 13-01-PLAN.md — Wave 0 test scaffold + Pitfall 6 v3 whitelist fix
 - [x] 13-02-PLAN.md — Raycast capture + decimation + schema v3 save/load
 - [x] 13-03-PLAN.md — LineFitter (seeded RANSAC) + wall merging + cadence gate
-- [ ] 13-04-PLAN.md — CornerDetector + RoomInferrer + DoorwayDetector
+- [x] 13-04-PLAN.md — CornerDetector + RoomInferrer + DoorwayDetector
 - [ ] 13-05-PLAN.md — LearnedMap.fit_rooms + items_seen + HUD schema kwargs + stats rows 10-11
 - [ ] 13-06-PLAN.md — Minimap rework (remove red stubs, draw fitted walls/corners/rooms) + live visual checkpoint
