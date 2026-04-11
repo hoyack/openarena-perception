@@ -124,7 +124,7 @@ def test_hud_width_is_derived() -> None:
 
 
 def test_minimap_panel_draws_player_marker() -> None:
-    panel = MinimapPanel(PANEL_MINIMAP_SIZE, PANEL_MINIMAP_SIZE)
+    panel = MinimapPanel(aas_graph=None, width=PANEL_MINIMAP_SIZE, height=PANEL_MINIMAP_SIZE)
     surface = _surface(PANEL_MINIMAP_SIZE, PANEL_MINIMAP_SIZE)
     # Player at world origin so marker lands near minimap center.
     state = _make_state(player_x=0.0, player_y=0.0, player_yaw=0.0)
@@ -135,7 +135,7 @@ def test_minimap_panel_draws_player_marker() -> None:
 
 def test_minimap_panel_no_hud_text() -> None:
     """Minimap owns NO HP/POS/YAW/AMMO text (dedup contract)."""
-    panel = MinimapPanel(PANEL_MINIMAP_SIZE, PANEL_MINIMAP_SIZE)
+    panel = MinimapPanel(aas_graph=None, width=PANEL_MINIMAP_SIZE, height=PANEL_MINIMAP_SIZE)
     src = Path(
         "openarena_perception/visualization/panels/minimap.py"
     ).read_text()
@@ -152,7 +152,7 @@ def test_minimap_panel_no_hud_text() -> None:
 
 
 def test_minimap_panel_draws_route_waypoints() -> None:
-    panel = MinimapPanel(PANEL_MINIMAP_SIZE, PANEL_MINIMAP_SIZE)
+    panel = MinimapPanel(aas_graph=None, width=PANEL_MINIMAP_SIZE, height=PANEL_MINIMAP_SIZE)
     surface = _surface(PANEL_MINIMAP_SIZE, PANEL_MINIMAP_SIZE)
     state = _make_state(
         player_x=0.0,
@@ -172,7 +172,7 @@ def test_minimap_panel_draws_route_waypoints() -> None:
 
 def test_minimap_panel_latches_bounds(monkeypatch) -> None:
     """Map bounds should latch on first draw (Pitfall 10)."""
-    panel = MinimapPanel(PANEL_MINIMAP_SIZE, PANEL_MINIMAP_SIZE)
+    panel = MinimapPanel(aas_graph=None, width=PANEL_MINIMAP_SIZE, height=PANEL_MINIMAP_SIZE)
     surface = _surface(PANEL_MINIMAP_SIZE, PANEL_MINIMAP_SIZE)
     s1 = _make_state(
         map_min_x=-500, map_max_x=500, map_min_y=-500, map_max_y=500
@@ -185,6 +185,153 @@ def test_minimap_panel_latches_bounds(monkeypatch) -> None:
     )
     panel.draw(s2, surface)
     assert panel._bounds == bounds_after_first
+
+
+def test_minimap_panel_square_layout_dimensions() -> None:
+    panel = MinimapPanel(
+        aas_graph=None, width=PANEL_MINIMAP_SIZE, height=PANEL_MINIMAP_SIZE
+    )
+    assert panel.width == 360
+    assert panel.height == 360
+    assert panel._map_margin == 8
+    assert panel._map_top == 24
+    assert panel._map_size == min(360 - 16, 360 - 24 - 8)
+    assert panel._map_size == 328
+
+
+def _count_aas_fill_pixels(surface: pygame.Surface) -> int:
+    """Count pixels painted with the AAS overhead fill color (35, 45, 60)."""
+    arr = pygame.surfarray.array3d(surface)
+    fill = np.array((35, 45, 60), dtype=np.uint8)
+    return int(np.all(arr == fill, axis=-1).sum())
+
+
+def test_minimap_panel_aas_overhead_draws_polygons(aas_graph) -> None:
+    from openarena_perception.navigation.aas_parser import areas_on_floor
+
+    a1 = aas_graph.areas[1]
+    mid_z = (a1.mins[2] + a1.maxs[2]) / 2
+    floor_ids = areas_on_floor(aas_graph, mid_z, z_tolerance=24.0)
+    assert len(floor_ids) > 0, "fixture must have at least one floor area"
+
+    panel_with = MinimapPanel(
+        aas_graph=aas_graph, width=PANEL_MINIMAP_SIZE, height=PANEL_MINIMAP_SIZE
+    )
+    panel_without = MinimapPanel(
+        aas_graph=None, width=PANEL_MINIMAP_SIZE, height=PANEL_MINIMAP_SIZE
+    )
+    state = _make_state(
+        player_x=float(a1.cx),
+        player_y=float(a1.cy),
+        player_z=mid_z,
+        map_min_x=float(a1.mins[0]) - 500.0,
+        map_max_x=float(a1.maxs[0]) + 500.0,
+        map_min_y=float(a1.mins[1]) - 500.0,
+        map_max_y=float(a1.maxs[1]) + 500.0,
+    )
+    surf_with = _surface(PANEL_MINIMAP_SIZE, PANEL_MINIMAP_SIZE)
+    surf_without = _surface(PANEL_MINIMAP_SIZE, PANEL_MINIMAP_SIZE)
+    panel_with.draw(state, surf_with)
+    panel_without.draw(state, surf_without)
+    # Count AAS-fill-colored pixels specifically: panel_with must have >0,
+    # panel_without must have exactly 0.
+    with_fill = _count_aas_fill_pixels(surf_with)
+    without_fill = _count_aas_fill_pixels(surf_without)
+    assert with_fill > 0, (
+        f"AAS overhead must paint AAS-fill pixels: with_fill={with_fill}"
+    )
+    assert without_fill == 0, (
+        f"panel without aas_graph must not paint AAS fill: "
+        f"without_fill={without_fill}"
+    )
+
+
+def test_minimap_panel_aas_overhead_filtered_to_floor(aas_graph) -> None:
+    """Moving player_z far above any area shrinks AAS contribution."""
+    a1 = aas_graph.areas[1]
+    mid_z = (a1.mins[2] + a1.maxs[2]) / 2
+    max_z = max(a.maxs[2] for a in aas_graph.areas[1:])
+    above_all = max_z + 500.0  # far above every area
+
+    base_state = dict(
+        player_x=float(a1.cx),
+        player_y=float(a1.cy),
+        map_min_x=-4000.0,
+        map_max_x=4000.0,
+        map_min_y=-4000.0,
+        map_max_y=4000.0,
+    )
+    panel = MinimapPanel(
+        aas_graph=aas_graph, width=PANEL_MINIMAP_SIZE, height=PANEL_MINIMAP_SIZE
+    )
+    surf_on = _surface(PANEL_MINIMAP_SIZE, PANEL_MINIMAP_SIZE)
+    panel.draw(_make_state(**base_state, player_z=mid_z), surf_on)
+    # Fresh panel so bounds re-latch from the new state.
+    panel2 = MinimapPanel(
+        aas_graph=aas_graph, width=PANEL_MINIMAP_SIZE, height=PANEL_MINIMAP_SIZE
+    )
+    surf_above = _surface(PANEL_MINIMAP_SIZE, PANEL_MINIMAP_SIZE)
+    panel2.draw(_make_state(**base_state, player_z=above_all), surf_above)
+    # Count AAS-fill-colored pixels specifically (generic nonbg also picks
+    # up the grid interior which is invariant).
+    on_fill = _count_aas_fill_pixels(surf_on)
+    above_fill = _count_aas_fill_pixels(surf_above)
+    assert on_fill > 0, f"on-floor must have AAS fill: {on_fill}"
+    assert above_fill == 0, (
+        f"floor filter must drop areas above the bot: "
+        f"on_floor_fill={on_fill}, far_above_fill={above_fill}"
+    )
+
+
+def test_minimap_panel_visited_cells_brighter_than_open() -> None:
+    panel = MinimapPanel(
+        aas_graph=None, width=PANEL_MINIMAP_SIZE, height=PANEL_MINIMAP_SIZE
+    )
+    state = _make_state(
+        player_x=0.0,
+        player_y=0.0,
+        map_min_x=-500.0,
+        map_max_x=500.0,
+        map_min_y=-500.0,
+        map_max_y=500.0,
+        learned_map={
+            "grid_origin": [0, 0],
+            "grid_resolution": 64,
+            "grid_cells": [
+                [2, 0, 3],  # VISITED at (2,0)
+                [-2, 0, 1],  # OPEN at (-2,0)
+            ],
+        },
+    )
+    surf = _surface(PANEL_MINIMAP_SIZE, PANEL_MINIMAP_SIZE)
+    panel.draw(state, surf)
+    arr = pygame.surfarray.array3d(surf)
+    # Mask out the player marker center (~RGB_PLAYER = 0,255,100 is green-
+    # dominant too) so we count only the VISITED tile.
+    px = panel._map_margin + int(
+        (0.0 - state.map_min_x)
+        / (state.map_max_x - state.map_min_x)
+        * panel._map_size
+    )
+    py = panel._map_top + panel._map_size - int(
+        (0.0 - state.map_min_y)
+        / (state.map_max_y - state.map_min_y)
+        * panel._map_size
+    )
+    mask = np.ones_like(arr[:, :, 0], dtype=bool)
+    mask[max(0, px - 10) : px + 10, max(0, py - 10) : py + 10] = False
+    green_dominant = int(
+        np.sum(
+            ((arr[:, :, 1].astype(int) - arr[:, :, 0].astype(int)) > 60)
+            & ((arr[:, :, 1].astype(int) - arr[:, :, 2].astype(int)) > 60)
+            & (arr[:, :, 1] > 140)
+            & mask
+        )
+    )
+    assert green_dominant > 0, (
+        "VISITED cells must render as bright green (>0 pixels after "
+        "masking out the player marker)"
+    )
 
 
 # -----------------------------------------------------------------------
