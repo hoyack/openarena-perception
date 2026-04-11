@@ -4,7 +4,7 @@ milestone: v1.0
 milestone_name: milestone
 status: verifying
 stopped_at: Completed 12.1-03-PLAN.md
-last_updated: "2026-04-11T12:14:36.372Z"
+last_updated: "2026-04-11T13:06:02.426Z"
 last_activity: 2026-04-11
 progress:
   total_phases: 13
@@ -25,8 +25,8 @@ See: .planning/PROJECT.md (updated 2026-04-08)
 
 ## Current Position
 
-Phase: 12.1 (open-perception-ui-polish) — EXECUTING
-Plan: 3 of 3
+Phase: 12.1
+Plan: Not started
 Status: Phase complete — ready for verification
 Last activity: 2026-04-11
 
@@ -36,7 +36,7 @@ Progress: [..........] 0%
 
 **Velocity:**
 
-- Total plans completed: 41
+- Total plans completed: 44
 - Average duration: -
 - Total execution time: 0 hours
 
@@ -54,6 +54,7 @@ Progress: [..........] 0%
 | 08 | 5 | - | - |
 | 09 | 5 | - | - |
 | 12 | 3 | - | - |
+| 12.1 | 3 | - | - |
 
 **Recent Trend:**
 
