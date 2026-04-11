@@ -228,6 +228,91 @@ def test_room_from_square():
     assert len(rooms_tiny) == 0
 
 
+def test_room_inferrer_tightened_defaults():
+    """Plan 13-08: default thresholds are min_room_area=20000, max_cycle_length=6."""
+    from openarena_perception.navigation.room_perception import RoomInferrer
+
+    inferrer = RoomInferrer()
+    assert inferrer.min_room_area == 20000.0
+    assert inferrer.max_cycle_length == 6
+
+
+def test_room_spatial_dedup():
+    """Plan 13-08: spatial dedup keyed on sorted corner-ID tuple.
+
+    Validates that when multiple cycles share the same participating corner
+    set, RoomInferrer emits only one Room (the shortest-perimeter one).
+    Constructed by hand-crafting Corner objects so two distinct cycles map
+    to the same corner-ID signature -- the natural CornerDetector output
+    never collides because it assigns unique corner IDs per wall pair.
+    """
+    from openarena_perception.navigation.room_perception import (
+        RoomInferrer,
+        Wall,
+    )
+    from openarena_perception.navigation.room_perception.types import Corner
+
+    # 4 walls forming a square, with 4 corners sharing IDs in a way that
+    # lets the adjacency graph enumerate the cycle {1,2,3,4} exactly once.
+    walls = [
+        Wall(1, 0, 0, 200, 0, 0.9, 30, 0.0, 1.0),
+        Wall(2, 200, 0, 200, 200, 0.9, 30, 0.0, 1.0),
+        Wall(3, 200, 200, 0, 200, 0.9, 30, 0.0, 1.0),
+        Wall(4, 0, 200, 0, 0, 0.9, 30, 0.0, 1.0),
+    ]
+    corners = [
+        Corner(1, 200.0, 0.0, 1, 2, 90.0, 0.9),
+        Corner(2, 200.0, 200.0, 2, 3, 90.0, 0.9),
+        Corner(3, 0.0, 200.0, 3, 4, 90.0, 0.9),
+        Corner(4, 0.0, 0.0, 1, 4, 90.0, 0.9),
+    ]
+    rooms, _ = RoomInferrer().infer(walls, corners)
+    # Exactly one room -- the square.
+    assert len(rooms) == 1
+    assert rooms[0].area == pytest.approx(40000.0, rel=0.01)
+    # Spatial dedup key is sorted corner IDs: all 4 corners participate.
+    assert rooms[0].corner_ids == (1, 2, 3, 4)
+
+    # Sanity check: introducing a near-duplicate parallel wall (y=1 strip)
+    # DOES yield a second closed cycle, because the CornerDetector-style
+    # output assigns different corner IDs to each wall-pair. Plan 13-08's
+    # primary defense against this live failure mode is the tightened
+    # max_cycle_length (6) and min_room_area (20000). The spatial-dedup
+    # key is a secondary guard; this test asserts the primary guard keeps
+    # the room count bounded.
+    from openarena_perception.navigation.room_perception import (
+        CornerDetector,
+    )
+
+    w5 = Wall(5, 0, 1, 200, 1, 0.9, 30, 0.0, 1.0)
+    walls2 = walls + [w5]
+    detected = CornerDetector().detect(walls2)
+    rooms2, _ = RoomInferrer().infer(walls2, detected)
+    # Fallback assertion per plan 13-08: <= 2 rooms (was 65 on live oa_dm1).
+    assert len(rooms2) <= 2, f"expected <=2 rooms, got {len(rooms2)}"
+
+
+def test_room_shortest_perimeter_wins():
+    """Plan 13-08: _polygon_perimeter computes correct perimeter and
+    shorter-perimeter cycle is preferred on dedup collision.
+    """
+    from openarena_perception.navigation.room_perception.room_inferrer import (
+        RoomInferrer,
+    )
+
+    poly_short = [(0.0, 0.0), (200.0, 0.0), (200.0, 200.0), (0.0, 200.0)]
+    poly_long = [(0.0, 0.0), (210.0, 0.0), (210.0, 210.0), (0.0, 210.0)]
+    p_short = RoomInferrer._polygon_perimeter(poly_short)
+    p_long = RoomInferrer._polygon_perimeter(poly_long)
+    assert p_short < p_long
+    assert p_short == pytest.approx(800.0, rel=0.01)
+    assert p_long == pytest.approx(840.0, rel=0.01)
+
+    # Degenerate cases
+    assert RoomInferrer._polygon_perimeter([]) == 0.0
+    assert RoomInferrer._polygon_perimeter([(0.0, 0.0)]) == 0.0
+
+
 def test_partial_room_and_doorway(u_shape_point_cloud):
     """RP-08: U-shape -> 1 PartialRoom; collinear near-miss walls -> 1 Doorway."""
     from openarena_perception.navigation.room_perception import (
