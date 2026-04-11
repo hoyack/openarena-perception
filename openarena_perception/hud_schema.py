@@ -45,6 +45,13 @@ def build_hud_payload(
     context: Any = None,
     is_paused_for_assess: bool = False,
     threat_flag: bool = False,
+    stair_climb_state: str | None = None,
+    swim_edge_state: str | None = None,
+    advisor_last_thought: str | None = None,
+    last_replan_steps: Any = None,
+    tick_rate_fps: float | None = None,
+    frame_lag_ms: float | None = None,
+    nav_current_step_area: int | None = None,
     extras: Mapping[str, Any] | None = None,
 ) -> dict:
     """Build the HUD JSON payload as a plain dict.
@@ -153,6 +160,25 @@ def build_hud_payload(
 
     payload["is_paused_for_assess"] = bool(is_paused_for_assess)
     payload["threat_flag"] = bool(threat_flag)
+
+    # Phase 12-01: verbose telemetry fields. Each key is emitted only when
+    # the corresponding kwarg is non-None so existing callers that don't pass
+    # these stay byte-for-byte backward-compatible (no new keys appear).
+    if stair_climb_state is not None:
+        payload["stair_climb_state"] = stair_climb_state
+    if swim_edge_state is not None:
+        payload["swim_edge_state"] = swim_edge_state
+    if advisor_last_thought is not None:
+        payload["advisor_last_thought"] = advisor_last_thought
+    if last_replan_steps is not None:
+        # Normalize deque -> list so json.dump is happy (Pitfall 7).
+        payload["last_replan_steps"] = list(last_replan_steps)
+    if tick_rate_fps is not None:
+        payload["tick_rate_fps"] = float(tick_rate_fps)
+    if frame_lag_ms is not None:
+        payload["frame_lag_ms"] = float(frame_lag_ms)
+    if nav_current_step_area is not None:
+        payload["nav_current_step_area"] = int(nav_current_step_area)
 
     if extras:
         payload.update(extras)

@@ -96,6 +96,94 @@ def test_build_payload_deque_must_be_converted_by_caller(tmp_path):
             json.dump(p, f)
 
 
+# ── Phase 12-01: Verbose telemetry kwargs ───────────────────────────
+
+
+def test_build_payload_stair_climb_state_roundtrip():
+    p = build_hud_payload(map_name="q3dm1", stair_climb_state="climbing target_area=42")
+    blob = json.dumps(p)
+    restored = json.loads(blob)
+    assert restored["stair_climb_state"] == "climbing target_area=42"
+
+
+def test_build_payload_swim_edge_state_roundtrip():
+    p = build_hud_payload(map_name="q3dm1", swim_edge_state="traversing to area 7")
+    restored = json.loads(json.dumps(p))
+    assert restored["swim_edge_state"] == "traversing to area 7"
+
+
+def test_build_payload_advisor_last_thought_roundtrip():
+    p = build_hud_payload(map_name="q3dm1", advisor_last_thought="watch the lava")
+    restored = json.loads(json.dumps(p))
+    assert restored["advisor_last_thought"] == "watch the lava"
+
+
+def test_build_payload_last_replan_steps_accepts_deque():
+    dq = deque([3, 4, 6], maxlen=3)
+    p = build_hud_payload(map_name="q3dm1", last_replan_steps=dq)
+    # Must serialize cleanly -- Pitfall 7 handled inside build_hud_payload
+    blob = json.dumps(p)
+    restored = json.loads(blob)
+    assert restored["last_replan_steps"] == [3, 4, 6]
+
+
+def test_build_payload_tick_rate_fps_roundtrip():
+    p = build_hud_payload(map_name="q3dm1", tick_rate_fps=12.5)
+    restored = json.loads(json.dumps(p))
+    assert restored["tick_rate_fps"] == 12.5
+
+
+def test_build_payload_frame_lag_ms_roundtrip():
+    p = build_hud_payload(map_name="q3dm1", frame_lag_ms=42.0)
+    restored = json.loads(json.dumps(p))
+    assert restored["frame_lag_ms"] == 42.0
+
+
+def test_build_payload_nav_current_step_area_roundtrip():
+    p = build_hud_payload(map_name="q3dm1", nav_current_step_area=299)
+    restored = json.loads(json.dumps(p))
+    assert restored["nav_current_step_area"] == 299
+
+
+def test_build_payload_omits_verbose_keys_when_not_passed():
+    """Backward-compat: constructing with only map_name must not emit any new keys."""
+    p = build_hud_payload(map_name="x")
+    for k in (
+        "stair_climb_state",
+        "swim_edge_state",
+        "advisor_last_thought",
+        "last_replan_steps",
+        "tick_rate_fps",
+        "frame_lag_ms",
+        "nav_current_step_area",
+    ):
+        assert k not in p, f"unexpected verbose key {k!r} in backward-compat payload"
+
+
+def test_build_payload_explicit_none_equivalent_to_omitted():
+    """Passing None explicitly should behave the same as omitting the kwarg."""
+    p = build_hud_payload(
+        map_name="x",
+        stair_climb_state=None,
+        swim_edge_state=None,
+        advisor_last_thought=None,
+        last_replan_steps=None,
+        tick_rate_fps=None,
+        frame_lag_ms=None,
+        nav_current_step_area=None,
+    )
+    for k in (
+        "stair_climb_state",
+        "swim_edge_state",
+        "advisor_last_thought",
+        "last_replan_steps",
+        "tick_rate_fps",
+        "frame_lag_ms",
+        "nav_current_step_area",
+    ):
+        assert k not in p
+
+
 def test_write_hud_state_atomic(tmp_path):
     """write_hud_state uses tmp + os.replace; no .tmp left behind on success."""
     target = tmp_path / "out.json"
