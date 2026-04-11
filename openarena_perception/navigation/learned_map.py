@@ -218,7 +218,7 @@ class LearnedMap:
             with open(path) as f:
                 data = json.load(f)
             version = data.get("version", 1)
-            if version not in (1, 2):
+            if version not in (1, 2, 3):
                 return False
 
             self._origin_x = data["grid_origin"][0]
@@ -241,6 +241,18 @@ class LearnedMap:
             self._wall_segments = data.get("wall_segments", [])
             self._edge_failures = data.get("edge_failures", {})
             self._edge_successes = data.get("edge_successes", {})
+
+            # Phase 13 schema v3 — Plan 02 extends this with real deserialization.
+            # Wave 0 stub: accept v3 files by reading keys with empty defaults
+            # so cross-session reload works even before Plan 02 ships.
+            if version >= 3:
+                self._raycasts_per_floor_raw = data.get(
+                    "raycasts_per_floor", [[] for _ in range(self.NUM_FLOORS)]
+                )
+                self._fitted_walls_raw = data.get("fitted_walls", [])
+                self._corners_raw = data.get("corners", [])
+                self._rooms_raw = data.get("rooms", [])
+                self._doorways_raw = data.get("doorways", [])
 
             mapped = sum(int((g > 0).sum()) for g in self._grids)
             log.info("Learned map loaded: %s (%d cells, %d walls, %d failed edges)",
