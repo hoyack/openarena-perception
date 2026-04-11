@@ -621,6 +621,132 @@ def test_stats_panel_legacy_state_still_renders_9_verbose_rows() -> None:
     # At minimum the draw must not raise.
 
 
+def test_minimap_no_red_stub_color_in_source() -> None:
+    """RP-11: the (255, 60, 60) red stub render block must be removed from minimap.py."""
+    src = Path(
+        "openarena_perception/visualization/panels/minimap.py"
+    ).read_text()
+    assert "(255, 60, 60)" not in src, (
+        "minimap.py must not draw the red wall-stub color (255, 60, 60); "
+        "Phase 13 deletes the legacy wall_segments stub block"
+    )
+
+
+def test_minimap_renders_fitted_walls_corners_rooms() -> None:
+    """RP-11: minimap renders fitted walls / corners / room polygons from v3 data."""
+    panel = MinimapPanel(
+        aas_graph=None, width=PANEL_MINIMAP_SIZE, height=PANEL_MINIMAP_SIZE
+    )
+    surface = _surface(PANEL_MINIMAP_SIZE, PANEL_MINIMAP_SIZE)
+    state = _make_state(
+        player_x=100.0,
+        player_y=100.0,
+        map_min_x=-300.0,
+        map_max_x=500.0,
+        map_min_y=-300.0,
+        map_max_y=500.0,
+        learned_map={
+            "grid_origin": [0, 0],
+            "grid_resolution": 64,
+            "grid_size": 64,
+            "current_floor": 1,
+            "grid_cells": [],
+            "wall_segments": [],
+            "fitted_walls": [
+                [1, 0, 0, 200, 0, 0.9, 30, 0.0, 1.0],
+                [2, 200, 0, 200, 200, 0.9, 30, 0.0, 1.0],
+                [3, 200, 200, 0, 200, 0.9, 30, 0.0, 1.0],
+                [4, 0, 200, 0, 0, 0.9, 30, 0.0, 1.0],
+            ],
+            "corners": [
+                [1, 0, 0, 1, 4, 90, 0.9],
+                [2, 200, 0, 1, 2, 90, 0.9],
+                [3, 200, 200, 2, 3, 90, 0.9],
+                [4, 0, 200, 3, 4, 90, 0.9],
+            ],
+            "rooms": [
+                {
+                    "id": 1,
+                    "polygon_vertices": [[0, 0], [200, 0], [200, 200], [0, 200]],
+                    "bounds": [0, 0, 200, 200],
+                    "area": 40000,
+                    "visit_count": 1,
+                    "items_seen": [],
+                }
+            ],
+            "doorways": [],
+            "current_room_id": 1,
+            "stats": {},
+        },
+    )
+    panel.draw(state, surface)  # must not raise
+    arr = pygame.surfarray.array3d(surface)
+
+    # Bright green fitted-wall pixels (60, 220, 120) should appear.
+    fitted = np.all(arr == np.array((60, 220, 120), dtype=np.uint8), axis=-1)
+    assert int(fitted.sum()) > 0, "fitted walls must render in bright green"
+
+    # Amber corner pixels (255, 200, 60) should appear.
+    corners = np.all(arr == np.array((255, 200, 60), dtype=np.uint8), axis=-1)
+    assert int(corners.sum()) > 0, "corners must render in amber"
+
+    # Current-room outline (140, 200, 255) should appear.
+    cur_room = np.all(arr == np.array((140, 200, 255), dtype=np.uint8), axis=-1)
+    assert int(cur_room.sum()) > 0, (
+        "current-room outline must render in bright blue (140,200,255)"
+    )
+
+
+def test_minimap_legacy_state_no_fitted_walls_falls_back() -> None:
+    """RP-11: HUD state with no fitted_walls key (legacy v2 data) renders cleanly."""
+    panel = MinimapPanel(
+        aas_graph=None, width=PANEL_MINIMAP_SIZE, height=PANEL_MINIMAP_SIZE
+    )
+    surface = _surface(PANEL_MINIMAP_SIZE, PANEL_MINIMAP_SIZE)
+    state = _make_state(
+        learned_map={
+            "grid_origin": [0, 0],
+            "grid_resolution": 64,
+            "grid_size": 64,
+            "current_floor": 1,
+            "grid_cells": [],
+            "wall_segments": [],  # legacy empty list
+            "stats": {},
+        },
+    )
+    panel.draw(state, surface)  # must not raise
+    arr = pygame.surfarray.array3d(surface)
+    # No red stubs anywhere — even if a legacy state somehow carried wall_segments.
+    red_stub = np.all(arr == np.array((255, 60, 60), dtype=np.uint8), axis=-1)
+    assert int(red_stub.sum()) == 0, "legacy fallback must not draw red stubs"
+
+
+def test_minimap_legacy_state_with_wall_segments_no_red_stubs() -> None:
+    """RP-11: even if legacy v2 wall_segments are present in HUD state, no red stubs."""
+    panel = MinimapPanel(
+        aas_graph=None, width=PANEL_MINIMAP_SIZE, height=PANEL_MINIMAP_SIZE
+    )
+    surface = _surface(PANEL_MINIMAP_SIZE, PANEL_MINIMAP_SIZE)
+    state = _make_state(
+        learned_map={
+            "grid_origin": [0, 0],
+            "grid_resolution": 64,
+            "wall_segments": [
+                [-100.0, -100.0, 100.0, 100.0, 5.0],
+                [50.0, -50.0, -50.0, 50.0, 4.0],
+            ],
+            "stats": {},
+        },
+    )
+    panel.draw(state, surface)
+    arr = pygame.surfarray.array3d(surface)
+    red_stub = np.all(arr == np.array((255, 60, 60), dtype=np.uint8), axis=-1)
+    assert int(red_stub.sum()) == 0, (
+        "Phase 13 minimap must NOT render red wall_segment stubs even if legacy "
+        "state still includes them"
+    )
+
+
 def test_stats_panel_row_budget_fits_700px() -> None:
     """RP-12: row 10 starts at y=612 and row 11 ends at y<=640, inside the 700px panel."""
     # This is a layout-constant check. Row 10 y=612, row 11 y=626,

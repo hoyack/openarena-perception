@@ -40,6 +40,12 @@ RGB_PROBLEM_RESPAWN = (80, 220, 255)
 RGB_PROBLEM_ADVISOR = (255, 80, 80)
 RGB_PAUSE_BORDER = (80, 150, 255)
 
+# --- Phase 13: fitted-wall / corner / room polygon palette --------------
+RGB_FITTED_WALL = (60, 220, 120)        # bright green — fitted architectural lines
+RGB_CORNER = (255, 200, 60)             # amber — corner vertices
+RGB_ROOM_OUTLINE = (80, 140, 200)       # muted blue — non-current rooms
+RGB_ROOM_OUTLINE_CUR = (140, 200, 255)  # brighter blue — current room highlight
+
 # --- Derived layout constants (never hardcode HUD_WIDTH — see Pitfall 4)
 # Phase 12.1: square wireframe + square minimap stacked in a left column,
 # stats panel on the right. Window footprint: 760x720.
@@ -88,6 +94,10 @@ __all__ = [
     "RGB_PROBLEM_RESPAWN",
     "RGB_PROBLEM_ADVISOR",
     "RGB_PAUSE_BORDER",
+    "RGB_FITTED_WALL",
+    "RGB_CORNER",
+    "RGB_ROOM_OUTLINE",
+    "RGB_ROOM_OUTLINE_CUR",
     "PANEL_MINIMAP_W",
     "PANEL_WIREFRAME_W",
     "PANEL_WIREFRAME_SIZE",
