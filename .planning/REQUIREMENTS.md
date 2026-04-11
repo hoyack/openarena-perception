@@ -144,6 +144,21 @@ Deferred to future release. Tracked but not in current roadmap.
 - [x] **OP-11**: Contract test rewritten against `open_perception.HUDState` (no `import strategic_hud` in active code)
 - [x] **OP-12**: Visual human verification of the unified HUD with live bot
 
+### Room Perception (Phase 13)
+
+- [ ] **RP-01**: `learned_map.py` captures per-tick raycast hits from perception forward-scan (`wall_ahead` + `wall_score`) and stores them in a per-floor point cloud `_raycasts_per_floor`
+- [ ] **RP-02**: Per-floor raycast point cloud is capped (default 5000) with a decimation strategy that keeps most-recent / highest-confidence hits
+- [ ] **RP-03**: `LineFitter` module runs deterministic seeded RANSAC over the raycast cloud and emits `Wall` entities `(x1,y1,x2,y2,confidence,support_count,first_seen,last_seen)`
+- [ ] **RP-04**: Line fitting runs at slower-than-tick cadence — every N seconds (default 3s) OR on explicit `fit_now()` — never per tick
+- [ ] **RP-05**: New walls merge with existing walls across fit passes via collinearity + endpoint-overlap; `support_count` accumulates
+- [ ] **RP-06**: `CornerDetector` emits `Corner` entities where two walls meet at 20°<θ<160° AND nearest endpoints within 32 units
+- [ ] **RP-07**: `RoomInferrer` walks corner graph with hand-rolled simple cycle detection (max length 8) and emits `Room` polygons when enclosed area ≥ 64×64 sq units
+- [ ] **RP-08**: `PartialRoom` entities for incomplete 2/3-wall loops (excluded from render); `Doorway` entities where two walls almost-meet with gap < 96 units
+- [ ] **RP-09**: Per-`Room` knowledge log `{id, polygon_vertices, bounds, area, walls, corners, doorways, items_seen, visit_count, first_seen_ts, last_seen_ts, last_visited_ts, notes}`; items ingested via `cv2.pointPolygonTest`
+- [ ] **RP-10**: `learned_map.json` schema v3 with new top-level keys (`raycasts_per_floor`, `fitted_walls`, `corners`, `rooms`, `doorways`); v2 files load gracefully; `wall_segments: []` written for legacy loader compatibility
+- [ ] **RP-11**: `MinimapPanel` removes red-stub render block (lines 192-203) and draws fitted walls (2px green), corners (3px filled), room polygons (20% alpha + outline, current-room brighter); falls back silently when `fitted_walls` empty
+- [ ] **RP-12**: `hud_schema.build_hud_payload` accepts optional `current_room_id` + `current_room_items` kwargs (backward-compat); `StatsPanel` adds rows 10-11 below existing 9 verbose rows
+
 ### Advanced
 
 - **ADV-01**: Multi-agent coordination for team game modes
@@ -265,12 +280,24 @@ Which phases cover which requirements. Updated during roadmap creation.
 | OP-10 | Phase 12 | Complete |
 | OP-11 | Phase 12 | Complete |
 | OP-12 | Phase 12 | Complete |
+| RP-01 | Phase 13 | Not started |
+| RP-02 | Phase 13 | Not started |
+| RP-03 | Phase 13 | Not started |
+| RP-04 | Phase 13 | Not started |
+| RP-05 | Phase 13 | Not started |
+| RP-06 | Phase 13 | Not started |
+| RP-07 | Phase 13 | Not started |
+| RP-08 | Phase 13 | Not started |
+| RP-09 | Phase 13 | Not started |
+| RP-10 | Phase 13 | Not started |
+| RP-11 | Phase 13 | Not started |
+| RP-12 | Phase 13 | Not started |
 
 **Coverage:**
-- v1 requirements: 88 total
-- Mapped to phases: 88
+- v1 requirements: 100 total (88 original + 12 Phase 13 additions)
+- Mapped to phases: 100
 - Unmapped: 0
 
 ---
 *Requirements defined: 2026-04-08*
-*Last updated: 2026-04-08 after roadmap creation*
+*Last updated: 2026-04-11 — added RP-01..RP-12 for Phase 13 (Room Perception and Wall Reconstruction)*
