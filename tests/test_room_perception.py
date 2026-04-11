@@ -167,10 +167,31 @@ def test_wall_merge(rect_point_cloud):
 
 # ---- Wave 2: Plan 13-04 Corner + Room (RP-06, RP-07, RP-08) ----
 
-@pytest.mark.skip(reason="Wave 2 — Plan 13-04 RP-06")
 def test_corner_from_two_walls():
-    """RP-06: two perpendicular walls with touching endpoints -> exactly 1 corner; two parallel walls -> 0 corners."""
-    raise NotImplementedError
+    """RP-06: perpendicular touching walls -> 1 corner; parallel -> 0; far apart -> 0."""
+    from openarena_perception.navigation.room_perception import (
+        CornerDetector,
+        Wall,
+    )
+
+    # Case A: perpendicular walls touching at (100, 0)
+    w1 = Wall(1, 0, 0, 100, 0, 0.9, 30, 0.0, 1.0)
+    w2 = Wall(2, 100, 0, 100, 100, 0.9, 30, 0.0, 1.0)
+    corners = CornerDetector().detect([w1, w2])
+    assert len(corners) == 1
+    assert 85 <= corners[0].angle_deg <= 95
+    assert abs(corners[0].x - 100) < 1e-6
+    assert abs(corners[0].y - 0) < 1e-6
+
+    # Case B: parallel walls -> no corner
+    w3 = Wall(3, 0, 0, 100, 0, 0.9, 30, 0.0, 1.0)
+    w4 = Wall(4, 0, 50, 100, 50, 0.9, 30, 0.0, 1.0)
+    assert CornerDetector().detect([w3, w4]) == []
+
+    # Case C: perpendicular but 50 units apart (over 32-unit threshold)
+    w5 = Wall(5, 0, 0, 100, 0, 0.9, 30, 0.0, 1.0)
+    w6 = Wall(6, 150, 0, 150, 100, 0.9, 30, 0.0, 1.0)
+    assert CornerDetector().detect([w5, w6]) == []
 
 
 @pytest.mark.skip(reason="Wave 2 — Plan 13-04 RP-07")
