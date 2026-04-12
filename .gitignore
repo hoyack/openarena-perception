@@ -1,18 +1,42 @@
+# Environment
 .env
+.venv/
+
+# Python bytecode
 __pycache__/
 *.pyc
-*.pkl
 *.pyo
-.venv/
+
+# Build artifacts
 *.egg-info/
 dist/
 build/
+
+# Tool caches
 .mypy_cache/
 .pytest_cache/
 .ruff_cache/
+.hypothesis/
 
-# Runtime artifacts (Phase 10)
+# Runtime artifacts
 tmp/*
 logs/*
 !tmp/.gitkeep
 !logs/.gitkeep
+*.log
+
+# Runtime data (large, regenerated at runtime)
+anomaly_captures/
+training_data/
+room_surveys/
+player_templates/
+
+# Learned maps (per-user runtime state, not code)
+learned_maps/
+
+# Model weights / serialized objects
+*.pkl
+*.onnx
+*.hef
+*.ncnn.bin
+*.ncnn.param
