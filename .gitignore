@@ -2,6 +2,9 @@
 .env
 .venv/
 
+# Claude Code
+.claude/
+
 # Python bytecode
 __pycache__/
 *.pyc
@@ -19,10 +22,8 @@ build/
 .hypothesis/
 
 # Runtime artifacts
-tmp/*
-logs/*
-!tmp/.gitkeep
-!logs/.gitkeep
+tmp/
+logs/
 *.log
 
 # Runtime data (large, regenerated at runtime)
@@ -33,6 +34,10 @@ player_templates/
 
 # Learned maps (per-user runtime state, not code)
 learned_maps/
+
+# Game assets — extracted from OpenArena pk3 archives on demand
+# Run: scripts/extract_maps.sh
+maps/
 
 # Model weights / serialized objects
 *.pkl
